@@ -1,0 +1,145 @@
+<!-- Code generated from the comments of the Config struct in provisioner/ansible-local/provisioner.go; DO NOT EDIT MANUALLY -->
+
+- `command` (string) - The command to invoke ansible. Defaults to
+   `ansible-playbook`. If you would like to provide a more complex command,
+   for example, something that sets up a virtual environment before calling
+   ansible, take a look at the ansible wrapper guide [here](/packer/integrations/hashicorp/ansible/latest/components/provisioner/ansible#using-a-wrapping-script-for-your-ansible-call) for inspiration.
+   Please note that Packer expects Command to be a path to an executable.
+   Arbitrary bash scripting will not work and needs to go inside an
+   executable script.
+
+- `extra_arguments` ([]string) - Extra arguments to pass to Ansible.
+  These arguments _will not_ be passed through a shell and arguments should
+  not be quoted. Usage example:
+  
+  ```json
+     "extra_arguments": [ "--extra-vars", "Region={{user `Region`}} Stage={{user `Stage`}}" ]
+  ```
+  
+  In certain scenarios where you want to pass ansible command line arguments
+  that include parameter and value (for example `--vault-password-file pwfile`),
+  from ansible documentation this is correct format but that is NOT accepted here.
+  Instead you need to do it like `--vault-password-file=pwfile`.
+  
+  If you are running a Windows build on AWS, Azure, Google Compute, or OpenStack
+  and would like to access the auto-generated password that Packer uses to
+  connect to a Windows instance via WinRM, you can use the template variable
+  
+  ```build.Password``` in HCL templates or ```{{ build `Password`}}``` in
+  legacy JSON templates. For example:
+  
+  in JSON templates:
+  
+  ```json
+  "extra_arguments": [
+     "--extra-vars", "winrm_password={{ build `Password`}}"
+  ]
+  ```
+  
+  in HCL templates:
+  ```hcl
+  extra_arguments = [
+     "--extra-vars", "winrm_password=${build.Password}"
+  ]
+  ```
+
+- `group_vars` (string) - A path to the directory containing ansible group
+  variables on your local system to be copied to the remote machine. By
+  default, this is empty.
+
+- `host_vars` (string) - A path to the directory containing ansible host variables on your local
+  system to be copied to the remote machine. By default, this is empty.
+
+- `playbook_dir` (string) - A path to the complete ansible directory structure on your local system
+  to be copied to the remote machine as the `staging_directory` before all
+  other files and directories.
+
+- `playbook_file` (string) - The playbook file to be executed by ansible. This file must exist on your
+  local system and will be uploaded to the remote machine. This option is
+  exclusive with `playbook_files`.
+
+- `playbook_files` ([]string) - The playbook files to be executed by ansible. These files must exist on
+  your local system. If the files don't exist in the `playbook_dir` or you
+  don't set `playbook_dir` they will be uploaded to the remote machine. This
+  option is exclusive with `playbook_file`.
+
+- `playbook_paths` ([]string) - An array of directories of playbook files on your local system. These
+  will be uploaded to the remote machine under `staging_directory`/playbooks.
+  By default, this is empty.
+
+- `role_paths` ([]string) - An array of paths to role directories on your local system. These will be
+  uploaded to the remote machine under `staging_directory`/roles. By default,
+  this is empty.
+
+- `collection_paths` ([]string) - An array of local paths of collections to upload.
+
+- `staging_directory` (string) - The directory where files will be uploaded. Packer requires write
+  permissions in this directory.
+
+- `clean_staging_directory` (bool) - If set to `true`, the content of the `staging_directory` will be removed after
+  executing ansible. By default this is set to `false`.
+
+- `inventory_file` (string) - The inventory file to be used by ansible. This
+  file must exist on your local system and will be uploaded to the remote
+  machine.
+  
+  When using an inventory file, it's also required to `--limit` the hosts to the
+  specified host you're building. The `--limit` argument can be provided in the
+  `extra_arguments` option.
+  
+  An example inventory file may look like:
+  
+  ```text
+  [chi-dbservers]
+  db-01 ansible_connection=local
+  db-02 ansible_connection=local
+  
+  [chi-appservers]
+  app-01 ansible_connection=local
+  app-02 ansible_connection=local
+  
+  [chi:children]
+  chi-dbservers
+  chi-appservers
+  
+  [dbservers:children]
+  chi-dbservers
+  
+  [appservers:children]
+  chi-appservers
+  ```
+
+- `inventory_groups` ([]string) - `inventory_groups` (string) - A comma-separated list of groups to which
+  packer will assign the host `127.0.0.1`. A value of `my_group_1,my_group_2`
+  will generate an Ansible inventory like:
+  
+  ```text
+  [my_group_1]
+  127.0.0.1
+  [my_group_2]
+  127.0.0.1
+  ```
+
+- `galaxy_file` (string) - A requirements file which provides a way to
+   install roles or collections with the [ansible-galaxy
+   cli](https://docs.ansible.com/ansible/latest/galaxy/user_guide.html#the-ansible-galaxy-command-line-tool)
+   on the local machine before executing `ansible-playbook`. By default, this is empty.
+
+- `galaxy_command` (string) - The command to invoke ansible-galaxy. By default, this is
+  `ansible-galaxy`.
+
+- `galaxy_force_install` (bool) - Force overwriting an existing role.
+   Adds `--force` option to `ansible-galaxy` command. By default, this is
+   `false`.
+
+- `galaxy_roles_path` (string) - The path to the directory on the remote system in which to
+    install the roles. Adds `--roles-path /path/to/your/roles` to
+    `ansible-galaxy` command. By default, this will install to a 'galaxy_roles' subfolder in the
+    staging/roles directory.
+
+- `galaxy_collections_path` (string) - The path to the directory on the remote system in which to
+    install the collections. Adds `--collections-path /path/to/your/collections` to
+    `ansible-galaxy` command. By default, this will install to a 'galaxy_collections' subfolder in the
+    staging/collections directory.
+
+<!-- End of code generated from the comments of the Config struct in provisioner/ansible-local/provisioner.go; -->
