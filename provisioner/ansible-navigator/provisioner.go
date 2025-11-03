@@ -321,6 +321,108 @@ type Config struct {
 	userWasEmpty bool
 }
 
+// Validate performs comprehensive validation of the Config
+func (c *Config) Validate() error {
+	var errs *packersdk.MultiError
+
+	// Validate navigator mode
+	validModes := map[string]bool{
+		"stdout":      true,
+		"json":        true,
+		"yaml":        true,
+		"interactive": true,
+	}
+	if c.NavigatorMode != "" && !validModes[c.NavigatorMode] {
+		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+			"invalid navigator_mode: %s (must be one of stdout, json, yaml, interactive)",
+			c.NavigatorMode))
+	}
+
+	// Validate play configuration
+	if c.PlaybookFile != "" && len(c.Plays) > 0 {
+		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+			"you may specify only one of `playbook_file` or `plays`"))
+	}
+
+	if c.PlaybookFile == "" && len(c.Plays) == 0 {
+		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+			"either `playbook_file` or `plays` must be defined"))
+	}
+
+	// Validate playbook file if specified
+	if c.PlaybookFile != "" {
+		if err := validateFileConfig(c.PlaybookFile, "playbook_file", true); err != nil {
+			errs = packersdk.MultiErrorAppend(errs, err)
+		}
+	}
+
+	// Validate plays
+	for i, play := range c.Plays {
+		if play.Target == "" {
+			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+				"play %d: target must be specified", i))
+			continue
+		}
+
+		// Validate playbook files
+		if strings.HasSuffix(play.Target, ".yml") || strings.HasSuffix(play.Target, ".yaml") {
+			if err := validateFileConfig(play.Target, fmt.Sprintf("play %d target", i), true); err != nil {
+				errs = packersdk.MultiErrorAppend(errs, err)
+			}
+		}
+	}
+
+	// Validate files
+	if c.GalaxyFile != "" {
+		if err := validateFileConfig(c.GalaxyFile, "galaxy_file", true); err != nil {
+			errs = packersdk.MultiErrorAppend(errs, err)
+		}
+	}
+
+	if c.RequirementsFile != "" {
+		if err := validateFileConfig(c.RequirementsFile, "requirements_file", true); err != nil {
+			errs = packersdk.MultiErrorAppend(errs, err)
+		}
+	}
+
+	if c.SSHAuthorizedKeyFile != "" {
+		if err := validateFileConfig(c.SSHAuthorizedKeyFile, "ssh_authorized_key_file", true); err != nil {
+			errs = packersdk.MultiErrorAppend(errs, err)
+		}
+	}
+
+	if c.SSHHostKeyFile != "" {
+		if err := validateFileConfig(c.SSHHostKeyFile, "ssh_host_key_file", true); err != nil {
+			errs = packersdk.MultiErrorAppend(errs, err)
+		}
+	}
+
+	// Validate inventory directory
+	if c.InventoryDirectory != "" {
+		if err := validateInventoryDirectoryConfig(c.InventoryDirectory); err != nil {
+			errs = packersdk.MultiErrorAppend(errs, err)
+		}
+	}
+
+	// Validate port
+	if c.LocalPort > 65535 {
+		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+			"local_port: %d must be a valid port", c.LocalPort))
+	}
+
+	// Validate adapter key type
+	if c.AdapterKeyType != "" && c.AdapterKeyType != "RSA" && c.AdapterKeyType != "ECDSA" {
+		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+			"invalid value for ansible_proxy_key_type: %q. Supported values are ECDSA or RSA",
+			c.AdapterKeyType))
+	}
+
+	if errs != nil && len(errs.Errors) > 0 {
+		return errs
+	}
+	return nil
+}
+
 type Provisioner struct {
 	config            Config
 	adapter           *adapter.Adapter
@@ -370,66 +472,19 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 		p.config.NavigatorMode = "stdout"
 	}
 
-	var errs *packersdk.MultiError
-
-	// Validate navigator_mode
-	validModes := map[string]bool{
-		"stdout":      true,
-		"json":        true,
-		"yaml":        true,
-		"interactive": true,
-	}
-	if !validModes[p.config.NavigatorMode] {
-		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf("invalid navigator_mode: %s (must be one of stdout, json, yaml, interactive)", p.config.NavigatorMode))
-	}
-
 	// Check if interactive mode is requested without TTY
 	if p.config.NavigatorMode == "interactive" && !term.IsTerminal(int(os.Stdout.Fd())) {
 		log.Printf("[Warning] No TTY detected — switching ansible-navigator mode to 'stdout'.")
 		p.config.NavigatorMode = "stdout"
 	}
 
-	// Validate dual invocation mode - playbook_file and plays are mutually exclusive
-	if p.config.PlaybookFile != "" && len(p.config.Plays) > 0 {
-		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf("you may specify only one of `playbook_file` or `plays`"))
-	}
-
-	// At least one must be specified
-	if p.config.PlaybookFile == "" && len(p.config.Plays) == 0 {
-		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf("either `playbook_file` or `plays` must be defined"))
-	}
-
-	// Validate playbook_file if specified (deprecated, but supported for backward compatibility)
+	// Show deprecation warning for playbook_file
 	if p.config.PlaybookFile != "" {
 		ui := &packersdk.BasicUi{
 			Reader: os.Stdin,
 			Writer: os.Stdout,
 		}
 		ui.Say("Warning: 'playbook_file' is deprecated. Please use 'plays' array instead.")
-
-		err = validateFileConfig(p.config.PlaybookFile, "playbook_file", true)
-		if err != nil {
-			errs = packersdk.MultiErrorAppend(errs, err)
-		}
-	}
-
-	// Validate plays if specified
-	if len(p.config.Plays) > 0 {
-		for i, play := range p.config.Plays {
-			if play.Target == "" {
-				errs = packersdk.MultiErrorAppend(errs, fmt.Errorf("play %d: target must be specified", i))
-				continue
-			}
-
-			// Validate if target is a playbook file
-			if strings.HasSuffix(play.Target, ".yml") || strings.HasSuffix(play.Target, ".yaml") {
-				err = validateFileConfig(play.Target, fmt.Sprintf("play %d target", i), true)
-				if err != nil {
-					errs = packersdk.MultiErrorAppend(errs, err)
-				}
-			}
-			// Role FQDNs don't need file validation
-		}
 	}
 
 	// Set default cache directories if not specified
@@ -447,29 +502,8 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 		}
 	}
 
-	// Check that the galaxy file exists, if configured
-	if len(p.config.GalaxyFile) > 0 {
-		err = validateFileConfig(p.config.GalaxyFile, "galaxy_file", true)
-		if err != nil {
-			errs = packersdk.MultiErrorAppend(errs, err)
-		}
-	}
-
-	// Check that the authorized key file exists
-	if len(p.config.SSHAuthorizedKeyFile) > 0 {
-		err = validateFileConfig(p.config.SSHAuthorizedKeyFile, "ssh_authorized_key_file", true)
-		if err != nil {
-			log.Println(p.config.SSHAuthorizedKeyFile, "does not exist")
-			errs = packersdk.MultiErrorAppend(errs, err)
-		}
-	}
-	if len(p.config.SSHHostKeyFile) > 0 {
-		err = validateFileConfig(p.config.SSHHostKeyFile, "ssh_host_key_file", true)
-		if err != nil {
-			log.Println(p.config.SSHHostKeyFile, "does not exist")
-			errs = packersdk.MultiErrorAppend(errs, err)
-		}
-	} else {
+	// Set environment variables
+	if p.config.SSHHostKeyFile == "" {
 		p.config.AnsibleEnvVars = append(p.config.AnsibleEnvVars, "ANSIBLE_HOST_KEY_CHECKING=False")
 	}
 
@@ -477,22 +511,10 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 		p.config.AnsibleEnvVars = append(p.config.AnsibleEnvVars, "ANSIBLE_SCP_IF_SSH=True")
 	}
 
-	if p.config.LocalPort > 65535 {
-		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf("local_port: %d must be a valid port", p.config.LocalPort))
-	}
-
-	if len(p.config.InventoryDirectory) > 0 {
-		err = validateInventoryDirectoryConfig(p.config.InventoryDirectory)
-		if err != nil {
-			log.Println(p.config.InventoryDirectory, "does not exist")
-			errs = packersdk.MultiErrorAppend(errs, err)
-		}
-	}
-
 	if !p.config.SkipVersionCheck {
 		err = p.getVersion()
 		if err != nil {
-			errs = packersdk.MultiErrorAppend(errs, err)
+			return err
 		}
 	}
 
@@ -500,13 +522,13 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 		p.config.userWasEmpty = true
 		usr, err := user.Current()
 		if err != nil {
-			errs = packersdk.MultiErrorAppend(errs, err)
+			return fmt.Errorf("failed to get current user: %w", err)
 		} else {
 			p.config.User = usr.Username
 		}
 	}
 	if p.config.User == "" {
-		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf("user: could not determine current user from environment."))
+		return fmt.Errorf("user: could not determine current user from environment")
 	}
 
 	// These fields exist so that we can replace the functions for testing
@@ -524,14 +546,6 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	}
 	p.config.AdapterKeyType = strings.ToUpper(p.config.AdapterKeyType)
 
-	switch p.config.AdapterKeyType {
-	case "RSA", "ECDSA":
-	default:
-		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-			"Invalid value for ansible_proxy_key_type: %q. Supported values are ECDSA or RSA.",
-			p.config.AdapterKeyType))
-	}
-
 	if p.config.WinRMUseHTTP {
 		addWinRMScheme := true
 		for _, arg := range p.config.ExtraArguments {
@@ -547,8 +561,9 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 		}
 	}
 
-	if errs != nil && len(errs.Errors) > 0 {
-		return errs
+	// Validate configuration
+	if err := p.config.Validate(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -863,113 +878,6 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 	return nil
 }
 
-func (p *Provisioner) executeGalaxy(ui packersdk.Ui, comm packersdk.Communicator) error {
-	galaxyFile := filepath.ToSlash(p.config.GalaxyFile)
-
-	// ansible-galaxy install -r requirements.yml
-	roleArgs := []string{"install", "-r", galaxyFile}
-	// Instead of modifying args depending on config values and removing or modifying values from
-	// the slice between role and collection installs, just use 2 slices and simplify everything
-	collectionArgs := []string{"collection", "install", "-r", galaxyFile}
-	// Add force to arguments
-	if p.config.GalaxyForceInstall {
-		roleArgs = append(roleArgs, "-f")
-		collectionArgs = append(collectionArgs, "-f")
-	}
-	// Add --force-with-deps to arguments
-	if p.config.GalaxyForceWithDeps {
-		roleArgs = append(roleArgs, "--force-with-deps")
-		collectionArgs = append(collectionArgs, "--force-with-deps")
-	}
-
-	// Add roles_path argument if specified
-	if p.config.RolesPath != "" {
-		roleArgs = append(roleArgs, "-p", filepath.ToSlash(p.config.RolesPath))
-	}
-	// Add collections_path argument if specified
-	if p.config.CollectionsPath != "" {
-		collectionArgs = append(collectionArgs, "-p", filepath.ToSlash(p.config.CollectionsPath))
-	}
-
-	// Search galaxy_file for roles and collections keywords
-	f, err := ioutil.ReadFile(galaxyFile)
-	if err != nil {
-		return err
-	}
-	hasRoles, _ := regexp.Match(`(?m)^roles:`, f)
-	hasCollections, _ := regexp.Match(`(?m)^collections:`, f)
-
-	// If roles keyword present (v2 format), or no collections keyword present (v1), install roles
-	if hasRoles || !hasCollections {
-		if roleInstallError := p.invokeGalaxyCommand(roleArgs, ui, comm); roleInstallError != nil {
-			return roleInstallError
-		}
-	}
-
-	// If collections keyword present (v2 format), install collections
-	if hasCollections {
-		if collectionInstallError := p.invokeGalaxyCommand(collectionArgs, ui, comm); collectionInstallError != nil {
-			return collectionInstallError
-		}
-	}
-
-	return nil
-}
-
-// Intended to be invoked from p.executeGalaxy depending on the Ansible Galaxy parameters passed to Packer
-func (p *Provisioner) invokeGalaxyCommand(args []string, ui packersdk.Ui, comm packersdk.Communicator) error {
-	ui.Message("Executing Ansible Galaxy")
-	cmd := exec.Command(p.config.GalaxyCommand, args...)
-
-	//Setting up AnsibleEnvVars at begining so additional checks can take them into account
-	cmd.Env = os.Environ()
-	if len(p.config.AnsibleEnvVars) > 0 {
-		cmd.Env = append(cmd.Env, p.config.AnsibleEnvVars...)
-	}
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return err
-	}
-	wg := sync.WaitGroup{}
-	repeat := func(r io.ReadCloser) {
-		reader := bufio.NewReader(r)
-		for {
-			line, err := reader.ReadString('\n')
-			if line != "" {
-				line = strings.TrimRightFunc(line, unicode.IsSpace)
-				ui.Message(line)
-			}
-			if err != nil {
-				if err == io.EOF {
-					break
-				} else {
-					ui.Error(err.Error())
-					break
-				}
-			}
-		}
-		wg.Done()
-	}
-	wg.Add(2)
-	go repeat(stdout)
-	go repeat(stderr)
-
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	wg.Wait()
-	err = cmd.Wait()
-	if err != nil {
-		return fmt.Errorf("Non-zero exit status: %s", err)
-	}
-	return nil
-}
-
 func (p *Provisioner) createCmdArgs(httpAddr, inventory, playbook, privKeyFile string) (args []string, envVars []string) {
 	args = []string{}
 
@@ -1024,58 +932,8 @@ func (p *Provisioner) createCmdArgs(httpAddr, inventory, playbook, privKeyFile s
 	return args, envVars
 }
 
-// setCollectionsPath sets the ANSIBLE_COLLECTIONS_PATHS environment variable
-func (p *Provisioner) setCollectionsPath() error {
-	if p.config.CollectionsCacheDir == "" {
-		return nil
-	}
-
-	// Get existing ANSIBLE_COLLECTIONS_PATHS value
-	existingPath := os.Getenv("ANSIBLE_COLLECTIONS_PATHS")
-
-	// Prepend our cache directory to the path
-	var newPath string
-	if existingPath != "" {
-		newPath = p.config.CollectionsCacheDir + ":" + existingPath
-	} else {
-		newPath = p.config.CollectionsCacheDir
-	}
-
-	// Set the environment variable
-	if err := os.Setenv("ANSIBLE_COLLECTIONS_PATHS", newPath); err != nil {
-		return fmt.Errorf("failed to set ANSIBLE_COLLECTIONS_PATHS: %s", err)
-	}
-
-	return nil
-}
-
-// setRolesPath sets the ANSIBLE_ROLES_PATH environment variable
-func (p *Provisioner) setRolesPath() error {
-	if p.config.RolesCacheDir == "" {
-		return nil
-	}
-
-	// Get existing ANSIBLE_ROLES_PATH value
-	existingPath := os.Getenv("ANSIBLE_ROLES_PATH")
-
-	// Prepend our cache directory to the path
-	var newPath string
-	if existingPath != "" {
-		newPath = p.config.RolesCacheDir + ":" + existingPath
-	} else {
-		newPath = p.config.RolesCacheDir
-	}
-
-	// Set the environment variable
-	if err := os.Setenv("ANSIBLE_ROLES_PATH", newPath); err != nil {
-		return fmt.Errorf("failed to set ANSIBLE_ROLES_PATH: %s", err)
-	}
-
-	return nil
-}
-
-// generateRolePlaybook creates a temporary playbook file for executing a role
-func generateRolePlaybook(role string, play Play) (string, error) {
+// createRolePlaybook creates a temporary playbook file for executing a role
+func createRolePlaybook(role string, play Play) (string, error) {
 	// Create a temporary file for the playbook
 	tmpFile, err := ioutil.TempFile("", "packer-role-playbook-*.yml")
 	if err != nil {
@@ -1124,37 +982,16 @@ func generateRolePlaybook(role string, play Play) (string, error) {
 func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string) error {
 	httpAddr := p.generatedData["PackerHTTPAddr"].(string)
 
-	// Handle unified requirements file if specified
-	if p.config.RequirementsFile != "" {
-		ui.Message(fmt.Sprintf("Installing dependencies from unified requirements file: %s", p.config.RequirementsFile))
-		if err := p.executeUnifiedRequirements(ui); err != nil {
-			return fmt.Errorf("Error installing unified requirements: %s", err)
-		}
-	} else {
-		// Fall back to old collection management if requirements_file not specified
-		if err := ensureCollections(ui, &p.config); err != nil {
-			return fmt.Errorf("Error managing Ansible collections: %s", err)
-		}
+	// Install dependencies using GalaxyManager
+	galaxyManager := NewGalaxyManager(&p.config, ui)
 
-		// Fetch external dependencies from galaxy_file if specified
-		if len(p.config.GalaxyFile) > 0 {
-			if err := p.executeGalaxy(ui, comm); err != nil {
-				return fmt.Errorf("Error executing Ansible Galaxy: %s", err)
-			}
-		}
+	if err := galaxyManager.InstallRequirements(); err != nil {
+		return fmt.Errorf("failed to install requirements: %w", err)
 	}
 
-	// Set environment variables for dependency paths
-	if p.config.CollectionsCacheDir != "" {
-		if err := p.setCollectionsPath(); err != nil {
-			return fmt.Errorf("Error setting collections path: %s", err)
-		}
-	}
-
-	if p.config.RolesCacheDir != "" {
-		if err := p.setRolesPath(); err != nil {
-			return fmt.Errorf("Error setting roles path: %s", err)
-		}
+	// Setup environment paths for collections and roles
+	if err := galaxyManager.SetupEnvironmentPaths(); err != nil {
+		return fmt.Errorf("failed to setup environment paths: %w", err)
 	}
 
 	if len(p.config.Plays) > 0 {
@@ -1164,140 +1001,6 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 		// Execute single playbook (backward compatibility)
 		return p.executeSinglePlaybook(ui, privKeyFile, httpAddr)
 	}
-}
-
-// executeUnifiedRequirements installs both roles and collections from a single requirements file
-func (p *Provisioner) executeUnifiedRequirements(ui packersdk.Ui) error {
-	requirementsPath := p.config.RequirementsFile
-
-	// Validate requirements file exists
-	if _, err := os.Stat(requirementsPath); os.IsNotExist(err) {
-		return fmt.Errorf("requirements_file not found: %s", requirementsPath)
-	}
-
-	// Check offline mode
-	if p.config.OfflineMode {
-		ui.Message("Offline mode enabled: skipping dependency installation")
-		return nil
-	}
-
-	// Ensure cache directories exist
-	if p.config.CollectionsCacheDir != "" {
-		if err := os.MkdirAll(p.config.CollectionsCacheDir, 0755); err != nil {
-			return fmt.Errorf("failed to create collections cache directory: %s", err)
-		}
-	}
-
-	if p.config.RolesCacheDir != "" {
-		if err := os.MkdirAll(p.config.RolesCacheDir, 0755); err != nil {
-			return fmt.Errorf("failed to create roles cache directory: %s", err)
-		}
-	}
-
-	// Read the requirements file to determine what's in it
-	content, err := ioutil.ReadFile(requirementsPath)
-	if err != nil {
-		return fmt.Errorf("failed to read requirements file: %s", err)
-	}
-
-	hasRoles := regexp.MustCompile(`(?m)^roles:`).Match(content)
-	hasCollections := regexp.MustCompile(`(?m)^collections:`).Match(content)
-
-	// Install roles if present
-	if hasRoles {
-		ui.Message("Installing roles from requirements file...")
-		args := []string{"install", "-r", requirementsPath}
-
-		if p.config.RolesCacheDir != "" {
-			args = append(args, "-p", p.config.RolesCacheDir)
-		}
-
-		if p.config.ForceUpdate {
-			args = append(args, "--force")
-		}
-
-		if err := p.runGalaxyCommand(ui, args, "roles"); err != nil {
-			return fmt.Errorf("failed to install roles: %s", err)
-		}
-	}
-
-	// Install collections if present
-	if hasCollections {
-		ui.Message("Installing collections from requirements file...")
-		args := []string{"collection", "install", "-r", requirementsPath}
-
-		if p.config.CollectionsCacheDir != "" {
-			args = append(args, "-p", p.config.CollectionsCacheDir)
-		}
-
-		if p.config.ForceUpdate {
-			args = append(args, "--force")
-		}
-
-		if err := p.runGalaxyCommand(ui, args, "collections"); err != nil {
-			return fmt.Errorf("failed to install collections: %s", err)
-		}
-	}
-
-	if !hasRoles && !hasCollections {
-		ui.Message("Warning: requirements file does not contain 'roles:' or 'collections:' sections")
-	}
-
-	return nil
-}
-
-// runGalaxyCommand executes an ansible-galaxy command
-func (p *Provisioner) runGalaxyCommand(ui packersdk.Ui, args []string, target string) error {
-	cmd := exec.Command(p.config.GalaxyCommand, args...)
-
-	cmd.Env = os.Environ()
-	if len(p.config.AnsibleEnvVars) > 0 {
-		cmd.Env = append(cmd.Env, p.config.AnsibleEnvVars...)
-	}
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return err
-	}
-
-	wg := sync.WaitGroup{}
-	repeat := func(r io.ReadCloser) {
-		reader := bufio.NewReader(r)
-		for {
-			line, err := reader.ReadString('\n')
-			if line != "" {
-				line = strings.TrimRightFunc(line, unicode.IsSpace)
-				ui.Message(line)
-			}
-			if err != nil {
-				if err == io.EOF {
-					break
-				} else {
-					ui.Error(err.Error())
-					break
-				}
-			}
-		}
-		wg.Done()
-	}
-	wg.Add(2)
-	go repeat(stdout)
-	go repeat(stderr)
-
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	wg.Wait()
-	err = cmd.Wait()
-	if err != nil {
-		return fmt.Errorf("ansible-galaxy command failed for %s: %s", target, err)
-	}
-
-	return nil
 }
 
 // executePlays runs multiple plays in sequence
@@ -1326,7 +1029,7 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 		} else {
 			// It's a role - generate a temporary playbook
 			ui.Message(fmt.Sprintf("Generating temporary playbook for role: %s", play.Target))
-			tmpPlaybook, err := generateRolePlaybook(play.Target, play)
+			tmpPlaybook, err := createRolePlaybook(play.Target, play)
 			if err != nil {
 				return fmt.Errorf("Play '%s': failed to generate role playbook: %s", playName, err)
 			}

@@ -98,7 +98,7 @@ func TestGenerateRolePlaybook(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpFile, err := generateRolePlaybook(tt.role, tt.play)
+			tmpFile, err := createRolePlaybook(tt.role, tt.play)
 			assert.NoError(t, err)
 			assert.NotEmpty(t, tmpFile)
 

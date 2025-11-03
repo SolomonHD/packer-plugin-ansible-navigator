@@ -208,75 +208,97 @@ func TestEnsureCollections_RequirementsFileNotFound(t *testing.T) {
 	}
 }
 
-func TestSetCollectionsPath(t *testing.T) {
+func TestGalaxyManager_SetupEnvironmentPaths(t *testing.T) {
 	// Save original environment
-	origPath := os.Getenv("ANSIBLE_COLLECTIONS_PATHS")
+	origCollPath := os.Getenv("ANSIBLE_COLLECTIONS_PATHS")
+	origRolePath := os.Getenv("ANSIBLE_ROLES_PATH")
 	defer func() {
-		if origPath != "" {
-			os.Setenv("ANSIBLE_COLLECTIONS_PATHS", origPath)
+		if origCollPath != "" {
+			os.Setenv("ANSIBLE_COLLECTIONS_PATHS", origCollPath)
 		} else {
 			os.Unsetenv("ANSIBLE_COLLECTIONS_PATHS")
+		}
+		if origRolePath != "" {
+			os.Setenv("ANSIBLE_ROLES_PATH", origRolePath)
+		} else {
+			os.Unsetenv("ANSIBLE_ROLES_PATH")
 		}
 	}()
 
 	tests := []struct {
-		name         string
-		cacheDir     string
-		existingPath string
-		wantContains string
+		name               string
+		collectionCacheDir string
+		rolesCacheDir      string
+		existingCollPath   string
+		existingRolePath   string
+		wantCollPath       string
+		wantRolePath       string
 	}{
 		{
-			name:         "set new path",
-			cacheDir:     "/tmp/collections",
-			existingPath: "",
-			wantContains: "/tmp/collections",
+			name:               "set new paths",
+			collectionCacheDir: "/tmp/collections",
+			rolesCacheDir:      "/tmp/roles",
+			existingCollPath:   "",
+			existingRolePath:   "",
+			wantCollPath:       "/tmp/collections",
+			wantRolePath:       "/tmp/roles",
 		},
 		{
-			name:         "append to existing path",
-			cacheDir:     "/tmp/collections",
-			existingPath: "/existing/path",
-			wantContains: "/tmp/collections:/existing/path",
+			name:               "append to existing paths",
+			collectionCacheDir: "/tmp/collections",
+			rolesCacheDir:      "/tmp/roles",
+			existingCollPath:   "/existing/collections",
+			existingRolePath:   "/existing/roles",
+			wantCollPath:       "/tmp/collections:/existing/collections",
+			wantRolePath:       "/tmp/roles:/existing/roles",
+		},
+		{
+			name:               "empty cache dirs",
+			collectionCacheDir: "",
+			rolesCacheDir:      "",
+			existingCollPath:   "/existing/collections",
+			existingRolePath:   "/existing/roles",
+			wantCollPath:       "/existing/collections",
+			wantRolePath:       "/existing/roles",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set up environment
-			if tt.existingPath != "" {
-				os.Setenv("ANSIBLE_COLLECTIONS_PATHS", tt.existingPath)
+			if tt.existingCollPath != "" {
+				os.Setenv("ANSIBLE_COLLECTIONS_PATHS", tt.existingCollPath)
 			} else {
 				os.Unsetenv("ANSIBLE_COLLECTIONS_PATHS")
 			}
-
-			p := &Provisioner{
-				config: Config{
-					CollectionsCacheDir: tt.cacheDir,
-				},
+			if tt.existingRolePath != "" {
+				os.Setenv("ANSIBLE_ROLES_PATH", tt.existingRolePath)
+			} else {
+				os.Unsetenv("ANSIBLE_ROLES_PATH")
 			}
 
-			err := p.setCollectionsPath()
+			ui := newMockUi()
+			config := &Config{
+				CollectionsCacheDir: tt.collectionCacheDir,
+				RolesCacheDir:       tt.rolesCacheDir,
+			}
+			gm := NewGalaxyManager(config, ui)
+
+			err := gm.SetupEnvironmentPaths()
 			if err != nil {
-				t.Errorf("setCollectionsPath() error = %v", err)
+				t.Errorf("SetupEnvironmentPaths() error = %v", err)
 				return
 			}
 
-			got := os.Getenv("ANSIBLE_COLLECTIONS_PATHS")
-			if got != tt.wantContains {
-				t.Errorf("ANSIBLE_COLLECTIONS_PATHS = %v, want %v", got, tt.wantContains)
+			gotCollPath := os.Getenv("ANSIBLE_COLLECTIONS_PATHS")
+			if gotCollPath != tt.wantCollPath {
+				t.Errorf("ANSIBLE_COLLECTIONS_PATHS = %v, want %v", gotCollPath, tt.wantCollPath)
+			}
+
+			gotRolePath := os.Getenv("ANSIBLE_ROLES_PATH")
+			if gotRolePath != tt.wantRolePath {
+				t.Errorf("ANSIBLE_ROLES_PATH = %v, want %v", gotRolePath, tt.wantRolePath)
 			}
 		})
-	}
-}
-
-func TestSetCollectionsPath_EmptyCacheDir(t *testing.T) {
-	p := &Provisioner{
-		config: Config{
-			CollectionsCacheDir: "",
-		},
-	}
-
-	err := p.setCollectionsPath()
-	if err != nil {
-		t.Errorf("setCollectionsPath() with empty cache dir should not error, got: %v", err)
 	}
 }
