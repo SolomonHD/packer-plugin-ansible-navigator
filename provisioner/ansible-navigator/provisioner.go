@@ -46,6 +46,22 @@ import (
 	"github.com/hashicorp/packer-plugin-sdk/tmp"
 )
 
+// Play represents a single play execution with its configuration
+type Play struct {
+	// Name of the play for logging and identification
+	Name string `mapstructure:"name"`
+	// Target can be either a playbook path (.yml/.yaml) or a role FQDN
+	Target string `mapstructure:"target"`
+	// Extra variables to pass to this play
+	ExtraVars map[string]string `mapstructure:"extra_vars"`
+	// Tags to execute for this play
+	Tags []string `mapstructure:"tags"`
+	// Variables files to load for this play
+	VarsFiles []string `mapstructure:"vars_files"`
+	// Whether to use privilege escalation (become) for this play
+	Become bool `mapstructure:"become"`
+}
+
 type Config struct {
 	common.PackerConfig `mapstructure:",squash"`
 	ctx                 interpolate.Context
@@ -118,10 +134,20 @@ type Config struct {
 	//   ```
 	AnsibleEnvVars []string `mapstructure:"ansible_env_vars"`
 	// The playbook to be run by Ansible.
-	PlaybookFile string `mapstructure:"playbook_file" required:"true"`
-	// List of Ansible collection plays to execute using ansible-navigator.
-	// This is mutually exclusive with playbook_file.
-	Plays []string `mapstructure:"plays"`
+	// DEPRECATED: Use plays array instead. Maintained for backward compatibility.
+	PlaybookFile string `mapstructure:"playbook_file"`
+	// Array of play definitions supporting both playbooks and role FQDNs
+	Plays []Play `mapstructure:"plays"`
+	// Path to a unified requirements.yml file containing both roles and collections
+	RequirementsFile string `mapstructure:"requirements_file"`
+	// Directory to cache downloaded roles. Similar to collections_cache_dir but for roles.
+	// Defaults to ~/.packer.d/ansible_roles_cache if not specified.
+	RolesCacheDir string `mapstructure:"roles_cache_dir"`
+	// When true, skip network operations for both collections and roles.
+	// Uses only locally cached dependencies.
+	OfflineMode bool `mapstructure:"offline_mode"`
+	// When true, always reinstall both collections and roles even if cached.
+	ForceUpdate bool `mapstructure:"force_update"`
 	// Specifies --ssh-extra-args on command line defaults to -o IdentitiesOnly=yes
 	AnsibleSSHExtraArgs []string `mapstructure:"ansible_ssh_extra_args"`
 	// The groups into which the Ansible host should
@@ -338,11 +364,51 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf("either `playbook_file` or `plays` must be defined"))
 	}
 
-	// Validate playbook_file if specified
+	// Validate playbook_file if specified (deprecated, but supported for backward compatibility)
 	if p.config.PlaybookFile != "" {
+		ui := &packersdk.BasicUi{
+			Reader: os.Stdin,
+			Writer: os.Stdout,
+		}
+		ui.Say("Warning: 'playbook_file' is deprecated. Please use 'plays' array instead.")
+
 		err = validateFileConfig(p.config.PlaybookFile, "playbook_file", true)
 		if err != nil {
 			errs = packersdk.MultiErrorAppend(errs, err)
+		}
+	}
+
+	// Validate plays if specified
+	if len(p.config.Plays) > 0 {
+		for i, play := range p.config.Plays {
+			if play.Target == "" {
+				errs = packersdk.MultiErrorAppend(errs, fmt.Errorf("play %d: target must be specified", i))
+				continue
+			}
+
+			// Validate if target is a playbook file
+			if strings.HasSuffix(play.Target, ".yml") || strings.HasSuffix(play.Target, ".yaml") {
+				err = validateFileConfig(play.Target, fmt.Sprintf("play %d target", i), true)
+				if err != nil {
+					errs = packersdk.MultiErrorAppend(errs, err)
+				}
+			}
+			// Role FQDNs don't need file validation
+		}
+	}
+
+	// Set default cache directories if not specified
+	if p.config.CollectionsCacheDir == "" {
+		usr, err := user.Current()
+		if err == nil {
+			p.config.CollectionsCacheDir = filepath.Join(usr.HomeDir, ".packer.d", "ansible_collections_cache")
+		}
+	}
+
+	if p.config.RolesCacheDir == "" {
+		usr, err := user.Current()
+		if err == nil {
+			p.config.RolesCacheDir = filepath.Join(usr.HomeDir, ".packer.d", "ansible_roles_cache")
 		}
 	}
 
@@ -941,67 +1007,359 @@ func (p *Provisioner) setCollectionsPath() error {
 	return nil
 }
 
+// setRolesPath sets the ANSIBLE_ROLES_PATH environment variable
+func (p *Provisioner) setRolesPath() error {
+	if p.config.RolesCacheDir == "" {
+		return nil
+	}
+
+	// Get existing ANSIBLE_ROLES_PATH value
+	existingPath := os.Getenv("ANSIBLE_ROLES_PATH")
+
+	// Prepend our cache directory to the path
+	var newPath string
+	if existingPath != "" {
+		newPath = p.config.RolesCacheDir + ":" + existingPath
+	} else {
+		newPath = p.config.RolesCacheDir
+	}
+
+	// Set the environment variable
+	if err := os.Setenv("ANSIBLE_ROLES_PATH", newPath); err != nil {
+		return fmt.Errorf("failed to set ANSIBLE_ROLES_PATH: %s", err)
+	}
+
+	return nil
+}
+
+// generateRolePlaybook creates a temporary playbook file for executing a role
+func generateRolePlaybook(role string, play Play) (string, error) {
+	// Create a temporary file for the playbook
+	tmpFile, err := ioutil.TempFile("", "packer-role-playbook-*.yml")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temporary playbook file: %s", err)
+	}
+
+	// Build the playbook content
+	playbookContent := "---\n- hosts: all\n"
+
+	if play.Become {
+		playbookContent += "  become: yes\n"
+	}
+
+	if len(play.VarsFiles) > 0 {
+		playbookContent += "  vars_files:\n"
+		for _, varsFile := range play.VarsFiles {
+			playbookContent += fmt.Sprintf("    - %s\n", varsFile)
+		}
+	}
+
+	playbookContent += "  roles:\n"
+	playbookContent += fmt.Sprintf("    - role: %s\n", role)
+
+	if len(play.ExtraVars) > 0 {
+		playbookContent += "      vars:\n"
+		for k, v := range play.ExtraVars {
+			playbookContent += fmt.Sprintf("        %s: %s\n", k, v)
+		}
+	}
+
+	// Write the content
+	if _, err := tmpFile.WriteString(playbookContent); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+		return "", fmt.Errorf("failed to write temporary playbook: %s", err)
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		os.Remove(tmpFile.Name())
+		return "", fmt.Errorf("failed to close temporary playbook: %s", err)
+	}
+
+	return tmpFile.Name(), nil
+}
+
 func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string) error {
 	httpAddr := p.generatedData["PackerHTTPAddr"].(string)
 
-	// Install managed collections if configured
-	if err := ensureCollections(ui, &p.config); err != nil {
-		return fmt.Errorf("Error managing Ansible collections: %s", err)
+	// Handle unified requirements file if specified
+	if p.config.RequirementsFile != "" {
+		ui.Message(fmt.Sprintf("Installing dependencies from unified requirements file: %s", p.config.RequirementsFile))
+		if err := p.executeUnifiedRequirements(ui); err != nil {
+			return fmt.Errorf("Error installing unified requirements: %s", err)
+		}
+	} else {
+		// Fall back to old collection management if requirements_file not specified
+		if err := ensureCollections(ui, &p.config); err != nil {
+			return fmt.Errorf("Error managing Ansible collections: %s", err)
+		}
+
+		// Fetch external dependencies from galaxy_file if specified
+		if len(p.config.GalaxyFile) > 0 {
+			if err := p.executeGalaxy(ui, comm); err != nil {
+				return fmt.Errorf("Error executing Ansible Galaxy: %s", err)
+			}
+		}
 	}
 
-	// Set ANSIBLE_COLLECTIONS_PATHS environment variable if collections are managed
-	if len(p.config.Collections) > 0 || p.config.CollectionsRequirements != "" {
+	// Set environment variables for dependency paths
+	if p.config.CollectionsCacheDir != "" {
 		if err := p.setCollectionsPath(); err != nil {
 			return fmt.Errorf("Error setting collections path: %s", err)
 		}
 	}
 
-	// Fetch external dependencies
-	if len(p.config.GalaxyFile) > 0 {
-		if err := p.executeGalaxy(ui, comm); err != nil {
-			return fmt.Errorf("Error executing Ansible Galaxy: %s", err)
+	if p.config.RolesCacheDir != "" {
+		if err := p.setRolesPath(); err != nil {
+			return fmt.Errorf("Error setting roles path: %s", err)
 		}
 	}
 
 	if len(p.config.Plays) > 0 {
 		// Execute multiple plays
-		for i, play := range p.config.Plays {
-			ui.Say(fmt.Sprintf("Running Ansible Navigator play: %s", play))
+		return p.executePlays(ui, comm, privKeyFile, httpAddr)
+	} else {
+		// Execute single playbook (backward compatibility)
+		return p.executeSinglePlaybook(ui, privKeyFile, httpAddr)
+	}
+}
 
-			args := []string{"run", play, "--mode", "stdout"}
-			args = append(args, p.config.ExtraArguments...)
+// executeUnifiedRequirements installs both roles and collections from a single requirements file
+func (p *Provisioner) executeUnifiedRequirements(ui packersdk.Ui) error {
+	requirementsPath := p.config.RequirementsFile
 
-			cmd := exec.Command("ansible-navigator", args...)
-			err := p.executeAnsibleCommand(ui, cmd, play)
-			if err != nil {
-				ui.Error(fmt.Sprintf("ERROR: Play '%s' failed (exit code 2)", play))
-				return fmt.Errorf("ansible-navigator run failed for %s: %w", play, err)
+	// Validate requirements file exists
+	if _, err := os.Stat(requirementsPath); os.IsNotExist(err) {
+		return fmt.Errorf("requirements_file not found: %s", requirementsPath)
+	}
+
+	// Check offline mode
+	if p.config.OfflineMode {
+		ui.Message("Offline mode enabled: skipping dependency installation")
+		return nil
+	}
+
+	// Ensure cache directories exist
+	if p.config.CollectionsCacheDir != "" {
+		if err := os.MkdirAll(p.config.CollectionsCacheDir, 0755); err != nil {
+			return fmt.Errorf("failed to create collections cache directory: %s", err)
+		}
+	}
+
+	if p.config.RolesCacheDir != "" {
+		if err := os.MkdirAll(p.config.RolesCacheDir, 0755); err != nil {
+			return fmt.Errorf("failed to create roles cache directory: %s", err)
+		}
+	}
+
+	// Read the requirements file to determine what's in it
+	content, err := ioutil.ReadFile(requirementsPath)
+	if err != nil {
+		return fmt.Errorf("failed to read requirements file: %s", err)
+	}
+
+	hasRoles := regexp.MustCompile(`(?m)^roles:`).Match(content)
+	hasCollections := regexp.MustCompile(`(?m)^collections:`).Match(content)
+
+	// Install roles if present
+	if hasRoles {
+		ui.Message("Installing roles from requirements file...")
+		args := []string{"install", "-r", requirementsPath}
+
+		if p.config.RolesCacheDir != "" {
+			args = append(args, "-p", p.config.RolesCacheDir)
+		}
+
+		if p.config.ForceUpdate {
+			args = append(args, "--force")
+		}
+
+		if err := p.runGalaxyCommand(ui, args, "roles"); err != nil {
+			return fmt.Errorf("failed to install roles: %s", err)
+		}
+	}
+
+	// Install collections if present
+	if hasCollections {
+		ui.Message("Installing collections from requirements file...")
+		args := []string{"collection", "install", "-r", requirementsPath}
+
+		if p.config.CollectionsCacheDir != "" {
+			args = append(args, "-p", p.config.CollectionsCacheDir)
+		}
+
+		if p.config.ForceUpdate {
+			args = append(args, "--force")
+		}
+
+		if err := p.runGalaxyCommand(ui, args, "collections"); err != nil {
+			return fmt.Errorf("failed to install collections: %s", err)
+		}
+	}
+
+	if !hasRoles && !hasCollections {
+		ui.Message("Warning: requirements file does not contain 'roles:' or 'collections:' sections")
+	}
+
+	return nil
+}
+
+// runGalaxyCommand executes an ansible-galaxy command
+func (p *Provisioner) runGalaxyCommand(ui packersdk.Ui, args []string, target string) error {
+	cmd := exec.Command(p.config.GalaxyCommand, args...)
+
+	cmd.Env = os.Environ()
+	if len(p.config.AnsibleEnvVars) > 0 {
+		cmd.Env = append(cmd.Env, p.config.AnsibleEnvVars...)
+	}
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return err
+	}
+
+	wg := sync.WaitGroup{}
+	repeat := func(r io.ReadCloser) {
+		reader := bufio.NewReader(r)
+		for {
+			line, err := reader.ReadString('\n')
+			if line != "" {
+				line = strings.TrimRightFunc(line, unicode.IsSpace)
+				ui.Message(line)
 			}
+			if err != nil {
+				if err == io.EOF {
+					break
+				} else {
+					ui.Error(err.Error())
+					break
+				}
+			}
+		}
+		wg.Done()
+	}
+	wg.Add(2)
+	go repeat(stdout)
+	go repeat(stderr)
 
-			// Continue with remaining plays on failure
-			if i < len(p.config.Plays)-1 {
-				ui.Message(fmt.Sprintf("Completed play: %s", play))
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	wg.Wait()
+	err = cmd.Wait()
+	if err != nil {
+		return fmt.Errorf("ansible-galaxy command failed for %s: %s", target, err)
+	}
+
+	return nil
+}
+
+// executePlays runs multiple plays in sequence
+func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string, httpAddr string) error {
+	inventory := p.config.InventoryFile
+
+	for i, play := range p.config.Plays {
+		playName := play.Name
+		if playName == "" {
+			playName = fmt.Sprintf("Play %d", i+1)
+		}
+
+		ui.Say(fmt.Sprintf("Executing %s: %s", playName, play.Target))
+
+		var playbookPath string
+		var cleanupFunc func()
+
+		// Determine if target is a playbook file or a role
+		if strings.HasSuffix(play.Target, ".yml") || strings.HasSuffix(play.Target, ".yaml") {
+			// It's a playbook file
+			absPath, err := filepath.Abs(play.Target)
+			if err != nil {
+				return fmt.Errorf("Play '%s': failed to resolve playbook path: %s", playName, err)
+			}
+			playbookPath = absPath
+		} else {
+			// It's a role - generate a temporary playbook
+			ui.Message(fmt.Sprintf("Generating temporary playbook for role: %s", play.Target))
+			tmpPlaybook, err := generateRolePlaybook(play.Target, play)
+			if err != nil {
+				return fmt.Errorf("Play '%s': failed to generate role playbook: %s", playName, err)
+			}
+			playbookPath = tmpPlaybook
+			cleanupFunc = func() {
+				os.Remove(tmpPlaybook)
 			}
 		}
 
-		ui.Say("All Ansible Navigator plays completed successfully!")
-	} else {
-		// Execute single playbook
-		playbook, _ := filepath.Abs(p.config.PlaybookFile)
-		inventory := p.config.InventoryFile
+		// Build command arguments
+		args, envvars := p.createCmdArgs(httpAddr, inventory, playbookPath, privKeyFile)
 
-		args, envvars := p.createCmdArgs(httpAddr, inventory, playbook, privKeyFile)
+		// Add per-play arguments
+		if play.Become && !checkArg("--become", args) {
+			args = append([]string{"--become"}, args...)
+		}
+
+		if len(play.Tags) > 0 {
+			for _, tag := range play.Tags {
+				args = append([]string{"--tags", tag}, args...)
+			}
+		}
+
+		for k, v := range play.ExtraVars {
+			args = append([]string{"-e", fmt.Sprintf("%s=%s", k, v)}, args...)
+		}
+
+		for _, varsFile := range play.VarsFiles {
+			args = append([]string{"-e", fmt.Sprintf("@%s", varsFile)}, args...)
+		}
+
+		// Execute the play
 		cmd := exec.Command(p.config.Command, args...)
-
 		cmd.Env = os.Environ()
 		if len(envvars) > 0 {
 			cmd.Env = append(cmd.Env, envvars...)
 		}
 
-		err := p.executeAnsibleCommand(ui, cmd, "playbook execution")
-		if err != nil {
-			return fmt.Errorf("ansible-navigator run failed for %s: %w", playbook, err)
+		err := p.executeAnsibleCommand(ui, cmd, playName)
+
+		// Cleanup temporary playbook if it was generated
+		if cleanupFunc != nil {
+			cleanupFunc()
 		}
+
+		if err != nil {
+			ui.Error(fmt.Sprintf("Play '%s' failed: %v", playName, err))
+			return fmt.Errorf("Play '%s' failed with exit code 2", playName)
+		}
+
+		if i < len(p.config.Plays)-1 {
+			ui.Message(fmt.Sprintf("Completed %s", playName))
+		}
+	}
+
+	ui.Say("All plays completed successfully!")
+	return nil
+}
+
+// executeSinglePlaybook runs a single playbook (backward compatibility)
+func (p *Provisioner) executeSinglePlaybook(ui packersdk.Ui, privKeyFile string, httpAddr string) error {
+	playbook, _ := filepath.Abs(p.config.PlaybookFile)
+	inventory := p.config.InventoryFile
+
+	args, envvars := p.createCmdArgs(httpAddr, inventory, playbook, privKeyFile)
+	cmd := exec.Command(p.config.Command, args...)
+
+	cmd.Env = os.Environ()
+	if len(envvars) > 0 {
+		cmd.Env = append(cmd.Env, envvars...)
+	}
+
+	err := p.executeAnsibleCommand(ui, cmd, "playbook execution")
+	if err != nil {
+		return fmt.Errorf("ansible-navigator run failed for %s: %w", playbook, err)
 	}
 
 	return nil
