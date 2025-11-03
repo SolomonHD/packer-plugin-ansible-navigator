@@ -39,9 +39,7 @@ provisioner "ansible-navigator" {
 
 ## Installation
 
-### Using pre-built releases
-
-#### Using the `packer init` command
+### Using the `packer init` command (Recommended)
 
 Starting from version 1.7, Packer supports a new `packer init` command allowing automatic installation of Packer plugins. Read the [Packer documentation](https://www.packer.io/docs/commands/init) for more information.
 
@@ -51,20 +49,69 @@ To install this plugin, copy and paste this code into your Packer configuration.
 packer {
   required_plugins {
     ansible-navigator = {
-      version = ">= 1.0.0"
-      source  = "github.com/SolomonHD/packer-plugin-ansible-navigator"
+      version = ">= 0.1.0"
+      source  = "github.com/SolomonHD/ansible-navigator"
     }
   }
 }
 ```
 
-#### Manual installation
+### Installing from GitHub Releases
 
-You can find pre-built binary releases of the plugin in the releases section of this repository. Once you have downloaded the latest archive corresponding to your target OS, uncompress it to retrieve the plugin binary file corresponding to your platform. To install the plugin, please follow the Packer documentation on [installing a plugin](https://www.packer.io/docs/extending/plugins/#installing-plugins).
+Download the appropriate binary for your platform from the [GitHub Releases](https://github.com/SolomonHD/packer-plugin-ansible-navigator/releases) page.
 
-### From Sources
+```bash
+# Example for Linux AMD64
+VERSION="0.1.0"
+PLATFORM="linux_amd64"
+wget "https://github.com/SolomonHD/packer-plugin-ansible-navigator/releases/download/v${VERSION}/packer-plugin-ansible-navigator_v${VERSION}_${PLATFORM}.zip"
+unzip "packer-plugin-ansible-navigator_v${VERSION}_${PLATFORM}.zip"
 
-If you prefer to build the plugin from sources, clone the GitHub repository locally and run the command `go build` from the root directory. Upon successful compilation, a `packer-plugin-ansible-navigator` plugin binary file can be found in the root directory. To install the compiled plugin, please follow the official Packer documentation on [installing a plugin](https://www.packer.io/docs/extending/plugins/#installing-plugins).
+# Install to Packer plugins directory
+mkdir -p ~/.packer.d/plugins
+mv packer-plugin-ansible-navigator ~/.packer.d/plugins/
+chmod +x ~/.packer.d/plugins/packer-plugin-ansible-navigator
+```
+
+### Installing from Git Repository
+
+For development or to use the latest unreleased changes, you can install directly from the Git repository:
+
+```bash
+# Clone the repository
+git clone https://github.com/SolomonHD/packer-plugin-ansible-navigator.git
+cd packer-plugin-ansible-navigator
+
+# Checkout a specific version (optional)
+git checkout v0.1.0
+
+# Build and install
+make dev
+```
+
+The `make dev` command builds the plugin and installs it to your local Packer plugins directory.
+
+### Building from Source
+
+If you prefer to build the plugin from sources manually:
+
+```bash
+# Clone the repository
+git clone https://github.com/SolomonHD/packer-plugin-ansible-navigator.git
+cd packer-plugin-ansible-navigator
+
+# Build the plugin
+go build -o packer-plugin-ansible-navigator
+
+# Install to Packer plugins directory
+mkdir -p ~/.packer.d/plugins
+mv packer-plugin-ansible-navigator ~/.packer.d/plugins/
+chmod +x ~/.packer.d/plugins/packer-plugin-ansible-navigator
+```
+
+**Requirements:**
+- Go 1.25.3 or later
+- Git
 
 ## Configuration
 

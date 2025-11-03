@@ -11,8 +11,8 @@ import (
 
 	"github.com/hashicorp/packer-plugin-sdk/plugin"
 
-	ansible "github.com/SolomonHD/packer-plugin-ansible-navigator/provisioner/ansible"
-	ansibleLocal "github.com/SolomonHD/packer-plugin-ansible-navigator/provisioner/ansible-local"
+	ansible "github.com/SolomonHD/packer-plugin-ansible-navigator/provisioner/ansible-navigator"
+	ansibleLocal "github.com/SolomonHD/packer-plugin-ansible-navigator/provisioner/ansible-navigator-local"
 	"github.com/SolomonHD/packer-plugin-ansible-navigator/version"
 )
 

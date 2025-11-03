@@ -18,7 +18,7 @@ import (
 //go:embed test-fixtures/docker_playbookfile_template.pkr.hcl
 var testPlaybookFileTemplate string
 
-// Run with: PACKER_ACC=1 go test -count 1 -v ./provisioner/ansible/provisioner_acc_test.go  -timeout=120m
+// Run with: PACKER_ACC=1 go test -count 1 -v ./provisioner/ansible-navigator/provisioner_acc_test.go  -timeout=120m
 func TestAccAnsibleProvisioner_basic(t *testing.T) {
 	testCase := &acctest.PluginTestCase{
 		Name: "ansible_provisioner_docker_playbookfile_test",

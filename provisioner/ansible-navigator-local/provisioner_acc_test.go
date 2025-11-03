@@ -21,7 +21,7 @@ var testPlaybookDirTemplate string
 //go:embed test-fixtures/docker_playbookfiles_template.pkr.hcl
 var testPlaybookFilesTemplate string
 
-// Run with: PACKER_ACC=1 go test -count 1 -v ./provisioner/ansible-local/provisioner_acc_test.go  -timeout=120m
+// Run with: PACKER_ACC=1 go test -count 1 -v ./provisioner/ansible-navigator-local/provisioner_acc_test.go  -timeout=120m
 func TestAccAnsibleLocalProvisioner_Playbookdir(t *testing.T) {
 	testCase := &acctest.PluginTestCase{
 		Name:     "ansible-local_provisioner_docker_playbookdir_test",
