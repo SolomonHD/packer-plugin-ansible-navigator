@@ -1,3 +1,19 @@
+## 1.1.0 (November 3, 2025)
+### NEW FEATURES:
+* **JSON Output Parsing and Structured Logging**: Added support for parsing structured JSON output from ansible-navigator when running in JSON mode. This enables:
+  - Fine-grained task-level failure detection
+  - Improved build output clarity with per-task status reporting
+  - Optional structured artifact creation for CI/CD integration
+  - Real-time event streaming with detailed error summaries
+* New configuration options:
+  - `structured_logging`: Enable JSON event parsing and enhanced reporting (default: false)
+  - `log_output_path`: Optional path to write structured summary JSON file
+
+### IMPROVEMENTS:
+* Enhanced error reporting with specific task and host failure information
+* Better integration with downstream tools via JSON summary artifacts
+* Improved debugging capabilities through structured event logs
+
 ## 1.0.0 (November 3, 2025)
 ### MAJOR CHANGES:
 This release represents a complete evolution from the HashiCorp packer-plugin-ansible to the independent packer-plugin-ansible-navigator project.

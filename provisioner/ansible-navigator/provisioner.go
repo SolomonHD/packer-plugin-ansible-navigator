@@ -17,6 +17,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -78,6 +79,13 @@ type Config struct {
 	// Defaults to "stdout" for non-interactive environments (Packer-safe).
 	// When set to "interactive" without a TTY, it automatically switches to "stdout".
 	NavigatorMode string `mapstructure:"navigator_mode"`
+	// Enable structured JSON parsing and detailed task-level reporting.
+	// When true, parses JSON events from ansible-navigator and provides enhanced error reporting.
+	// Only effective when navigator_mode is set to "json".
+	StructuredLogging bool `mapstructure:"structured_logging"`
+	// Optional path to write a structured summary JSON file containing task results and failures.
+	// Only used when structured_logging is enabled.
+	LogOutputPath string `mapstructure:"log_output_path"`
 	// Extra arguments to pass to Ansible. These arguments _will not_ be passed
 	// through a shell and arguments should not be quoted. Usage example:
 	//
@@ -1417,13 +1425,66 @@ func (p *Provisioner) executeAnsibleCommand(ui packersdk.Ui, cmd *exec.Cmd, targ
 	}
 
 	wg := sync.WaitGroup{}
-	repeat := func(r io.ReadCloser) {
+
+	// Check if we should use structured JSON logging
+	useStructuredLogging := p.config.StructuredLogging && p.config.NavigatorMode == "json"
+	var summary *Summary
+
+	if useStructuredLogging {
+		summary = &Summary{
+			PlaysRun:    0,
+			TasksTotal:  0,
+			TasksFailed: 0,
+			FailedTasks: make([]NavigatorEvent, 0),
+		}
+	}
+
+	// Handler for stdout - either JSON parsing or line-by-line
+	stdoutHandler := func(r io.ReadCloser) {
+		defer wg.Done()
+
+		if useStructuredLogging {
+			// Use streaming JSON decoder
+			decoder := json.NewDecoder(r)
+			for decoder.More() {
+				var event NavigatorEvent
+				if err := decoder.Decode(&event); err != nil {
+					// Skip malformed JSON with a warning
+					ui.Message(fmt.Sprintf("[Warning] Skipped malformed JSON event: %v", err))
+					continue
+				}
+				handleNavigatorEvent(ui, &event, summary)
+			}
+		} else {
+			// Regular line-by-line output
+			reader := bufio.NewReader(r)
+			for {
+				line, err := reader.ReadString('\n')
+				if line != "" {
+					line = strings.TrimRightFunc(line, unicode.IsSpace)
+					ui.Message(line)
+				}
+				if err != nil {
+					if err == io.EOF {
+						break
+					} else {
+						ui.Error(err.Error())
+						break
+					}
+				}
+			}
+		}
+	}
+
+	// Handler for stderr - always line-by-line
+	stderrHandler := func(r io.ReadCloser) {
+		defer wg.Done()
 		reader := bufio.NewReader(r)
 		for {
 			line, err := reader.ReadString('\n')
 			if line != "" {
 				line = strings.TrimRightFunc(line, unicode.IsSpace)
-				ui.Message(line)
+				ui.Error(line)
 			}
 			if err != nil {
 				if err == io.EOF {
@@ -1434,11 +1495,11 @@ func (p *Provisioner) executeAnsibleCommand(ui packersdk.Ui, cmd *exec.Cmd, targ
 				}
 			}
 		}
-		wg.Done()
 	}
+
 	wg.Add(2)
-	go repeat(stdout)
-	go repeat(stderr)
+	go stdoutHandler(stdout)
+	go stderrHandler(stderr)
 
 	// remove sensitive data from command for logging
 	flattenedCmd := strings.Join(cmd.Args, " ")
@@ -1469,6 +1530,33 @@ func (p *Provisioner) executeAnsibleCommand(ui packersdk.Ui, cmd *exec.Cmd, targ
 		return err
 	}
 	wg.Wait()
+
+	// Report summary if structured logging was used
+	if useStructuredLogging && summary != nil {
+		if summary.TasksFailed > 0 {
+			ui.Error(fmt.Sprintf("[Error] %d task(s) failed during play execution.", summary.TasksFailed))
+			for _, failedTask := range summary.FailedTasks {
+				ui.Error(fmt.Sprintf("  - Task '%s' on host '%s'", failedTask.Task, failedTask.Host))
+			}
+		}
+
+		if summary.TasksTotal == 0 && summary.PlaysRun == 0 {
+			ui.Message("[Warning] No valid events parsed from ansible-navigator output.")
+		} else {
+			ui.Message(fmt.Sprintf("Summary: %d play(s) executed, %d task(s) total, %d failed",
+				summary.PlaysRun, summary.TasksTotal, summary.TasksFailed))
+		}
+
+		// Write summary JSON if path is specified
+		if p.config.LogOutputPath != "" {
+			if err := writeSummaryJSON(summary, p.config.LogOutputPath); err != nil {
+				ui.Message(fmt.Sprintf("[Warning] Could not write structured log to %s: %v", p.config.LogOutputPath, err))
+			} else {
+				ui.Message(fmt.Sprintf("Structured log written to: %s", p.config.LogOutputPath))
+			}
+		}
+	}
+
 	err = cmd.Wait()
 	if err != nil {
 		return fmt.Errorf("Non-zero exit status: %s", err)

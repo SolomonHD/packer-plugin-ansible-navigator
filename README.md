@@ -31,6 +31,15 @@ provisioner "ansible-navigator" {
 - **Detailed dependency checking**: Ensures `ansible-navigator` binary is available before execution
 - **Rich UI integration**: All output is properly surfaced through both console and programmatic interfaces
 
+### JSON Logging and Structured Output
+
+- **Structured event parsing**: When running in JSON mode, parse ansible-navigator's event stream for detailed task-level feedback
+- **Enhanced error reporting**: Specific failure information including task names and affected hosts
+- **CI/CD integration**: Optional JSON summary files for downstream tooling
+- **Real-time monitoring**: Track task execution progress with detailed status reporting
+
+See [JSON_LOGGING.md](docs/JSON_LOGGING.md) for complete documentation.
+
 ### Modern Ansible Integration
 
 - Uses `ansible-navigator run` instead of `ansible-playbook`
@@ -330,6 +339,32 @@ provisioner "ansible-navigator" {
   extra_arguments = ["--extra-vars", "tier=web"]
 }
 ```
+
+### JSON Logging and Structured Output
+
+Enable detailed task-level feedback and generate structured logs:
+
+```hcl
+provisioner "ansible-navigator" {
+  requirements_file = "./requirements.yml"
+  navigator_mode = "json"
+  structured_logging = true
+  log_output_path = "./logs/ansible-summary.json"
+  
+  plays = [
+    { name = "Provision base system", target = "geerlingguy.docker" },
+    { name = "Deploy app", target = "myorg.webserver.deploy" }
+  ]
+}
+```
+
+This configuration will:
+- Parse JSON events from ansible-navigator in real-time
+- Display detailed task status for each host
+- Report specific failures with task and host information
+- Write a structured summary file for CI/CD integration
+
+For complete documentation, see [JSON_LOGGING.md](docs/JSON_LOGGING.md).
 
 ## Error Handling Examples
 

@@ -20,6 +20,8 @@ type FlatConfig struct {
 	PackerSensitiveVars     []string          `mapstructure:"packer_sensitive_variables" cty:"packer_sensitive_variables" hcl:"packer_sensitive_variables"`
 	Command                 *string           `mapstructure:"command" cty:"command" hcl:"command"`
 	NavigatorMode           *string           `mapstructure:"navigator_mode" cty:"navigator_mode" hcl:"navigator_mode"`
+	StructuredLogging       *bool             `mapstructure:"structured_logging" cty:"structured_logging" hcl:"structured_logging"`
+	LogOutputPath           *string           `mapstructure:"log_output_path" cty:"log_output_path" hcl:"log_output_path"`
 	ExtraArguments          []string          `mapstructure:"extra_arguments" cty:"extra_arguments" hcl:"extra_arguments"`
 	AnsibleEnvVars          []string          `mapstructure:"ansible_env_vars" cty:"ansible_env_vars" hcl:"ansible_env_vars"`
 	PlaybookFile            *string           `mapstructure:"playbook_file" required:"true" cty:"playbook_file" hcl:"playbook_file"`
@@ -76,6 +78,8 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"packer_sensitive_variables": &hcldec.AttrSpec{Name: "packer_sensitive_variables", Type: cty.List(cty.String), Required: false},
 		"command":                    &hcldec.AttrSpec{Name: "command", Type: cty.String, Required: false},
 		"navigator_mode":             &hcldec.AttrSpec{Name: "navigator_mode", Type: cty.String, Required: false},
+		"structured_logging":         &hcldec.AttrSpec{Name: "structured_logging", Type: cty.Bool, Required: false},
+		"log_output_path":            &hcldec.AttrSpec{Name: "log_output_path", Type: cty.String, Required: false},
 		"extra_arguments":            &hcldec.AttrSpec{Name: "extra_arguments", Type: cty.List(cty.String), Required: false},
 		"ansible_env_vars":           &hcldec.AttrSpec{Name: "ansible_env_vars", Type: cty.List(cty.String), Required: false},
 		"playbook_file":              &hcldec.AttrSpec{Name: "playbook_file", Type: cty.String, Required: false},
