@@ -6,11 +6,11 @@ page_title: Ansible - Provisioners
 nav_title: Ansible (Remote)
 ---
 
-# Ansible Provisioner
+# Ansible Navigator Provisioner
 
-Type: `ansible`
+Type: `ansible-navigator`
 
-The `ansible` Packer provisioner runs Ansible playbooks. It dynamically creates
+The `ansible-navigator` Packer provisioner runs Ansible playbooks using ansible-navigator. It dynamically creates
 an Ansible inventory file configured to use SSH, runs an SSH server, executes
 `ansible-playbook`, and marshals Ansible plays through the SSH server to the
 machine being provisioned by Packer.
@@ -48,7 +48,7 @@ build {
         "source.digitalocean.example"
     ]
 
-    provisioner "ansible" {
+    provisioner "ansible-navigator" {
       playbook_file = "./playbook.yml"
     }
 }
@@ -68,7 +68,7 @@ build {
   ],
   "provisioners": [
     {
-      "type": "ansible",
+      "type": "ansible-navigator",
       "playbook_file": "./playbook.yml"
     }
   ]
@@ -292,7 +292,7 @@ build {
     "source.amazon-chroot.example"
   ]
 
-  provisioner "ansible" {
+  provisioner "ansible-navigator" {
     extra_arguments = [
         "--connection=chroot",
         "--inventory-file=/mnt/packer-amazon-chroot"
@@ -317,7 +317,7 @@ build {
   ],
   "provisioners": [
     {
-      "type": "ansible",
+      "type": "ansible-navigator",
       "extra_arguments": [
         "--connection=chroot",
         "--inventory-file=/mnt/packer-amazon-chroot"
@@ -399,7 +399,7 @@ build {
         "source.amazon-ebs.example",
     ]
 
-    provisioner "ansible" {
+    provisioner "ansible-navigator" {
       playbook_file   = "./playbooks/playbook-windows.yml"
       user            = "Administrator"
       use_proxy       = false
@@ -466,7 +466,7 @@ build {
     script = "../../scripts/ConfigureRemotingForAnsible.ps1"
   }
 
-  provisioner "ansible" {
+  provisioner "ansible-navigator" {
     skip_version_check  = false
     user                = "Packer"
     use_proxy           = false
@@ -509,7 +509,7 @@ build {
   ],
   "provisioners": [
     {
-      "type": "ansible",
+      "type": "ansible-navigator",
       "playbook_file": "./playbook.yml",
       "user": "Administrator",
       "use_proxy": false,
@@ -629,7 +629,7 @@ Platform:
   "variables": {},
   "provisioners": [
     {
-      "type": "ansible",
+      "type": "ansible-navigator",
       "playbook_file": "./win-playbook.yml",
       "extra_arguments": [
         "--connection",
@@ -710,7 +710,7 @@ The Ansible provisioner template remains very simple. For example:
 **HCL2**
 
 ```hcl
-provisioner "ansible" {
+provisioner "ansible-navigator" {
   command       = "/Path/To/call_ansible.sh"
   playbook_file = "./playbook.yml"
 }
@@ -720,7 +720,7 @@ provisioner "ansible" {
 
 ```json
 {
-  "type": "ansible",
+  "type": "ansible-navigator",
   "command": "/Path/To/call_ansible.sh",
   "playbook_file": "./playbook.yml"
 }
@@ -767,7 +767,7 @@ build {
     "source.docker.example"
   ]
 
-  provisioner "ansible" {
+  provisioner "ansible-navigator" {
       groups          = [ "webserver" ]
       playbook_file   = "./webserver.yml"
       extra_arguments = [
@@ -804,7 +804,7 @@ build {
   ],
   "provisioners": [
     {
-      "type": "ansible",
+      "type": "ansible-navigator",
       "groups": ["webserver"],
       "playbook_file": "./webserver.yml",
       "extra_arguments": [
@@ -853,7 +853,7 @@ their configured region.
 **HCL2**
 
 ```hcl
-  provisioner "ansible" {
+  provisioner "ansible-navigator" {
       use_proxy               =  false
       playbook_file           =  "./playbooks/playbook_remote.yml"
       ansible_env_vars        =  ["PACKER_BUILD_NAME={{ build_name }}"]
@@ -866,7 +866,7 @@ their configured region.
 ```json
   "provisioners": [
     {
-      "type": "ansible",
+      "type": "ansible-navigator",
       "use_proxy": false,
       "ansible_env_vars": ["PACKER_BUILD_NAME={{ build_name }}"],
       "playbook_file":   "./playbooks/playbook_remote.yml",
@@ -909,7 +909,7 @@ source "amazon-ebs" "ansible-example" {
 build {
   sources = ["source.amazon-ebs.ansible-example"]
 
-  provisioner "ansible" {
+  provisioner "ansible-navigator" {
       use_proxy               =  false
       playbook_file           =    "./playbooks/playbook_remote.yml"
       ansible_env_vars        =  ["PACKER_BUILD_NAME={{ build_name }}"]
@@ -949,7 +949,7 @@ build {
   ],
   "provisioners": [
     {
-      "type": "ansible",
+      "type": "ansible-navigator",
       "use_proxy": false,
       "ansible_env_vars": ["PACKER_BUILD_NAME={{ build_name }}"],
       "playbook_file": "./playbooks/playbook_remote.yml",
