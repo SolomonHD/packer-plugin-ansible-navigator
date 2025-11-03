@@ -134,6 +134,219 @@ Optional:
 
 @include 'provisioners/common-config.mdx'
 
+## Advanced Examples with Plays and Collections
+
+### Using Collection Plays Locally
+
+Execute plays directly from collections that are installed on the guest VM:
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator-local" {
+  plays = [
+    "community.general.docker_container",
+    "ansible.posix.selinux"
+  ]
+  
+  extra_arguments = [
+    "--extra-vars", "container_name=webapp",
+    "--extra-vars", "selinux_state=enforcing"
+  ]
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator-local",
+  "plays": [
+    "community.general.docker_container",
+    "ansible.posix.selinux"
+  ],
+  "extra_arguments": [
+    "--extra-vars", "container_name=webapp",
+    "--extra-vars", "selinux_state=enforcing"
+  ]
+}
+```
+
+### Multi-Stage Local Deployment
+
+Execute multiple collection plays in sequence on the guest VM:
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator-local" {
+  plays = [
+    "baseline.system.configure_hostname",
+    "baseline.system.setup_users",
+    "app.service.install",
+    "app.service.configure"
+  ]
+  
+  extra_arguments = [
+    "--extra-vars", "hostname=webapp01",
+    "--extra-vars", "app_version=2.1.0"
+  ]
+  
+  playbook_dir = "/tmp/ansible-local"
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator-local",
+  "plays": [
+    "baseline.system.configure_hostname",
+    "baseline.system.setup_users",
+    "app.service.install",
+    "app.service.configure"
+  ],
+  "extra_arguments": [
+    "--extra-vars", "hostname=webapp01",
+    "--extra-vars", "app_version=2.1.0"
+  ],
+  "playbook_dir": "/tmp/ansible-local"
+}
+```
+
+### Local Execution with Custom Collection Path
+
+Use collection plays from a custom installation path on the guest:
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator-local" {
+  plays = [
+    "myorg.app.deploy",
+    "myorg.app.healthcheck"
+  ]
+  
+  extra_arguments = [
+    "--extra-vars", "deployment_type=standalone",
+    "--extra-vars", "health_check_retries=5"
+  ]
+  
+  playbook_dir = "/opt/ansible"
+  
+  # Collections must be pre-installed on the guest VM at this path
+  ansible_env_vars = [
+    "ANSIBLE_COLLECTIONS_PATHS=/opt/ansible/collections"
+  ]
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator-local",
+  "plays": [
+    "myorg.app.deploy",
+    "myorg.app.healthcheck"
+  ],
+  "extra_arguments": [
+    "--extra-vars", "deployment_type=standalone",
+    "--extra-vars", "health_check_retries=5"
+  ],
+  "playbook_dir": "/opt/ansible",
+  "ansible_env_vars": [
+    "ANSIBLE_COLLECTIONS_PATHS=/opt/ansible/collections"
+  ]
+}
+```
+
+### Container Orchestration on Guest
+
+Deploy containers locally on the guest VM using collection plays:
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator-local" {
+  plays = [
+    "community.docker.docker_network",
+    "community.docker.docker_volume",
+    "community.docker.docker_container"
+  ]
+  
+  extra_arguments = [
+    "--extra-vars", "network_name=app_net",
+    "--extra-vars", "volume_name=app_data",
+    "--extra-vars", "container_image=nginx:alpine"
+  ]
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator-local",
+  "plays": [
+    "community.docker.docker_network",
+    "community.docker.docker_volume",
+    "community.docker.docker_container"
+  ],
+  "extra_arguments": [
+    "--extra-vars", "network_name=app_net",
+    "--extra-vars", "volume_name=app_data",
+    "--extra-vars", "container_image=nginx:alpine"
+  ]
+}
+```
+
+### Development Workflow
+
+Quick iteration during development with verbose output:
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator-local" {
+  plays = [
+    "dev.app.setup",
+    "dev.app.test"
+  ]
+  
+  extra_arguments = [
+    "--extra-vars", "env=development",
+    "--extra-vars", "run_tests=true",
+    "-vvv"
+  ]
+  
+  ansible_env_vars = [
+    "ANSIBLE_STDOUT_CALLBACK=debug"
+  ]
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator-local",
+  "plays": [
+    "dev.app.setup",
+    "dev.app.test"
+  ],
+  "extra_arguments": [
+    "--extra-vars", "env=development",
+    "--extra-vars", "run_tests=true",
+    "-vvv"
+  ],
+  "ansible_env_vars": [
+    "ANSIBLE_STDOUT_CALLBACK=debug"
+  ]
+}
+```
+
 ## Default Extra Variables
 
 In addition to being able to specify extra arguments using the

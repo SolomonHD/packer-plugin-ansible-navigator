@@ -228,6 +228,437 @@ provisioner "ansible-navigator" {
 - The cache directory is created automatically if it doesn't exist
 - Collections are cached between Packer runs for faster subsequent builds
 
+## Advanced Examples with Plays and Collections
+
+The following examples demonstrate real-world scenarios combining the `plays` configuration with managed collections.
+
+### Using Collection Plays with Auto-Installation
+
+Execute plays directly from collections with automatic installation:
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator" {
+  plays = [
+    "community.general.docker_container",
+    "ansible.posix.firewalld",
+    "community.general.ufw"
+  ]
+  
+  collections = [
+    "community.general:>=5.0.0",
+    "ansible.posix:1.5.4"
+  ]
+  
+  extra_arguments = [
+    "--extra-vars", "container_name=myapp",
+    "--extra-vars", "container_image=nginx:latest",
+    "--extra-vars", "enable_firewall=true"
+  ]
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator",
+  "plays": [
+    "community.general.docker_container",
+    "ansible.posix.firewalld",
+    "community.general.ufw"
+  ],
+  "collections": [
+    "community.general:>=5.0.0",
+    "ansible.posix:1.5.4"
+  ],
+  "extra_arguments": [
+    "--extra-vars", "container_name=myapp",
+    "--extra-vars", "container_image=nginx:latest",
+    "--extra-vars", "enable_firewall=true"
+  ]
+}
+```
+
+### Multi-Stage Deployment with Custom Collections
+
+Deploy applications using multiple plays from custom collections:
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator" {
+  plays = [
+    "integration.portainer.setup_environment",
+    "integration.portainer.configure_swarm",
+    "integration.portainer.deploy_stack",
+    "integration.portainer.verify_deployment"
+  ]
+  
+  collections = [
+    "integration.portainer@/opt/custom/collections/portainer",
+    "community.docker:3.4.0",
+    "ansible.posix:1.5.4"
+  ]
+  
+  collections_cache_dir = "~/.packer.d/collections"
+  
+  ansible_env_vars = [
+    "ANSIBLE_HOST_KEY_CHECKING=False",
+    "ANSIBLE_GATHERING=smart"
+  ]
+  
+  extra_arguments = [
+    "--extra-vars", "stack_name=production-app",
+    "--extra-vars", "replicas=3",
+    "--extra-vars", "environment=production"
+  ]
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator",
+  "plays": [
+    "integration.portainer.setup_environment",
+    "integration.portainer.configure_swarm",
+    "integration.portainer.deploy_stack",
+    "integration.portainer.verify_deployment"
+  ],
+  "collections": [
+    "integration.portainer@/opt/custom/collections/portainer",
+    "community.docker:3.4.0",
+    "ansible.posix:1.5.4"
+  ],
+  "collections_cache_dir": "~/.packer.d/collections",
+  "ansible_env_vars": [
+    "ANSIBLE_HOST_KEY_CHECKING=False",
+    "ANSIBLE_GATHERING=smart"
+  ],
+  "extra_arguments": [
+    "--extra-vars", "stack_name=production-app",
+    "--extra-vars", "replicas=3",
+    "--extra-vars", "environment=production"
+  ]
+}
+```
+
+### Offline/Air-Gapped Environment
+
+Use pre-cached collections in an offline environment:
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator" {
+  plays = [
+    "acme.firewall.configure_rules",
+    "acme.security.harden_system",
+    "acme.monitoring.setup_agents"
+  ]
+  
+  collections = [
+    "acme.firewall:2.1.0",
+    "acme.security:1.5.0",
+    "acme.monitoring:3.0.1"
+  ]
+  
+  collections_offline = true
+  collections_cache_dir = "/mnt/shared/ansible-collections"
+  
+  ansible_env_vars = [
+    "ANSIBLE_HOST_KEY_CHECKING=False",
+    "ANSIBLE_GATHERING=explicit"
+  ]
+  
+  extra_arguments = [
+    "--extra-vars", "hardening_level=high",
+    "--extra-vars", "monitoring_enabled=true"
+  ]
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator",
+  "plays": [
+    "acme.firewall.configure_rules",
+    "acme.security.harden_system",
+    "acme.monitoring.setup_agents"
+  ],
+  "collections": [
+    "acme.firewall:2.1.0",
+    "acme.security:1.5.0",
+    "acme.monitoring:3.0.1"
+  ],
+  "collections_offline": true,
+  "collections_cache_dir": "/mnt/shared/ansible-collections",
+  "ansible_env_vars": [
+    "ANSIBLE_HOST_KEY_CHECKING=False",
+    "ANSIBLE_GATHERING=explicit"
+  ],
+  "extra_arguments": [
+    "--extra-vars", "hardening_level=high",
+    "--extra-vars", "monitoring_enabled=true"
+  ]
+}
+```
+
+### Development Workflow with Force Update
+
+Iterate quickly during development by always updating local collections:
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator" {
+  plays = [
+    "myorg.app.deploy",
+    "myorg.app.configure"
+  ]
+  
+  collections = [
+    "myorg.app@../ansible-collections/myorg-app"
+  ]
+  
+  collections_force_update = true
+  
+  ansible_env_vars = [
+    "ANSIBLE_STDOUT_CALLBACK=debug"
+  ]
+  
+  extra_arguments = [
+    "--extra-vars", "env=development",
+    "--extra-vars", "debug=true",
+    "-vvv"
+  ]
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator",
+  "plays": [
+    "myorg.app.deploy",
+    "myorg.app.configure"
+  ],
+  "collections": [
+    "myorg.app@../ansible-collections/myorg-app"
+  ],
+  "collections_force_update": true,
+  "ansible_env_vars": [
+    "ANSIBLE_STDOUT_CALLBACK=debug"
+  ],
+  "extra_arguments": [
+    "--extra-vars", "env=development",
+    "--extra-vars", "debug=true",
+    "-vvv"
+  ]
+}
+```
+
+### Production Setup with Requirements File
+
+Complex production deployment using requirements file and multiple plays:
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator" {
+  collections_requirements = "./requirements.yml"
+  
+  plays = [
+    "baseline.security.harden_system",
+    "baseline.monitoring.setup_agents",
+    "baseline.logging.configure_rsyslog",
+    "app.webapp.deploy",
+    "app.webapp.configure_ssl"
+  ]
+  
+  collections_cache_dir = "~/.packer.d/ansible_collections_cache"
+  
+  ansible_env_vars = [
+    "ANSIBLE_HOST_KEY_CHECKING=False",
+    "ANSIBLE_GATHERING=smart",
+    "ANSIBLE_TIMEOUT=300"
+  ]
+  
+  extra_arguments = [
+    "--extra-vars", "environment=production",
+    "--extra-vars", "version=2.5.1",
+    "--extra-vars", "enable_monitoring=true",
+    "--extra-vars", "ssl_enabled=true"
+  ]
+  
+  groups = ["webservers", "production"]
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator",
+  "collections_requirements": "./requirements.yml",
+  "plays": [
+    "baseline.security.harden_system",
+    "baseline.monitoring.setup_agents",
+    "baseline.logging.configure_rsyslog",
+    "app.webapp.deploy",
+    "app.webapp.configure_ssl"
+  ],
+  "collections_cache_dir": "~/.packer.d/ansible_collections_cache",
+  "ansible_env_vars": [
+    "ANSIBLE_HOST_KEY_CHECKING=False",
+    "ANSIBLE_GATHERING=smart",
+    "ANSIBLE_TIMEOUT=300"
+  ],
+  "extra_arguments": [
+    "--extra-vars", "environment=production",
+    "--extra-vars", "version=2.5.1",
+    "--extra-vars", "enable_monitoring=true",
+    "--extra-vars", "ssl_enabled=true"
+  ],
+  "groups": ["webservers", "production"]
+}
+```
+
+Example `requirements.yml` for the above:
+
+```yaml
+---
+collections:
+  - name: baseline.security
+    version: ">=2.0.0"
+  - name: baseline.monitoring
+    version: 1.8.5
+  - name: baseline.logging
+    version: 1.4.0
+  - name: app.webapp
+    version: 3.1.2
+  - name: community.general
+    version: ">=5.0.0"
+```
+
+### Container Orchestration Example
+
+Deploy and configure containers using collection plays:
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator" {
+  plays = [
+    "community.docker.docker_compose",
+    "community.docker.docker_network",
+    "community.general.docker_container"
+  ]
+  
+  collections = [
+    "community.docker:3.4.0",
+    "community.general:5.11.0"
+  ]
+  
+  extra_arguments = [
+    "--extra-vars", "compose_file=/opt/app/docker-compose.yml",
+    "--extra-vars", "network_name=app_network",
+    "--extra-vars", "container_state=started"
+  ]
+  
+  ansible_env_vars = [
+    "ANSIBLE_HOST_KEY_CHECKING=False"
+  ]
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator",
+  "plays": [
+    "community.docker.docker_compose",
+    "community.docker.docker_network",
+    "community.general.docker_container"
+  ],
+  "collections": [
+    "community.docker:3.4.0",
+    "community.general:5.11.0"
+  ],
+  "extra_arguments": [
+    "--extra-vars", "compose_file=/opt/app/docker-compose.yml",
+    "--extra-vars", "network_name=app_network",
+    "--extra-vars", "container_state=started"
+  ],
+  "ansible_env_vars": [
+    "ANSIBLE_HOST_KEY_CHECKING=False"
+  ]
+}
+```
+
+### Mixed Playbook and Collections
+
+Combine traditional playbook with managed collections for maximum flexibility:
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator" {
+  playbook_file = "site.yml"
+  
+  collections = [
+    "community.general:5.11.0",
+    "ansible.windows:2.3.0",
+    "ansible.posix:1.5.4",
+    "community.docker:3.4.0"
+  ]
+  
+  collections_cache_dir = "~/.packer.d/collections"
+  
+  galaxy_file = "requirements.yml"
+  
+  extra_arguments = [
+    "--extra-vars", "tier=web",
+    "--extra-vars", "app_version=1.0.0"
+  ]
+  
+  ansible_env_vars = [
+    "ANSIBLE_HOST_KEY_CHECKING=False"
+  ]
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator",
+  "playbook_file": "site.yml",
+  "collections": [
+    "community.general:5.11.0",
+    "ansible.windows:2.3.0",
+    "ansible.posix:1.5.4",
+    "community.docker:3.4.0"
+  ],
+  "collections_cache_dir": "~/.packer.d/collections",
+  "galaxy_file": "requirements.yml",
+  "extra_arguments": [
+    "--extra-vars", "tier=web",
+    "--extra-vars", "app_version=1.0.0"
+  ],
+  "ansible_env_vars": [
+    "ANSIBLE_HOST_KEY_CHECKING=False"
+  ]
+}
+```
+
 @include 'provisioners/common-config.mdx'
 
 ## Default Extra Variables

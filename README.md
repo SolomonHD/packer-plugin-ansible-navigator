@@ -158,6 +158,152 @@ provisioner "ansible-navigator" {
 }
 ```
 
+## Advanced Examples
+
+### Using Plays with Managed Collections
+
+Combine collection plays with automatic collection installation:
+
+```hcl
+provisioner "ansible-navigator" {
+  plays = [
+    "community.general.docker_container",
+    "ansible.posix.firewalld"
+  ]
+  
+  collections = [
+    "community.general:>=5.0.0",
+    "ansible.posix:1.5.4"
+  ]
+  
+  extra_arguments = [
+    "--extra-vars", "container_name=myapp",
+    "--extra-vars", "container_image=nginx:latest"
+  ]
+}
+```
+
+### Multi-Stage Deployment with Custom Collections
+
+Deploy applications using multiple plays from a custom collection:
+
+```hcl
+provisioner "ansible-navigator" {
+  plays = [
+    "integration.portainer.setup_environment",
+    "integration.portainer.configure_swarm",
+    "integration.portainer.deploy_stack"
+  ]
+  
+  collections = [
+    "integration.portainer@/local/path/to/collection",
+    "community.docker:3.4.0"
+  ]
+  
+  collections_cache_dir = "~/.packer.d/collections"
+  
+  extra_arguments = [
+    "--extra-vars", "stack_name=production-app",
+    "--extra-vars", "replicas=3"
+  ]
+}
+```
+
+### Offline/Air-Gapped Environment
+
+Use pre-cached collections in an offline environment:
+
+```hcl
+provisioner "ansible-navigator" {
+  plays = [
+    "acme.firewall.configure_rules",
+    "acme.security.harden_system"
+  ]
+  
+  collections = [
+    "acme.firewall:2.1.0",
+    "acme.security:1.5.0"
+  ]
+  
+  collections_offline = true
+  collections_cache_dir = "/mnt/shared/ansible-collections"
+  
+  ansible_env_vars = [
+    "ANSIBLE_HOST_KEY_CHECKING=False"
+  ]
+}
+```
+
+### Development Workflow with Force Update
+
+Iterate quickly during development by always updating local collections:
+
+```hcl
+provisioner "ansible-navigator" {
+  plays = ["myorg.app.deploy"]
+  
+  collections = [
+    "myorg.app@../ansible-collections/myorg-app"
+  ]
+  
+  collections_force_update = true
+  
+  extra_arguments = [
+    "--extra-vars", "env=development",
+    "--extra-vars", "debug=true"
+  ]
+}
+```
+
+### Complex Production Setup
+
+Production deployment with requirements file and multiple plays:
+
+```hcl
+provisioner "ansible-navigator" {
+  collections_requirements = "./requirements.yml"
+  
+  plays = [
+    "baseline.security.harden_system",
+    "baseline.monitoring.setup_agents",
+    "app.webapp.deploy"
+  ]
+  
+  collections_cache_dir = "~/.packer.d/ansible_collections_cache"
+  
+  ansible_env_vars = [
+    "ANSIBLE_HOST_KEY_CHECKING=False",
+    "ANSIBLE_GATHERING=smart"
+  ]
+  
+  extra_arguments = [
+    "--extra-vars", "environment=production",
+    "--extra-vars", "version=2.5.1",
+    "--extra-vars", "enable_monitoring=true"
+  ]
+}
+```
+
+### Mixed Playbook and Collections
+
+Combine traditional playbook with managed collections:
+
+```hcl
+provisioner "ansible-navigator" {
+  playbook_file = "site.yml"
+  
+  collections = [
+    "community.general:5.11.0",
+    "ansible.windows:2.3.0",
+    "ansible.posix:1.5.4"
+  ]
+  
+  galaxy_file = "requirements.yml"
+  
+  extra_arguments = ["--extra-vars", "tier=web"]
+}
+```
+
 ## Error Handling Examples
 
 ### Configuration Validation
