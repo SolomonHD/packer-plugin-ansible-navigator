@@ -1,5 +1,7 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+// http://www.apache.org/licenses/LICENSE-2.0
 
 package main
 
@@ -9,15 +11,15 @@ import (
 
 	"github.com/hashicorp/packer-plugin-sdk/plugin"
 
-	ansible "github.com/hashicorp/packer-plugin-ansible/provisioner/ansible"
-	ansibleLocal "github.com/hashicorp/packer-plugin-ansible/provisioner/ansible-local"
-	"github.com/hashicorp/packer-plugin-ansible/version"
+	ansible "github.com/SolomonHD/packer-plugin-ansible-navigator/provisioner/ansible"
+	ansibleLocal "github.com/SolomonHD/packer-plugin-ansible-navigator/provisioner/ansible-local"
+	"github.com/SolomonHD/packer-plugin-ansible-navigator/version"
 )
 
 func main() {
 	pps := plugin.NewSet()
-	pps.RegisterProvisioner(plugin.DEFAULT_NAME, new(ansible.Provisioner))
-	pps.RegisterProvisioner("local", new(ansibleLocal.Provisioner))
+	pps.RegisterProvisioner("ansible-navigator", new(ansible.Provisioner))
+	pps.RegisterProvisioner("ansible-navigator-local", new(ansibleLocal.Provisioner))
 	pps.SetVersion(version.PluginVersion)
 	err := pps.Run()
 

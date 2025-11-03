@@ -1,4 +1,4 @@
-module github.com/hashicorp/packer-plugin-ansible
+module github.com/SolomonHD/packer-plugin-ansible-navigator
 
 go 1.23.0
 

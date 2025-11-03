@@ -1,5 +1,7 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+// http://www.apache.org/licenses/LICENSE-2.0
 
 //go:generate packer-sdc mapstructure-to-hcl2 -type Config
 //go:generate packer-sdc struct-markdown
@@ -48,7 +50,7 @@ type Config struct {
 	common.PackerConfig `mapstructure:",squash"`
 	ctx                 interpolate.Context
 	// The command to invoke ansible. Defaults to
-	//  `ansible-playbook`. If you would like to provide a more complex command,
+	//  `ansible-navigator run`. If you would like to provide a more complex command,
 	//  for example, something that sets up a virtual environment before calling
 	//  ansible, take a look at the ansible wrapper guide [here](#using-a-wrapping-script-for-your-ansible-call) for inspiration.
 	//  Please note that Packer expects Command to be a path to an executable.
@@ -117,6 +119,9 @@ type Config struct {
 	AnsibleEnvVars []string `mapstructure:"ansible_env_vars"`
 	// The playbook to be run by Ansible.
 	PlaybookFile string `mapstructure:"playbook_file" required:"true"`
+	// List of Ansible collection plays to execute using ansible-navigator.
+	// This is mutually exclusive with playbook_file.
+	Plays []string `mapstructure:"plays"`
 	// Specifies --ssh-extra-args on command line defaults to -o IdentitiesOnly=yes
 	AnsibleSSHExtraArgs []string `mapstructure:"ansible_ssh_extra_args"`
 	// The groups into which the Ansible host should
@@ -295,7 +300,7 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 
 	// Defaults
 	if p.config.Command == "" {
-		p.config.Command = "ansible-playbook"
+		p.config.Command = "ansible-navigator run"
 	}
 
 	if p.config.GalaxyCommand == "" {
@@ -307,9 +312,23 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	}
 
 	var errs *packersdk.MultiError
-	err = validateFileConfig(p.config.PlaybookFile, "playbook_file", true)
-	if err != nil {
-		errs = packersdk.MultiErrorAppend(errs, err)
+
+	// Validate dual invocation mode - playbook_file and plays are mutually exclusive
+	if p.config.PlaybookFile != "" && len(p.config.Plays) > 0 {
+		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf("you may specify only one of `playbook_file` or `plays`"))
+	}
+
+	// At least one must be specified
+	if p.config.PlaybookFile == "" && len(p.config.Plays) == 0 {
+		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf("either `playbook_file` or `plays` must be defined"))
+	}
+
+	// Validate playbook_file if specified
+	if p.config.PlaybookFile != "" {
+		err = validateFileConfig(p.config.PlaybookFile, "playbook_file", true)
+		if err != nil {
+			errs = packersdk.MultiErrorAppend(errs, err)
+		}
 	}
 
 	// Check that the galaxy file exists, if configured
@@ -419,21 +438,29 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 }
 
 func (p *Provisioner) getVersion() error {
-	out, err := exec.Command(p.config.Command, "--version").Output()
+	// Check if ansible-navigator is available
+	command := "ansible-navigator"
+	if strings.Contains(p.config.Command, "ansible-navigator") {
+		command = "ansible-navigator"
+	} else {
+		command = p.config.Command
+	}
+
+	out, err := exec.Command(command, "--version").Output()
 	if err != nil {
 		return fmt.Errorf(
-			"Error running \"%s --version\": %s", p.config.Command, err.Error())
+			"Error: ansible-navigator not found in PATH. Please install it before running this provisioner: %s", err.Error())
 	}
 
 	versionRe := regexp.MustCompile(`\w (\d+\.\d+[.\d+]*)`)
 	matches := versionRe.FindStringSubmatch(string(out))
 	if matches == nil {
 		return fmt.Errorf(
-			"Could not find %s version in output:\n%s", p.config.Command, string(out))
+			"Could not find %s version in output:\n%s", command, string(out))
 	}
 
 	version := matches[1]
-	log.Printf("%s version: %s", p.config.Command, version)
+	log.Printf("%s version: %s", command, version)
 	p.ansibleVersion = version
 
 	majVer, err := strconv.ParseUint(strings.Split(version, ".")[0], 10, 0)
@@ -589,7 +616,7 @@ func (p *Provisioner) createInventoryFile() error {
 }
 
 func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packersdk.Communicator, generatedData map[string]interface{}) error {
-	ui.Say("Provisioning with Ansible...")
+	ui.Say("Provisioning with Ansible Navigator...")
 	// Interpolate env vars to check for generated values like password and port
 	p.generatedData = generatedData
 	p.config.ctx.Data = generatedData
@@ -875,8 +902,6 @@ func (p *Provisioner) createCmdArgs(httpAddr, inventory, playbook, privKeyFile s
 }
 
 func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string) error {
-	playbook, _ := filepath.Abs(p.config.PlaybookFile)
-	inventory := p.config.InventoryFile
 	httpAddr := p.generatedData["PackerHTTPAddr"].(string)
 
 	// Fetch external dependencies
@@ -885,15 +910,52 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 			return fmt.Errorf("Error executing Ansible Galaxy: %s", err)
 		}
 	}
-	args, envvars := p.createCmdArgs(httpAddr, inventory, playbook, privKeyFile)
 
-	cmd := exec.Command(p.config.Command, args...)
+	if len(p.config.Plays) > 0 {
+		// Execute multiple plays
+		for i, play := range p.config.Plays {
+			ui.Say(fmt.Sprintf("Running Ansible Navigator play: %s", play))
 
-	cmd.Env = os.Environ()
-	if len(envvars) > 0 {
-		cmd.Env = append(cmd.Env, envvars...)
+			args := []string{"run", play, "--mode", "stdout"}
+			args = append(args, p.config.ExtraArguments...)
+
+			cmd := exec.Command("ansible-navigator", args...)
+			err := p.executeAnsibleCommand(ui, cmd, play)
+			if err != nil {
+				ui.Error(fmt.Sprintf("ERROR: Play '%s' failed (exit code 2)", play))
+				return fmt.Errorf("ansible-navigator run failed for %s: %w", play, err)
+			}
+
+			// Continue with remaining plays on failure
+			if i < len(p.config.Plays)-1 {
+				ui.Message(fmt.Sprintf("Completed play: %s", play))
+			}
+		}
+
+		ui.Say("All Ansible Navigator plays completed successfully!")
+	} else {
+		// Execute single playbook
+		playbook, _ := filepath.Abs(p.config.PlaybookFile)
+		inventory := p.config.InventoryFile
+
+		args, envvars := p.createCmdArgs(httpAddr, inventory, playbook, privKeyFile)
+		cmd := exec.Command(p.config.Command, args...)
+
+		cmd.Env = os.Environ()
+		if len(envvars) > 0 {
+			cmd.Env = append(cmd.Env, envvars...)
+		}
+
+		err := p.executeAnsibleCommand(ui, cmd, "playbook execution")
+		if err != nil {
+			return fmt.Errorf("ansible-navigator run failed for %s: %w", playbook, err)
+		}
 	}
 
+	return nil
+}
+
+func (p *Provisioner) executeAnsibleCommand(ui packersdk.Ui, cmd *exec.Cmd, target string) error {
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
@@ -927,7 +989,7 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 	go repeat(stdout)
 	go repeat(stderr)
 
-	// remove winrm password from command, if it's been added
+	// remove sensitive data from command for logging
 	flattenedCmd := strings.Join(cmd.Args, " ")
 	sanitized := flattenedCmd
 
@@ -950,7 +1012,7 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 				secret.(string), "*****", -1)
 		}
 	}
-	ui.Say(fmt.Sprintf("Executing Ansible: %s", sanitized))
+	ui.Say(fmt.Sprintf("Executing Ansible Navigator for %s: %s", target, sanitized))
 
 	if err := cmd.Start(); err != nil {
 		return err
