@@ -32,17 +32,37 @@ provisioner "ansible-navigator" {
 
 ### plays
 
-**Type:** `[]string`  
-**Required:** Either this or `playbook_file` must be specified  
+**Type:** `[]object`
+**Required:** Either this or `playbook_file` must be specified
 **Conflicts with:** `playbook_file`
 
-List of Ansible Collection plays to execute.
+Array of play configuration objects. Each play can have its own variables, tags, and settings.
+
+**Play Object Fields:**
+- `name` (string): Display name for the play
+- `target` (string): **Required** - Either a playbook path or collection play FQDN
+- `extra_vars` (map[string]string): Variables specific to this play
+- `vars_files` ([]string): Variable files to load for this play
+- `tags` ([]string): Tags to execute for this play
+- `become` (bool): Use privilege escalation for this play
 
 ```hcl
 provisioner "ansible-navigator" {
   plays = [
-    "namespace.collection.play_name",
-    "community.general.setup_server"
+    {
+      name = "Setup Server"
+      target = "namespace.collection.play_name"
+      extra_vars = {
+        environment = "production"
+        region = "us-east-1"
+      }
+    },
+    {
+      name = "Configure Services"
+      target = "community.general.setup_server"
+      vars_files = ["vars/services.yml"]
+      become = true
+    }
   ]
 }
 ```
@@ -554,8 +574,18 @@ provisioner "ansible-navigator" {
 ```hcl
 provisioner "ansible-navigator" {
   plays = [
-    "baseline.security.harden",
-    "app.deployment.configure"
+    {
+      name = "Security Hardening"
+      target = "baseline.security.harden"
+      become = true
+    },
+    {
+      name = "Application Configuration"
+      target = "app.deployment.configure"
+      extra_vars = {
+        deployment_type = "production"
+      }
+    }
   ]
   
   requirements_file = "./requirements.yml"
@@ -612,7 +642,15 @@ provisioner "ansible-navigator" {
 
 ```hcl
 provisioner "ansible-navigator" {
-  plays = ["app.deploy.offline"]
+  plays = [
+    {
+      name = "Offline Deployment"
+      target = "app.deploy.offline"
+      extra_vars = {
+        offline_mode = "true"
+      }
+    }
+  ]
   
   collections_offline = true
   collections_cache_dir = "/mnt/shared/offline-collections"

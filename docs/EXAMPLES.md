@@ -101,9 +101,19 @@ build {
   
   provisioner "ansible-navigator" {
     plays = [
-      "aws.infrastructure.configure_base",
-      "aws.infrastructure.install_cloudwatch",
-      "aws.infrastructure.harden_ami"
+      {
+        name = "Configure Base"
+        target = "aws.infrastructure.configure_base"
+      },
+      {
+        name = "Install CloudWatch"
+        target = "aws.infrastructure.install_cloudwatch"
+      },
+      {
+        name = "Harden AMI"
+        target = "aws.infrastructure.harden_ami"
+        become = true
+      }
     ]
     
     collections = [
@@ -190,9 +200,19 @@ build {
   
   provisioner "ansible-navigator" {
     plays = [
-      "gcp.compute.install_stackdriver",
-      "gcp.compute.configure_networking",
-      "baseline.linux.harden"
+      {
+        name = "Install Stackdriver"
+        target = "gcp.compute.install_stackdriver"
+      },
+      {
+        name = "Configure Networking"
+        target = "gcp.compute.configure_networking"
+      },
+      {
+        name = "Harden Linux"
+        target = "baseline.linux.harden"
+        become = true
+      }
     ]
     
     collections = [
@@ -224,8 +244,17 @@ build {
   
   provisioner "ansible-navigator" {
     plays = [
-      "containers.python.install_dependencies",
-      "containers.python.configure_app"
+      {
+        name = "Install Dependencies"
+        target = "containers.python.install_dependencies"
+      },
+      {
+        name = "Configure Application"
+        target = "containers.python.configure_app"
+        extra_vars = {
+          app_name = "myapp"
+        }
+      }
     ]
     
     collections = [
@@ -259,9 +288,21 @@ build {
   
   provisioner "ansible-navigator" {
     plays = [
-      "kubernetes.apps.prepare_base",
-      "kubernetes.apps.install_app",
-      "kubernetes.apps.configure_healthchecks"
+      {
+        name = "Prepare Base"
+        target = "kubernetes.apps.prepare_base"
+      },
+      {
+        name = "Install Application"
+        target = "kubernetes.apps.install_app"
+      },
+      {
+        name = "Configure Health Checks"
+        target = "kubernetes.apps.configure_healthchecks"
+        extra_vars = {
+          health_check_path = "/health"
+        }
+      }
     ]
     
     collections = [
@@ -306,9 +347,24 @@ build {
   
   provisioner "ansible-navigator" {
     plays = [
-      "security.cis.ubuntu_level1",
-      "security.cis.ubuntu_level2",
-      "security.audit.configure_auditd"
+      {
+        name = "CIS Ubuntu Level 1"
+        target = "security.cis.ubuntu_level1"
+        become = true
+      },
+      {
+        name = "CIS Ubuntu Level 2"
+        target = "security.cis.ubuntu_level2"
+        become = true
+      },
+      {
+        name = "Configure Audit Daemon"
+        target = "security.audit.configure_auditd"
+        become = true
+        extra_vars = {
+          audit_level = "maximum"
+        }
+      }
     ]
     
     collections = [
@@ -345,10 +401,30 @@ build {
   
   provisioner "ansible-navigator" {
     plays = [
-      "compliance.hipaa.configure_encryption",
-      "compliance.hipaa.setup_logging",
-      "compliance.hipaa.access_controls",
-      "compliance.hipaa.audit_configuration"
+      {
+        name = "Configure Encryption"
+        target = "compliance.hipaa.configure_encryption"
+        extra_vars = {
+          encryption_standard = "AES-256"
+        }
+      },
+      {
+        name = "Setup Logging"
+        target = "compliance.hipaa.setup_logging"
+        extra_vars = {
+          log_retention_days = "2555"
+        }
+      },
+      {
+        name = "Access Controls"
+        target = "compliance.hipaa.access_controls"
+        become = true
+      },
+      {
+        name = "Audit Configuration"
+        target = "compliance.hipaa.audit_configuration"
+        become = true
+      }
     ]
     
     requirements_file = "./requirements-hipaa.yml"
@@ -419,7 +495,15 @@ build {
   sources = ["source.docker.ci"]
   
   provisioner "ansible-navigator" {
-    plays = ["ci.build.prepare"]
+    plays = [
+      {
+        name = "Prepare CI Build"
+        target = "ci.build.prepare"
+        extra_vars = {
+          ci_environment = "github"
+        }
+      }
+    ]
     
     # Use consistent execution environment for CI
     execution_environment = "quay.io/ansible/creator-ee:v0.21.0"
@@ -493,7 +577,12 @@ build {
   
   # Stage 1: Base OS Configuration
   provisioner "ansible-navigator" {
-    plays = ["infrastructure.base.configure_os"]
+    plays = [
+      {
+        name = "Configure Base OS"
+        target = "infrastructure.base.configure_os"
+      }
+    ]
     collections = ["ansible.posix:1.5.4"]
     pause_before = "5s"
   }
@@ -501,8 +590,16 @@ build {
   # Stage 2: Security Hardening
   provisioner "ansible-navigator" {
     plays = [
-      "security.firewall.configure",
-      "security.selinux.enforce"
+      {
+        name = "Configure Firewall"
+        target = "security.firewall.configure"
+        become = true
+      },
+      {
+        name = "Enforce SELinux"
+        target = "security.selinux.enforce"
+        become = true
+      }
     ]
     collections = ["community.general:7.5.0"]
   }
@@ -510,16 +607,33 @@ build {
   # Stage 3: Install Dependencies
   provisioner "ansible-navigator" {
     plays = [
-      "dependencies.runtime.install_java",
-      "dependencies.runtime.install_nodejs",
-      "dependencies.database.install_postgres_client"
+      {
+        name = "Install Java Runtime"
+        target = "dependencies.runtime.install_java"
+      },
+      {
+        name = "Install Node.js"
+        target = "dependencies.runtime.install_nodejs"
+      },
+      {
+        name = "Install PostgreSQL Client"
+        target = "dependencies.database.install_postgres_client"
+      }
     ]
     keep_going = false  # Stop if dependencies fail
   }
   
   # Stage 4: Deploy Application
   provisioner "ansible-navigator" {
-    plays = ["app.backend.deploy"]
+    plays = [
+      {
+        name = "Deploy Backend"
+        target = "app.backend.deploy"
+        extra_vars = {
+          deployment_stage = "production"
+        }
+      }
+    ]
     
     extra_arguments = [
       "--extra-vars", "app_version=${var.app_version}",
@@ -561,7 +675,15 @@ build {
   sources = ["source.docker.dev"]
   
   provisioner "ansible-navigator" {
-    plays = ["dev.environment.setup"]
+    plays = [
+      {
+        name = "Setup Development Environment"
+        target = "dev.environment.setup"
+        extra_vars = {
+          dev_mode = "true"
+        }
+      }
+    ]
     
     # Use local collection under development
     collections = [
@@ -602,8 +724,17 @@ build {
   
   provisioner "ansible-navigator" {
     plays = [
-      "test.collection.unit_tests",
-      "test.collection.integration_tests"
+      {
+        name = "Run Unit Tests"
+        target = "test.collection.unit_tests"
+      },
+      {
+        name = "Run Integration Tests"
+        target = "test.collection.integration_tests"
+        extra_vars = {
+          test_verbosity = "high"
+        }
+      }
     ]
     
     collections = [
@@ -646,9 +777,21 @@ build {
   
   provisioner "ansible-navigator" {
     plays = [
-      "deploy.bluegreen.prepare_${var.deployment_color}",
-      "deploy.bluegreen.install_app",
-      "deploy.bluegreen.configure_routing"
+      {
+        name = "Prepare ${var.deployment_color} Environment"
+        target = "deploy.bluegreen.prepare_${var.deployment_color}"
+      },
+      {
+        name = "Install Application"
+        target = "deploy.bluegreen.install_app"
+      },
+      {
+        name = "Configure Routing"
+        target = "deploy.bluegreen.configure_routing"
+        extra_vars = {
+          deployment_color = var.deployment_color
+        }
+      }
     ]
     
     requirements_file = "./requirements.yml"
@@ -697,9 +840,23 @@ build {
   
   provisioner "ansible-navigator" {
     plays = [
-      "immutable.build.install_everything",
-      "immutable.build.configure_readonly",
-      "immutable.build.seal_image"
+      {
+        name = "Install Everything"
+        target = "immutable.build.install_everything"
+      },
+      {
+        name = "Configure Read-Only"
+        target = "immutable.build.configure_readonly"
+        become = true
+      },
+      {
+        name = "Seal Image"
+        target = "immutable.build.seal_image"
+        become = true
+        extra_vars = {
+          sealed = "true"
+        }
+      }
     ]
     
     collections = [
@@ -743,10 +900,28 @@ build {
   
   provisioner "ansible-navigator" {
     plays = [
-      "dr.backup.install_tools",
-      "dr.backup.configure_replication",
-      "dr.backup.setup_monitoring",
-      "dr.backup.test_recovery"
+      {
+        name = "Install DR Tools"
+        target = "dr.backup.install_tools"
+      },
+      {
+        name = "Configure Replication"
+        target = "dr.backup.configure_replication"
+        extra_vars = {
+          replication_type = "async"
+        }
+      },
+      {
+        name = "Setup Monitoring"
+        target = "dr.backup.setup_monitoring"
+      },
+      {
+        name = "Test Recovery"
+        target = "dr.backup.test_recovery"
+        extra_vars = {
+          test_mode = "true"
+        }
+      }
     ]
     
     collections = [

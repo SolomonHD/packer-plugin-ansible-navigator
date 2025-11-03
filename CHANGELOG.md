@@ -37,10 +37,20 @@ This release represents a complete evolution from the HashiCorp packer-plugin-an
   # Option A: Traditional playbook file
   playbook_file = "site.yml"
   
-  # Option B: Collection plays (NEW)
+  # Option B: Collection plays with per-play configuration (NEW)
   plays = [
-    "integration.portainer.migrate_node",
-    "acme.firewall.configure_rules"
+    {
+      name = "Migrate Node"
+      target = "integration.portainer.migrate_node"
+      extra_vars = {
+        environment = "production"
+      }
+    },
+    {
+      name = "Configure Firewall Rules"
+      target = "acme.firewall.configure_rules"
+      vars_files = ["firewall.yml"]
+    }
   ]
   ```
 * **Ansible Navigator Integration**: Changed from `ansible-playbook` to `ansible-navigator run`

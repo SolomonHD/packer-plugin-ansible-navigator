@@ -52,7 +52,12 @@ packer validate your-template.pkr.hcl
 ```hcl
 provisioner "ansible-navigator" {
   playbook_file = "site.yml"
-  plays = ["namespace.collection.play"]  # CONFLICT!
+  plays = [  # CONFLICT!
+    {
+      name = "My Play"
+      target = "namespace.collection.play"
+    }
+  ]
 }
 ```
 
@@ -63,9 +68,17 @@ provisioner "ansible-navigator" {
   playbook_file = "site.yml"
 }
 
-# Option B: Use collection plays
+# Option B: Use collection plays (array of objects)
 provisioner "ansible-navigator" {
-  plays = ["namespace.collection.play"]
+  plays = [
+    {
+      name = "My Play"
+      target = "namespace.collection.play"
+      extra_vars = {
+        environment = "production"
+      }
+    }
+  ]
 }
 ```
 
@@ -80,7 +93,12 @@ provisioner "ansible-navigator" {
   # Add either:
   playbook_file = "site.yml"
   # OR:
-  plays = ["namespace.collection.play"]
+  plays = [
+    {
+      name = "Configure System"
+      target = "namespace.collection.play"
+    }
+  ]
 }
 ```
 

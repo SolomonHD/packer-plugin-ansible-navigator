@@ -65,8 +65,19 @@ provisioner "ansible-navigator" {
 ```hcl
 provisioner "ansible-navigator" {
   plays = [
-    "baseline.security.harden",
-    "app.webapp.deploy"
+    {
+      name = "Security Hardening"
+      target = "baseline.security.harden"
+      become = true
+    },
+    {
+      name = "Application Deployment"
+      target = "app.webapp.deploy"
+      extra_vars = {
+        environment = "production"
+        version = "${var.app_version}"
+      }
+    }
   ]
   
   # Enable structured logging for CI/CD
@@ -74,11 +85,8 @@ provisioner "ansible-navigator" {
   structured_logging = true
   log_output_path = "./logs/deployment.json"
   
-  # Production configuration
-  extra_arguments = [
-    "--extra-vars", "environment=production",
-    "--extra-vars", "version=${var.app_version}"
-  ]
+  # Global arguments applied to all plays
+  extra_arguments = ["--verbose"]
 }
 ```
 
@@ -96,7 +104,16 @@ build {
   sources = ["source.docker.app"]
   
   provisioner "ansible-navigator" {
-    plays = ["containers.docker.build_app"]
+    plays = [
+      {
+        name = "Build Container App"
+        target = "containers.docker.build_app"
+        extra_vars = {
+          app_name = "webapp"
+          build_version = "${var.build_number}"
+        }
+      }
+    ]
     collections = ["community.docker:3.4.0"]
   }
 }
@@ -121,10 +138,28 @@ provisioner "ansible-navigator" {
 ```hcl
 provisioner "ansible-navigator" {
   plays = [
-    "infra.base.configure",      # Step 1: Base configuration
-    "infra.security.harden",     # Step 2: Security hardening  
-    "app.database.install",       # Step 3: Database setup
-    "app.webserver.deploy"        # Step 4: Application deployment
+    {
+      name = "Base Configuration"
+      target = "infra.base.configure"
+    },
+    {
+      name = "Security Hardening"
+      target = "infra.security.harden"
+      become = true
+    },
+    {
+      name = "Database Setup"
+      target = "app.database.install"
+      extra_vars = {
+        db_engine = "postgresql"
+        db_version = "14"
+      }
+    },
+    {
+      name = "Application Deployment"
+      target = "app.webserver.deploy"
+      vars_files = ["app_config.yml"]
+    }
   ]
   
   requirements_file = "./requirements.yml"
@@ -156,7 +191,13 @@ Choose between traditional playbooks or modern collection plays:
 playbook_file = "site.yml"
 
 # Option B: Collection plays (mutually exclusive)
-plays = ["namespace.collection.play_name"]
+plays = [
+  {
+    name = "Play Name"
+    target = "namespace.collection.play_name"
+    extra_vars = {}  # Optional per-play variables
+  }
+]
 ```
 
 ### Enhanced Error Reporting
@@ -186,7 +227,7 @@ execution_environment = "myregistry.io/ansible-ee:custom"
 | Option | Description | Example |
 |--------|-------------|---------|
 | `playbook_file` | Path to Ansible playbook | `"site.yml"` |
-| `plays` | Collection plays to execute | `["namespace.collection.play"]` |
+| `plays` | Array of play configurations | See [Collection Plays](docs/UNIFIED_PLAYS.md) |
 | `collections` | Collections to install | `["community.general:5.0.0"]` |
 | `execution_environment` | Container image for ansible-navigator | `"quay.io/ansible/creator-ee"` |
 | `inventory_file` | Ansible inventory | `"./inventory/hosts"` |

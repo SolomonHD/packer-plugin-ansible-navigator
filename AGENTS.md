@@ -88,10 +88,20 @@ Support two mutually exclusive configuration paths:
 # Option A: Traditional playbook file
 playbook_file = "site.yml"
 
-# Option B: Collection plays
+# Option B: Collection plays with structured configuration
 plays = [
-  "integration.portainer.migrate_node",
-  "acme.firewall.configure_rules"
+  {
+    name = "Migrate Node"
+    target = "integration.portainer.migrate_node"
+    extra_vars = {
+      environment = "production"
+    }
+  },
+  {
+    name = "Configure Firewall"
+    target = "acme.firewall.configure_rules"
+    vars_files = ["firewall_vars.yml"]
+  }
 ]
 ```
 
@@ -198,7 +208,17 @@ Generate or update docs under `/website/docs/provisioner/ansible-navigator.mdx`:
 
 ```hcl
 provisioner "ansible-navigator" {
-  plays = ["integration.portainer.migrate_node"]
+  plays = [
+    {
+      name = "Migrate Node"
+      target = "integration.portainer.migrate_node"
+      extra_vars = {
+        node_type = "worker"
+        cluster_id = "prod-01"
+      }
+      vars_files = ["production.yml"]
+    }
+  ]
   execution_environment = "ansible-execution-env:latest"
   extra_arguments = ["--mode", "stdout"]
   inventory_directory = "inventory/"
