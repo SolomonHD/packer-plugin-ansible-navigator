@@ -35,6 +35,7 @@ import (
 	"unicode"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/term"
 
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/packer-plugin-sdk/adapter"
@@ -73,6 +74,10 @@ type Config struct {
 	//  Arbitrary bash scripting will not work and needs to go inside an
 	//  executable script.
 	Command string `mapstructure:"command"`
+	// Execution mode for ansible-navigator. Valid values: stdout, json, yaml, interactive.
+	// Defaults to "stdout" for non-interactive environments (Packer-safe).
+	// When set to "interactive" without a TTY, it automatically switches to "stdout".
+	NavigatorMode string `mapstructure:"navigator_mode"`
 	// Extra arguments to pass to Ansible. These arguments _will not_ be passed
 	// through a shell and arguments should not be quoted. Usage example:
 	//
@@ -352,7 +357,29 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 		p.config.HostAlias = "default"
 	}
 
+	// Set default navigator_mode to stdout for non-interactive environments
+	if p.config.NavigatorMode == "" {
+		p.config.NavigatorMode = "stdout"
+	}
+
 	var errs *packersdk.MultiError
+
+	// Validate navigator_mode
+	validModes := map[string]bool{
+		"stdout":      true,
+		"json":        true,
+		"yaml":        true,
+		"interactive": true,
+	}
+	if !validModes[p.config.NavigatorMode] {
+		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf("invalid navigator_mode: %s (must be one of stdout, json, yaml, interactive)", p.config.NavigatorMode))
+	}
+
+	// Check if interactive mode is requested without TTY
+	if p.config.NavigatorMode == "interactive" && !term.IsTerminal(int(os.Stdout.Fd())) {
+		log.Printf("[Warning] No TTY detected — switching ansible-navigator mode to 'stdout'.")
+		p.config.NavigatorMode = "stdout"
+	}
 
 	// Validate dual invocation mode - playbook_file and plays are mutually exclusive
 	if p.config.PlaybookFile != "" && len(p.config.Plays) > 0 {
@@ -698,6 +725,13 @@ func (p *Provisioner) createInventoryFile() error {
 
 func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packersdk.Communicator, generatedData map[string]interface{}) error {
 	ui.Say("Provisioning with Ansible Navigator...")
+
+	// Set ANSIBLE_NAVIGATOR_MODE environment variable
+	if existingMode := os.Getenv("ANSIBLE_NAVIGATOR_MODE"); existingMode != "" {
+		ui.Message(fmt.Sprintf("[Notice] Overriding ANSIBLE_NAVIGATOR_MODE environment variable (was: %s, now: %s)", existingMode, p.config.NavigatorMode))
+	}
+	os.Setenv("ANSIBLE_NAVIGATOR_MODE", p.config.NavigatorMode)
+
 	// Interpolate env vars to check for generated values like password and port
 	p.generatedData = generatedData
 	p.config.ctx.Data = generatedData
@@ -1316,6 +1350,9 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 			args = append([]string{"-e", fmt.Sprintf("@%s", varsFile)}, args...)
 		}
 
+		// Add --mode flag at the beginning of args
+		args = append([]string{"--mode", p.config.NavigatorMode}, args...)
+
 		// Execute the play
 		cmd := exec.Command(p.config.Command, args...)
 		cmd.Env = os.Environ()
@@ -1350,6 +1387,10 @@ func (p *Provisioner) executeSinglePlaybook(ui packersdk.Ui, privKeyFile string,
 	inventory := p.config.InventoryFile
 
 	args, envvars := p.createCmdArgs(httpAddr, inventory, playbook, privKeyFile)
+
+	// Add --mode flag at the beginning of args
+	args = append([]string{"--mode", p.config.NavigatorMode}, args...)
+
 	cmd := exec.Command(p.config.Command, args...)
 
 	cmd.Env = os.Environ()

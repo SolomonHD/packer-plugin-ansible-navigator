@@ -19,6 +19,7 @@ type FlatConfig struct {
 	PackerUserVars          map[string]string `mapstructure:"packer_user_variables" cty:"packer_user_variables" hcl:"packer_user_variables"`
 	PackerSensitiveVars     []string          `mapstructure:"packer_sensitive_variables" cty:"packer_sensitive_variables" hcl:"packer_sensitive_variables"`
 	Command                 *string           `mapstructure:"command" cty:"command" hcl:"command"`
+	NavigatorMode           *string           `mapstructure:"navigator_mode" cty:"navigator_mode" hcl:"navigator_mode"`
 	ExtraArguments          []string          `mapstructure:"extra_arguments" cty:"extra_arguments" hcl:"extra_arguments"`
 	AnsibleEnvVars          []string          `mapstructure:"ansible_env_vars" cty:"ansible_env_vars" hcl:"ansible_env_vars"`
 	PlaybookFile            *string           `mapstructure:"playbook_file" required:"true" cty:"playbook_file" hcl:"playbook_file"`
@@ -74,6 +75,7 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"packer_user_variables":      &hcldec.AttrSpec{Name: "packer_user_variables", Type: cty.Map(cty.String), Required: false},
 		"packer_sensitive_variables": &hcldec.AttrSpec{Name: "packer_sensitive_variables", Type: cty.List(cty.String), Required: false},
 		"command":                    &hcldec.AttrSpec{Name: "command", Type: cty.String, Required: false},
+		"navigator_mode":             &hcldec.AttrSpec{Name: "navigator_mode", Type: cty.String, Required: false},
 		"extra_arguments":            &hcldec.AttrSpec{Name: "extra_arguments", Type: cty.List(cty.String), Required: false},
 		"ansible_env_vars":           &hcldec.AttrSpec{Name: "ansible_env_vars", Type: cty.List(cty.String), Required: false},
 		"playbook_file":              &hcldec.AttrSpec{Name: "playbook_file", Type: cty.String, Required: false},
