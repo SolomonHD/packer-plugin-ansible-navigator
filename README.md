@@ -160,6 +160,8 @@ provisioner "ansible-navigator" {
 
 ## Advanced Examples
 
+-> **Note:** The `collections` and `requirements_file` options are mutually exclusive. You can specify collections inline using the `collections` array, or reference a requirements file using `requirements_file`, but not both at the same time.
+
 ### Using Plays with Managed Collections
 
 Combine collection plays with automatic collection installation:
@@ -179,6 +181,31 @@ provisioner "ansible-navigator" {
   extra_arguments = [
     "--extra-vars", "container_name=myapp",
     "--extra-vars", "container_image=nginx:latest"
+  ]
+}
+```
+
+### Collections from Git Repositories
+
+Pull collections directly from Git repositories:
+
+```hcl
+provisioner "ansible-navigator" {
+  plays = [
+    "myorg.infrastructure.deploy",
+    "myorg.infrastructure.configure"
+  ]
+  
+  collections = [
+    "git+https://github.com/myorg/ansible-collection-infrastructure.git,main",
+    "git+https://github.com/acme/ansible-collection-security.git,v2.1.0",
+    "community.general:5.11.0"
+  ]
+  
+  collections_cache_dir = "~/.packer.d/collections"
+  
+  extra_arguments = [
+    "--extra-vars", "environment=production"
   ]
 }
 ```
@@ -261,7 +288,7 @@ Production deployment with requirements file and multiple plays:
 
 ```hcl
 provisioner "ansible-navigator" {
-  collections_requirements = "./requirements.yml"
+  requirements_file = "./requirements.yml"
   
   plays = [
     "baseline.security.harden_system",
