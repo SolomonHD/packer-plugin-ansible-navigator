@@ -1,25 +1,37 @@
 ---
 description: >
-  The ansible-local Packer provisioner will run ansible in ansible's "local"
+  The ansible-navigator-local Packer provisioner will run ansible-navigator in "local"
   mode on the remote/guest VM using Playbook and Role files that exist on the
-  guest VM. This means Ansible must be installed on the remote/guest VM.
+  guest VM. This means Ansible Navigator must be installed on the remote/guest VM.
   Playbooks and Roles can be uploaded from your build machine (the one running
   Packer) to the vm.
-page_title: Ansible Local - Provisioners
-nav_title: Ansible Local
+page_title: Ansible Navigator Local - Provisioners
+nav_title: Ansible Navigator Local
 ---
 
-# Ansible Local Provisioner
+# Ansible Navigator Local Provisioner
 
-Type: `ansible-local`
+Type: `ansible-navigator-local`
 
-The `ansible-local` Packer provisioner will execute `ansible` in Ansible's "local"
+The `ansible-navigator-local` Packer provisioner will execute `ansible-navigator` in "local"
 mode on the remote/guest VM using Playbook and Role files that exist on the
-guest VM. This means Ansible must be installed on the remote/guest VM.
+guest VM. This means Ansible Navigator must be installed on the remote/guest VM.
 Playbooks and Roles can be uploaded from your build machine (the one running
-Packer) to the vm. Ansible is then run on the guest machine in [local
+Packer) to the vm. Ansible Navigator is then run on the guest machine in [local
 mode](https://docs.ansible.com/ansible/latest/playbooks_delegation.html#local-playbooks)
-via the `ansible-playbook` command.
+via the `ansible-navigator run` command.
+
+## About Ansible Navigator
+
+Ansible Navigator is a command-line tool that provides a consistent interface for running Ansible content in execution environments. Unlike traditional `ansible-playbook`, ansible-navigator runs playbooks inside container-based execution environments.
+
+**Requirements for the remote/guest VM:**
+- **ansible-navigator** must be installed on the remote/guest VM
+- **Docker or Podman** must be installed and running on the remote/guest VM
+  - Docker: https://docs.docker.com/get-docker/
+  - Podman: https://podman.io/getting-started/installation
+
+The provisioner uses ansible-navigator to execute playbooks within execution environment containers on the guest machine, ensuring consistent Ansible versions and dependencies.
 
 -> **Note:** Ansible will _not_ be installed automatically by this
 provisioner. This provisioner expects that Ansible is already installed on the
@@ -50,7 +62,7 @@ build {
     "source.docker.example"
   ]
 
-  provisioner "ansible-local" {
+  provisioner "ansible-navigator-local" {
     playbook_file   = "./playbook.yml"
     extra_arguments = ["--extra-vars", "\"pizza_toppings=${var.topping}\""]
   }
@@ -74,7 +86,7 @@ build {
   },
   "provisioners": [
     {
-      "type": "ansible-local",
+      "type": "ansible-navigator-local",
       "playbook_file": "./playbook.yml",
       "extra_arguments": [
         "--extra-vars",

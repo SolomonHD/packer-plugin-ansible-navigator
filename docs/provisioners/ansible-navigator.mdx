@@ -10,10 +10,19 @@ nav_title: Ansible (Remote)
 
 Type: `ansible-navigator`
 
-The `ansible-navigator` Packer provisioner runs Ansible playbooks using ansible-navigator. It dynamically creates
-an Ansible inventory file configured to use SSH, runs an SSH server, executes
-`ansible-playbook`, and marshals Ansible plays through the SSH server to the
-machine being provisioned by Packer.
+The `ansible-navigator` Packer provisioner runs Ansible playbooks using [Ansible Navigator](https://ansible.readthedocs.io/projects/navigator/), a text-based user interface (TUI) for running and developing Ansible content. It dynamically creates an Ansible inventory file configured to use SSH, runs an SSH server, executes `ansible-navigator run`, and marshals Ansible plays through the SSH server to the machine being provisioned by Packer.
+
+## About Ansible Navigator
+
+Ansible Navigator is a command-line tool that provides a consistent interface for running Ansible content in execution environments. Unlike traditional `ansible-playbook`, ansible-navigator runs playbooks inside container-based execution environments, providing better isolation and reproducibility.
+
+**Requirements:**
+- **ansible-navigator** must be installed on your local machine (the one running Packer)
+- **Docker or Podman** must be installed and running on your local machine
+  - Docker: https://docs.docker.com/get-docker/
+  - Podman: https://podman.io/getting-started/installation
+
+The provisioner uses ansible-navigator to execute playbooks within execution environment containers, ensuring consistent Ansible versions and dependencies across different build environments.
 
 -> **Note:** Any `remote_user` defined in tasks will be ignored. Packer
 will always connect with the user given in the json config for this
