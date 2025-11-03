@@ -230,6 +230,21 @@ type Config struct {
 	//   `ansible-galaxy` command. By default, this is empty, and thus `--collections-path`
 	//   option is not added to the command.
 	CollectionsPath string `mapstructure:"collections_path"`
+	// List of Ansible collections to install automatically.
+	// Each entry can be a collection name with optional version (e.g., "community.general:5.11.0")
+	// or a local path (e.g., "myorg.mycollection@/path/to/collection").
+	Collections []string `mapstructure:"collections"`
+	// Directory to cache downloaded collections.
+	// Defaults to ~/.packer.d/ansible_collections_cache if not specified.
+	CollectionsCacheDir string `mapstructure:"collections_cache_dir"`
+	// When true, skip network operations and only use locally cached collections.
+	// Fails if a required collection is not present in the cache.
+	CollectionsOffline bool `mapstructure:"collections_offline"`
+	// When true, always reinstall collections even if they are already cached.
+	CollectionsForceUpdate bool `mapstructure:"collections_force_update"`
+	// Path to a requirements.yml file for installing collections.
+	// This is an alternative to specifying collections inline.
+	CollectionsRequirements string `mapstructure:"collections_requirements"`
 	// When `true`, set up a localhost proxy adapter
 	// so that Ansible has an IP address to connect to, even if your guest does not
 	// have an IP address. For example, the adapter is necessary for Docker builds
@@ -901,8 +916,45 @@ func (p *Provisioner) createCmdArgs(httpAddr, inventory, playbook, privKeyFile s
 	return args, envVars
 }
 
+// setCollectionsPath sets the ANSIBLE_COLLECTIONS_PATHS environment variable
+func (p *Provisioner) setCollectionsPath() error {
+	if p.config.CollectionsCacheDir == "" {
+		return nil
+	}
+
+	// Get existing ANSIBLE_COLLECTIONS_PATHS value
+	existingPath := os.Getenv("ANSIBLE_COLLECTIONS_PATHS")
+
+	// Prepend our cache directory to the path
+	var newPath string
+	if existingPath != "" {
+		newPath = p.config.CollectionsCacheDir + ":" + existingPath
+	} else {
+		newPath = p.config.CollectionsCacheDir
+	}
+
+	// Set the environment variable
+	if err := os.Setenv("ANSIBLE_COLLECTIONS_PATHS", newPath); err != nil {
+		return fmt.Errorf("failed to set ANSIBLE_COLLECTIONS_PATHS: %s", err)
+	}
+
+	return nil
+}
+
 func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string) error {
 	httpAddr := p.generatedData["PackerHTTPAddr"].(string)
+
+	// Install managed collections if configured
+	if err := ensureCollections(ui, &p.config); err != nil {
+		return fmt.Errorf("Error managing Ansible collections: %s", err)
+	}
+
+	// Set ANSIBLE_COLLECTIONS_PATHS environment variable if collections are managed
+	if len(p.config.Collections) > 0 || p.config.CollectionsRequirements != "" {
+		if err := p.setCollectionsPath(); err != nil {
+			return fmt.Errorf("Error setting collections path: %s", err)
+		}
+	}
 
 	// Fetch external dependencies
 	if len(p.config.GalaxyFile) > 0 {

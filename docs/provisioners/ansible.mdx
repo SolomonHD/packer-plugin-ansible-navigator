@@ -102,6 +102,123 @@ Optional Parameters:
 
 @include '/provisioner/ansible/Config-not-required.mdx'
 
+## Managed Ansible Collections
+
+The Ansible provisioner supports automatic installation and management of Ansible collections. This feature ensures that required collections are available before playbook execution, improving reproducibility and simplifying dependency management.
+
+### Configuration Options
+
+The following options control managed collections behavior:
+
+- `collections` ([]string) - List of collections to install. Each entry can be:
+  - A collection name: `"community.general"`
+  - A collection with version: `"community.general:5.11.0"`
+  - A local path: `"myorg.mycollection@/path/to/collection"`
+
+- `collections_cache_dir` (string) - Directory to cache downloaded collections. Defaults to `~/.packer.d/ansible_collections_cache`.
+
+- `collections_offline` (bool) - When true, skip network operations and only use cached collections. Fails if a required collection is not present locally. Default: `false`.
+
+- `collections_force_update` (bool) - When true, always reinstall collections even if cached. Default: `false`.
+
+- `collections_requirements` (string) - Path to a `requirements.yml` file for installing collections. Alternative to inline list.
+
+### Basic Example
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator" {
+  collections = [
+    "community.general:5.11.0",
+    "ansible.posix:1.5.4"
+  ]
+  collections_cache_dir = "~/.packer.d/ansible_collections_cache"
+  playbook_file = "deploy.yml"
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator",
+  "collections": [
+    "community.general:5.11.0",
+    "ansible.posix:1.5.4"
+  ],
+  "collections_cache_dir": "~/.packer.d/ansible_collections_cache",
+  "playbook_file": "deploy.yml"
+}
+```
+
+### Using a Requirements File
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator" {
+  collections_requirements = "./requirements.yml"
+  playbook_file = "deploy.yml"
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator",
+  "collections_requirements": "./requirements.yml",
+  "playbook_file": "deploy.yml"
+}
+```
+
+Example `requirements.yml`:
+
+```yaml
+---
+collections:
+  - name: community.general
+    version: ">=5.0.0"
+  - name: ansible.posix
+    version: 1.5.4
+```
+
+### Advanced Usage
+
+**Local Collections with Force Update**
+
+```hcl
+provisioner "ansible-navigator" {
+  collections = [
+    "myorg.mycollection@/opt/custom/collections"
+  ]
+  collections_force_update = true
+  playbook_file = "deploy.yml"
+}
+```
+
+**Offline Mode**
+
+```hcl
+provisioner "ansible-navigator" {
+  collections = [
+    "community.general:5.11.0"
+  ]
+  collections_offline = true
+  playbook_file = "deploy.yml"
+}
+```
+
+### Behavior Notes
+
+- Collections are installed before playbook execution
+- The `ANSIBLE_COLLECTIONS_PATHS` environment variable is automatically set to include the cache directory
+- In offline mode, all required collections must be pre-cached
+- Collections are validated by checking for `MANIFEST.json` after installation
+- The cache directory is created automatically if it doesn't exist
+- Collections are cached between Packer runs for faster subsequent builds
+
 @include 'provisioners/common-config.mdx'
 
 ## Default Extra Variables

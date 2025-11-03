@@ -1,8 +1,6 @@
 module github.com/SolomonHD/packer-plugin-ansible-navigator
 
-go 1.23.0
-
-toolchain go1.23.7
+go 1.25.3
 
 require (
 	github.com/hashicorp/hcl/v2 v2.19.1
