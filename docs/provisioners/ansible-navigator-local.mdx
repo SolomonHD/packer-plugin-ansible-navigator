@@ -145,13 +145,20 @@ Execute plays directly from collections that are installed on the guest VM:
 ```hcl
 provisioner "ansible-navigator-local" {
   plays = [
-    "community.general.docker_container",
-    "ansible.posix.selinux"
-  ]
-  
-  extra_arguments = [
-    "--extra-vars", "container_name=webapp",
-    "--extra-vars", "selinux_state=enforcing"
+    {
+      name = "Setup Docker Container"
+      target = "community.general.docker_container"
+      extra_vars = {
+        container_name = "webapp"
+      }
+    },
+    {
+      name = "Configure SELinux"
+      target = "ansible.posix.selinux"
+      extra_vars = {
+        selinux_state = "enforcing"
+      }
+    }
   ]
 }
 ```
@@ -162,12 +169,20 @@ provisioner "ansible-navigator-local" {
 {
   "type": "ansible-navigator-local",
   "plays": [
-    "community.general.docker_container",
-    "ansible.posix.selinux"
-  ],
-  "extra_arguments": [
-    "--extra-vars", "container_name=webapp",
-    "--extra-vars", "selinux_state=enforcing"
+    {
+      "name": "Setup Docker Container",
+      "target": "community.general.docker_container",
+      "extra_vars": {
+        "container_name": "webapp"
+      }
+    },
+    {
+      "name": "Configure SELinux",
+      "target": "ansible.posix.selinux",
+      "extra_vars": {
+        "selinux_state": "enforcing"
+      }
+    }
   ]
 }
 ```
@@ -181,15 +196,28 @@ Execute multiple collection plays in sequence on the guest VM:
 ```hcl
 provisioner "ansible-navigator-local" {
   plays = [
-    "baseline.system.configure_hostname",
-    "baseline.system.setup_users",
-    "app.service.install",
-    "app.service.configure"
-  ]
-  
-  extra_arguments = [
-    "--extra-vars", "hostname=webapp01",
-    "--extra-vars", "app_version=2.1.0"
+    {
+      name = "Configure Hostname"
+      target = "baseline.system.configure_hostname"
+      extra_vars = {
+        hostname = "webapp01"
+      }
+    },
+    {
+      name = "Setup Users"
+      target = "baseline.system.setup_users"
+    },
+    {
+      name = "Install Application"
+      target = "app.service.install"
+      extra_vars = {
+        app_version = "2.1.0"
+      }
+    },
+    {
+      name = "Configure Application"
+      target = "app.service.configure"
+    }
   ]
   
   playbook_dir = "/tmp/ansible-local"
@@ -202,14 +230,28 @@ provisioner "ansible-navigator-local" {
 {
   "type": "ansible-navigator-local",
   "plays": [
-    "baseline.system.configure_hostname",
-    "baseline.system.setup_users",
-    "app.service.install",
-    "app.service.configure"
-  ],
-  "extra_arguments": [
-    "--extra-vars", "hostname=webapp01",
-    "--extra-vars", "app_version=2.1.0"
+    {
+      "name": "Configure Hostname",
+      "target": "baseline.system.configure_hostname",
+      "extra_vars": {
+        "hostname": "webapp01"
+      }
+    },
+    {
+      "name": "Setup Users",
+      "target": "baseline.system.setup_users"
+    },
+    {
+      "name": "Install Application",
+      "target": "app.service.install",
+      "extra_vars": {
+        "app_version": "2.1.0"
+      }
+    },
+    {
+      "name": "Configure Application",
+      "target": "app.service.configure"
+    }
   ],
   "playbook_dir": "/tmp/ansible-local"
 }
@@ -224,13 +266,20 @@ Use collection plays from a custom installation path on the guest:
 ```hcl
 provisioner "ansible-navigator-local" {
   plays = [
-    "myorg.app.deploy",
-    "myorg.app.healthcheck"
-  ]
-  
-  extra_arguments = [
-    "--extra-vars", "deployment_type=standalone",
-    "--extra-vars", "health_check_retries=5"
+    {
+      name = "Deploy Application"
+      target = "myorg.app.deploy"
+      extra_vars = {
+        deployment_type = "standalone"
+      }
+    },
+    {
+      name = "Health Check"
+      target = "myorg.app.healthcheck"
+      extra_vars = {
+        health_check_retries = 5
+      }
+    }
   ]
   
   playbook_dir = "/opt/ansible"
@@ -248,12 +297,20 @@ provisioner "ansible-navigator-local" {
 {
   "type": "ansible-navigator-local",
   "plays": [
-    "myorg.app.deploy",
-    "myorg.app.healthcheck"
-  ],
-  "extra_arguments": [
-    "--extra-vars", "deployment_type=standalone",
-    "--extra-vars", "health_check_retries=5"
+    {
+      "name": "Deploy Application",
+      "target": "myorg.app.deploy",
+      "extra_vars": {
+        "deployment_type": "standalone"
+      }
+    },
+    {
+      "name": "Health Check",
+      "target": "myorg.app.healthcheck",
+      "extra_vars": {
+        "health_check_retries": 5
+      }
+    }
   ],
   "playbook_dir": "/opt/ansible",
   "ansible_env_vars": [
@@ -271,15 +328,27 @@ Deploy containers locally on the guest VM using collection plays:
 ```hcl
 provisioner "ansible-navigator-local" {
   plays = [
-    "community.docker.docker_network",
-    "community.docker.docker_volume",
-    "community.docker.docker_container"
-  ]
-  
-  extra_arguments = [
-    "--extra-vars", "network_name=app_net",
-    "--extra-vars", "volume_name=app_data",
-    "--extra-vars", "container_image=nginx:alpine"
+    {
+      name = "Create Docker Network"
+      target = "community.docker.docker_network"
+      extra_vars = {
+        network_name = "app_net"
+      }
+    },
+    {
+      name = "Create Docker Volume"
+      target = "community.docker.docker_volume"
+      extra_vars = {
+        volume_name = "app_data"
+      }
+    },
+    {
+      name = "Start Docker Container"
+      target = "community.docker.docker_container"
+      extra_vars = {
+        container_image = "nginx:alpine"
+      }
+    }
   ]
 }
 ```
@@ -290,14 +359,27 @@ provisioner "ansible-navigator-local" {
 {
   "type": "ansible-navigator-local",
   "plays": [
-    "community.docker.docker_network",
-    "community.docker.docker_volume",
-    "community.docker.docker_container"
-  ],
-  "extra_arguments": [
-    "--extra-vars", "network_name=app_net",
-    "--extra-vars", "volume_name=app_data",
-    "--extra-vars", "container_image=nginx:alpine"
+    {
+      "name": "Create Docker Network",
+      "target": "community.docker.docker_network",
+      "extra_vars": {
+        "network_name": "app_net"
+      }
+    },
+    {
+      "name": "Create Docker Volume",
+      "target": "community.docker.docker_volume",
+      "extra_vars": {
+        "volume_name": "app_data"
+      }
+    },
+    {
+      "name": "Start Docker Container",
+      "target": "community.docker.docker_container",
+      "extra_vars": {
+        "container_image": "nginx:alpine"
+      }
+    }
   ]
 }
 ```
@@ -311,13 +393,23 @@ Quick iteration during development with verbose output:
 ```hcl
 provisioner "ansible-navigator-local" {
   plays = [
-    "dev.app.setup",
-    "dev.app.test"
+    {
+      name = "Setup Development Environment"
+      target = "dev.app.setup"
+      extra_vars = {
+        env = "development"
+      }
+    },
+    {
+      name = "Run Tests"
+      target = "dev.app.test"
+      extra_vars = {
+        run_tests = true
+      }
+    }
   ]
   
   extra_arguments = [
-    "--extra-vars", "env=development",
-    "--extra-vars", "run_tests=true",
     "-vvv"
   ]
   
@@ -333,12 +425,22 @@ provisioner "ansible-navigator-local" {
 {
   "type": "ansible-navigator-local",
   "plays": [
-    "dev.app.setup",
-    "dev.app.test"
+    {
+      "name": "Setup Development Environment",
+      "target": "dev.app.setup",
+      "extra_vars": {
+        "env": "development"
+      }
+    },
+    {
+      "name": "Run Tests",
+      "target": "dev.app.test",
+      "extra_vars": {
+        "run_tests": true
+      }
+    }
   ],
   "extra_arguments": [
-    "--extra-vars", "env=development",
-    "--extra-vars", "run_tests=true",
     "-vvv"
   ],
   "ansible_env_vars": [

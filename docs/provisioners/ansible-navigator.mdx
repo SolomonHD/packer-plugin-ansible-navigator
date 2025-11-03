@@ -257,20 +257,30 @@ Execute plays directly from collections with automatic installation:
 ```hcl
 provisioner "ansible-navigator" {
   plays = [
-    "community.general.docker_container",
-    "ansible.posix.firewalld",
-    "community.general.ufw"
+    {
+      name = "Setup Docker Container"
+      target = "community.general.docker_container"
+      extra_vars = {
+        container_name = "myapp"
+        container_image = "nginx:latest"
+      }
+    },
+    {
+      name = "Configure Firewall"
+      target = "ansible.posix.firewalld"
+      extra_vars = {
+        enable_firewall = true
+      }
+    },
+    {
+      name = "Setup UFW Rules"
+      target = "community.general.ufw"
+    }
   ]
   
   collections = [
     "community.general:>=5.0.0",
     "ansible.posix:1.5.4"
-  ]
-  
-  extra_arguments = [
-    "--extra-vars", "container_name=myapp",
-    "--extra-vars", "container_image=nginx:latest",
-    "--extra-vars", "enable_firewall=true"
   ]
 }
 ```
@@ -281,18 +291,29 @@ provisioner "ansible-navigator" {
 {
   "type": "ansible-navigator",
   "plays": [
-    "community.general.docker_container",
-    "ansible.posix.firewalld",
-    "community.general.ufw"
+    {
+      "name": "Setup Docker Container",
+      "target": "community.general.docker_container",
+      "extra_vars": {
+        "container_name": "myapp",
+        "container_image": "nginx:latest"
+      }
+    },
+    {
+      "name": "Configure Firewall",
+      "target": "ansible.posix.firewalld",
+      "extra_vars": {
+        "enable_firewall": true
+      }
+    },
+    {
+      "name": "Setup UFW Rules",
+      "target": "community.general.ufw"
+    }
   ],
   "collections": [
     "community.general:>=5.0.0",
     "ansible.posix:1.5.4"
-  ],
-  "extra_arguments": [
-    "--extra-vars", "container_name=myapp",
-    "--extra-vars", "container_image=nginx:latest",
-    "--extra-vars", "enable_firewall=true"
   ]
 }
 ```
@@ -306,10 +327,27 @@ Deploy applications using multiple plays from custom collections:
 ```hcl
 provisioner "ansible-navigator" {
   plays = [
-    "integration.portainer.setup_environment",
-    "integration.portainer.configure_swarm",
-    "integration.portainer.deploy_stack",
-    "integration.portainer.verify_deployment"
+    {
+      name = "Setup Environment"
+      target = "integration.portainer.setup_environment"
+    },
+    {
+      name = "Configure Docker Swarm"
+      target = "integration.portainer.configure_swarm"
+    },
+    {
+      name = "Deploy Application Stack"
+      target = "integration.portainer.deploy_stack"
+      extra_vars = {
+        stack_name = "production-app"
+        replicas = 3
+        environment = "production"
+      }
+    },
+    {
+      name = "Verify Deployment"
+      target = "integration.portainer.verify_deployment"
+    }
   ]
   
   collections = [
@@ -324,12 +362,6 @@ provisioner "ansible-navigator" {
     "ANSIBLE_HOST_KEY_CHECKING=False",
     "ANSIBLE_GATHERING=smart"
   ]
-  
-  extra_arguments = [
-    "--extra-vars", "stack_name=production-app",
-    "--extra-vars", "replicas=3",
-    "--extra-vars", "environment=production"
-  ]
 }
 ```
 
@@ -339,10 +371,27 @@ provisioner "ansible-navigator" {
 {
   "type": "ansible-navigator",
   "plays": [
-    "integration.portainer.setup_environment",
-    "integration.portainer.configure_swarm",
-    "integration.portainer.deploy_stack",
-    "integration.portainer.verify_deployment"
+    {
+      "name": "Setup Environment",
+      "target": "integration.portainer.setup_environment"
+    },
+    {
+      "name": "Configure Docker Swarm",
+      "target": "integration.portainer.configure_swarm"
+    },
+    {
+      "name": "Deploy Application Stack",
+      "target": "integration.portainer.deploy_stack",
+      "extra_vars": {
+        "stack_name": "production-app",
+        "replicas": 3,
+        "environment": "production"
+      }
+    },
+    {
+      "name": "Verify Deployment",
+      "target": "integration.portainer.verify_deployment"
+    }
   ],
   "collections": [
     "integration.portainer@/opt/custom/collections/portainer",
@@ -353,11 +402,6 @@ provisioner "ansible-navigator" {
   "ansible_env_vars": [
     "ANSIBLE_HOST_KEY_CHECKING=False",
     "ANSIBLE_GATHERING=smart"
-  ],
-  "extra_arguments": [
-    "--extra-vars", "stack_name=production-app",
-    "--extra-vars", "replicas=3",
-    "--extra-vars", "environment=production"
   ]
 }
 ```
@@ -371,9 +415,24 @@ Use pre-cached collections in an offline environment:
 ```hcl
 provisioner "ansible-navigator" {
   plays = [
-    "acme.firewall.configure_rules",
-    "acme.security.harden_system",
-    "acme.monitoring.setup_agents"
+    {
+      name = "Configure Firewall Rules"
+      target = "acme.firewall.configure_rules"
+    },
+    {
+      name = "Harden System Security"
+      target = "acme.security.harden_system"
+      extra_vars = {
+        hardening_level = "high"
+      }
+    },
+    {
+      name = "Setup Monitoring Agents"
+      target = "acme.monitoring.setup_agents"
+      extra_vars = {
+        monitoring_enabled = true
+      }
+    }
   ]
   
   collections = [
@@ -389,11 +448,6 @@ provisioner "ansible-navigator" {
     "ANSIBLE_HOST_KEY_CHECKING=False",
     "ANSIBLE_GATHERING=explicit"
   ]
-  
-  extra_arguments = [
-    "--extra-vars", "hardening_level=high",
-    "--extra-vars", "monitoring_enabled=true"
-  ]
 }
 ```
 
@@ -403,9 +457,24 @@ provisioner "ansible-navigator" {
 {
   "type": "ansible-navigator",
   "plays": [
-    "acme.firewall.configure_rules",
-    "acme.security.harden_system",
-    "acme.monitoring.setup_agents"
+    {
+      "name": "Configure Firewall Rules",
+      "target": "acme.firewall.configure_rules"
+    },
+    {
+      "name": "Harden System Security",
+      "target": "acme.security.harden_system",
+      "extra_vars": {
+        "hardening_level": "high"
+      }
+    },
+    {
+      "name": "Setup Monitoring Agents",
+      "target": "acme.monitoring.setup_agents",
+      "extra_vars": {
+        "monitoring_enabled": true
+      }
+    }
   ],
   "collections": [
     "acme.firewall:2.1.0",
@@ -417,10 +486,6 @@ provisioner "ansible-navigator" {
   "ansible_env_vars": [
     "ANSIBLE_HOST_KEY_CHECKING=False",
     "ANSIBLE_GATHERING=explicit"
-  ],
-  "extra_arguments": [
-    "--extra-vars", "hardening_level=high",
-    "--extra-vars", "monitoring_enabled=true"
   ]
 }
 ```
@@ -434,8 +499,18 @@ Pull collections directly from Git repositories:
 ```hcl
 provisioner "ansible-navigator" {
   plays = [
-    "myorg.infrastructure.deploy",
-    "myorg.infrastructure.configure"
+    {
+      name = "Deploy Infrastructure"
+      target = "myorg.infrastructure.deploy"
+      extra_vars = {
+        environment = "production"
+        git_branch = "main"
+      }
+    },
+    {
+      name = "Configure Infrastructure"
+      target = "myorg.infrastructure.configure"
+    }
   ]
   
   collections = [
@@ -445,11 +520,6 @@ provisioner "ansible-navigator" {
   ]
   
   collections_cache_dir = "~/.packer.d/collections"
-  
-  extra_arguments = [
-    "--extra-vars", "environment=production",
-    "--extra-vars", "git_branch=main"
-  ]
 }
 ```
 
@@ -459,19 +529,25 @@ provisioner "ansible-navigator" {
 {
   "type": "ansible-navigator",
   "plays": [
-    "myorg.infrastructure.deploy",
-    "myorg.infrastructure.configure"
+    {
+      "name": "Deploy Infrastructure",
+      "target": "myorg.infrastructure.deploy",
+      "extra_vars": {
+        "environment": "production",
+        "git_branch": "main"
+      }
+    },
+    {
+      "name": "Configure Infrastructure",
+      "target": "myorg.infrastructure.configure"
+    }
   ],
   "collections": [
     "git+https://github.com/myorg/ansible-collection-infrastructure.git,main",
     "git+https://github.com/acme/ansible-collection-security.git,v2.1.0",
     "community.general:5.11.0"
   ],
-  "collections_cache_dir": "~/.packer.d/collections",
-  "extra_arguments": [
-    "--extra-vars", "environment=production",
-    "--extra-vars", "git_branch=main"
-  ]
+  "collections_cache_dir": "~/.packer.d/collections"
 }
 ```
 
@@ -484,8 +560,18 @@ Iterate quickly during development by always updating local collections:
 ```hcl
 provisioner "ansible-navigator" {
   plays = [
-    "myorg.app.deploy",
-    "myorg.app.configure"
+    {
+      name = "Deploy Application"
+      target = "myorg.app.deploy"
+      extra_vars = {
+        env = "development"
+        debug = true
+      }
+    },
+    {
+      name = "Configure Application"
+      target = "myorg.app.configure"
+    }
   ]
   
   collections = [
@@ -499,8 +585,6 @@ provisioner "ansible-navigator" {
   ]
   
   extra_arguments = [
-    "--extra-vars", "env=development",
-    "--extra-vars", "debug=true",
     "-vvv"
   ]
 }
@@ -512,8 +596,18 @@ provisioner "ansible-navigator" {
 {
   "type": "ansible-navigator",
   "plays": [
-    "myorg.app.deploy",
-    "myorg.app.configure"
+    {
+      "name": "Deploy Application",
+      "target": "myorg.app.deploy",
+      "extra_vars": {
+        "env": "development",
+        "debug": true
+      }
+    },
+    {
+      "name": "Configure Application",
+      "target": "myorg.app.configure"
+    }
   ],
   "collections": [
     "myorg.app@../ansible-collections/myorg-app"
@@ -523,8 +617,6 @@ provisioner "ansible-navigator" {
     "ANSIBLE_STDOUT_CALLBACK=debug"
   ],
   "extra_arguments": [
-    "--extra-vars", "env=development",
-    "--extra-vars", "debug=true",
     "-vvv"
   ]
 }
@@ -541,11 +633,36 @@ provisioner "ansible-navigator" {
   requirements_file = "./requirements.yml"
   
   plays = [
-    "baseline.security.harden_system",
-    "baseline.monitoring.setup_agents",
-    "baseline.logging.configure_rsyslog",
-    "app.webapp.deploy",
-    "app.webapp.configure_ssl"
+    {
+      name = "Harden System Security"
+      target = "baseline.security.harden_system"
+    },
+    {
+      name = "Setup Monitoring Agents"
+      target = "baseline.monitoring.setup_agents"
+      extra_vars = {
+        enable_monitoring = true
+      }
+    },
+    {
+      name = "Configure System Logging"
+      target = "baseline.logging.configure_rsyslog"
+    },
+    {
+      name = "Deploy Web Application"
+      target = "app.webapp.deploy"
+      extra_vars = {
+        environment = "production"
+        version = "2.5.1"
+      }
+    },
+    {
+      name = "Configure SSL"
+      target = "app.webapp.configure_ssl"
+      extra_vars = {
+        ssl_enabled = true
+      }
+    }
   ]
   
   collections_cache_dir = "~/.packer.d/ansible_collections_cache"
@@ -554,13 +671,6 @@ provisioner "ansible-navigator" {
     "ANSIBLE_HOST_KEY_CHECKING=False",
     "ANSIBLE_GATHERING=smart",
     "ANSIBLE_TIMEOUT=300"
-  ]
-  
-  extra_arguments = [
-    "--extra-vars", "environment=production",
-    "--extra-vars", "version=2.5.1",
-    "--extra-vars", "enable_monitoring=true",
-    "--extra-vars", "ssl_enabled=true"
   ]
   
   groups = ["webservers", "production"]
@@ -574,23 +684,42 @@ provisioner "ansible-navigator" {
   "type": "ansible-navigator",
   "requirements_file": "./requirements.yml",
   "plays": [
-    "baseline.security.harden_system",
-    "baseline.monitoring.setup_agents",
-    "baseline.logging.configure_rsyslog",
-    "app.webapp.deploy",
-    "app.webapp.configure_ssl"
+    {
+      "name": "Harden System Security",
+      "target": "baseline.security.harden_system"
+    },
+    {
+      "name": "Setup Monitoring Agents",
+      "target": "baseline.monitoring.setup_agents",
+      "extra_vars": {
+        "enable_monitoring": true
+      }
+    },
+    {
+      "name": "Configure System Logging",
+      "target": "baseline.logging.configure_rsyslog"
+    },
+    {
+      "name": "Deploy Web Application",
+      "target": "app.webapp.deploy",
+      "extra_vars": {
+        "environment": "production",
+        "version": "2.5.1"
+      }
+    },
+    {
+      "name": "Configure SSL",
+      "target": "app.webapp.configure_ssl",
+      "extra_vars": {
+        "ssl_enabled": true
+      }
+    }
   ],
   "collections_cache_dir": "~/.packer.d/ansible_collections_cache",
   "ansible_env_vars": [
     "ANSIBLE_HOST_KEY_CHECKING=False",
     "ANSIBLE_GATHERING=smart",
     "ANSIBLE_TIMEOUT=300"
-  ],
-  "extra_arguments": [
-    "--extra-vars", "environment=production",
-    "--extra-vars", "version=2.5.1",
-    "--extra-vars", "enable_monitoring=true",
-    "--extra-vars", "ssl_enabled=true"
   ],
   "groups": ["webservers", "production"]
 }
@@ -622,20 +751,32 @@ Deploy and configure containers using collection plays:
 ```hcl
 provisioner "ansible-navigator" {
   plays = [
-    "community.docker.docker_compose",
-    "community.docker.docker_network",
-    "community.general.docker_container"
+    {
+      name = "Deploy with Docker Compose"
+      target = "community.docker.docker_compose"
+      extra_vars = {
+        compose_file = "/opt/app/docker-compose.yml"
+      }
+    },
+    {
+      name = "Configure Docker Network"
+      target = "community.docker.docker_network"
+      extra_vars = {
+        network_name = "app_network"
+      }
+    },
+    {
+      name = "Start Docker Container"
+      target = "community.general.docker_container"
+      extra_vars = {
+        container_state = "started"
+      }
+    }
   ]
   
   collections = [
     "community.docker:3.4.0",
     "community.general:5.11.0"
-  ]
-  
-  extra_arguments = [
-    "--extra-vars", "compose_file=/opt/app/docker-compose.yml",
-    "--extra-vars", "network_name=app_network",
-    "--extra-vars", "container_state=started"
   ]
   
   ansible_env_vars = [
@@ -650,18 +791,31 @@ provisioner "ansible-navigator" {
 {
   "type": "ansible-navigator",
   "plays": [
-    "community.docker.docker_compose",
-    "community.docker.docker_network",
-    "community.general.docker_container"
+    {
+      "name": "Deploy with Docker Compose",
+      "target": "community.docker.docker_compose",
+      "extra_vars": {
+        "compose_file": "/opt/app/docker-compose.yml"
+      }
+    },
+    {
+      "name": "Configure Docker Network",
+      "target": "community.docker.docker_network",
+      "extra_vars": {
+        "network_name": "app_network"
+      }
+    },
+    {
+      "name": "Start Docker Container",
+      "target": "community.general.docker_container",
+      "extra_vars": {
+        "container_state": "started"
+      }
+    }
   ],
   "collections": [
     "community.docker:3.4.0",
     "community.general:5.11.0"
-  ],
-  "extra_arguments": [
-    "--extra-vars", "compose_file=/opt/app/docker-compose.yml",
-    "--extra-vars", "network_name=app_network",
-    "--extra-vars", "container_state=started"
   ],
   "ansible_env_vars": [
     "ANSIBLE_HOST_KEY_CHECKING=False"
