@@ -3,7 +3,7 @@
 > Modern Ansible provisioning for HashiCorp Packer using **ansible-navigator** for containerized execution environments
 
 [![Apache License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Go Version](https://img.shields.io/badge/Go-1.25.3+-blue.svg)](.go-version)
+[![Go Version](https://img.shields.io/badge/Go-1.23+-blue.svg)](.go-version)
 [![Packer Plugin SDK](https://img.shields.io/badge/Packer%20Plugin%20SDK-v0.6.4-blue.svg)](go.mod)
 
 ## 🎯 Why Use This Plugin?
@@ -16,7 +16,14 @@ This plugin extends HashiCorp Packer to leverage **Ansible Navigator's** contain
 - ✅ **Structured Logging** - JSON event streaming for CI/CD integration
 - ✅ **Modern Ansible Features** - Full compatibility with execution environments
 
-## 📦 Quick Start
+## 📋 Requirements
+
+- **Go:** 1.23+ (for development/building from source)
+- **Packer:** ≥ 1.10.0 (required for plugin protocol x5 support)
+- **Packer Plugin SDK:** v0.6.4+ (automatically managed via Go modules)
+- **Ansible Navigator:** Latest version recommended (runtime dependency)
+
+## � Quick Start
 
 ### Installation
 
