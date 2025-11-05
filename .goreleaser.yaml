@@ -3,7 +3,7 @@ version: 2
 project_name: packer-plugin-ansible-navigator
 
 builds:
-  - id: packer-plugin-ansible-navigator
+  - id: plugin
     main: .
     binary: packer-plugin-ansible-navigator
     env:
@@ -22,11 +22,8 @@ builds:
 
 archives:
   - id: default
-    format: zip
+    format: binary
     name_template: "{{ .ProjectName }}_v{{ .Version }}_x5.0_{{ .Os }}_{{ .Arch }}"
-    wrap_in_directory: false
-    files:
-      - none*
 
 checksum:
   name_template: "{{ .ProjectName }}_v{{ .Version }}_SHA256SUMS"
