@@ -23,8 +23,13 @@ archives:
       - none*
 
 checksum:
-  # matching checksum naming for Packer >=1.10
-  name_template: "{{ .ProjectName }}_v{{ .Version }}_x5_SHA256SUMS"
+  # Packer (on your machine) is requesting the legacy checksum filename:
+  # packer-plugin-ansible-navigator_v<ver>_SHA256SUMS
+  name_template: "{{ .ProjectName }}_v{{ .Version }}_SHA256SUMS"
+
+# checksum:
+#   # matching checksum naming for Packer >=1.10
+#   name_template: "{{ .ProjectName }}_v{{ .Version }}_x5_SHA256SUMS"
 
 release:
   github:
