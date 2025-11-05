@@ -1,0 +1,35 @@
+version: 2
+
+project_name: packer-plugin-ansible-navigator
+
+builds:
+  - id: packer-plugin-ansible-navigator
+    main: .
+    binary: packer-plugin-ansible-navigator
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: default
+    format: zip
+    name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - none*
+
+checksum:
+  name_template: "{{ .ProjectName }}_v{{ .Version }}_SHA256SUMS"
+
+release:
+  github:
+    owner: SolomonHD
+    name: packer-plugin-ansible-navigator
+  draft: false
+  prerelease: false
+
+changelog:
+  use: git
