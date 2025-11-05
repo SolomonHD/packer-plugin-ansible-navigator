@@ -10,26 +10,24 @@ builds:
       - CGO_ENABLED=0
     goos:
       - linux
+      - darwin
+      - windows
     goarch:
       - amd64
+      - arm64
     mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:
   - id: default
-    # modern naming: includes x5 for current Packer plugin protocol
-    name_template: "{{ .ProjectName }}_v{{ .Version }}_x5_{{ .Os }}_{{ .Arch }}.zip"
+    name_template: "{{ .ProjectName }}_v{{ .Version }}_x5_{{ .Os }}_{{ .Arch }}"
+    format: zip
     wrap_in_directory: false
     files:
       - none*
 
 checksum:
-  # Packer (on your machine) is requesting the legacy checksum filename:
-  # packer-plugin-ansible-navigator_v<ver>_SHA256SUMS
-  name_template: "{{ .ProjectName }}_v{{ .Version }}_SHA256SUMS"
-
-# checksum:
-#   # matching checksum naming for Packer >=1.10
-#   name_template: "{{ .ProjectName }}_v{{ .Version }}_x5_SHA256SUMS"
+  # Packer >=1.10 expects x5 in the checksum filename
+  name_template: "{{ .ProjectName }}_v{{ .Version }}_x5_SHA256SUMS"
 
 release:
   github:
