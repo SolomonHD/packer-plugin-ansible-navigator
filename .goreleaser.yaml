@@ -20,14 +20,12 @@ builds:
 archives:
   - id: default
     name_template: "{{ .ProjectName }}_v{{ .Version }}_x5_{{ .Os }}_{{ .Arch }}"
-    format: zip
     wrap_in_directory: false
     files:
       - none*
 
 checksum:
-  # Packer >=1.10 expects x5 in the checksum filename
-  name_template: "{{ .ProjectName }}_v{{ .Version }}_x5_SHA256SUMS"
+  name_template: "{{ .ProjectName }}_v{{ .Version }}_SHA256SUMS"
 
 release:
   github:
