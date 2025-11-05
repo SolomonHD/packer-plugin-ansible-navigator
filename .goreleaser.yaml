@@ -1,6 +1,9 @@
 version: 2
 project_name: packer-plugin-ansible-navigator
 
+env:
+  - API_VERSION=x5.0
+
 before:
   hooks:
     - go mod download
@@ -10,7 +13,7 @@ builds:
     mod_timestamp: "{{ .CommitTimestamp }}"
     hooks:
       pre:
-        - cmd: "go build -o packer-plugin-ansible-navigator {{ .Env.ALL_LDFLAGS}} ."
+        - cmd: "go build -o packer-plugin-ansible-navigator ."
     flags:
       - -trimpath
     ldflags:
@@ -30,7 +33,14 @@ builds:
     binary: "{{ .ProjectName }}_v{{ .Version }}_{{ .Env.API_VERSION }}_{{ .Os }}_{{ .Arch }}"
 
 archives:
-  - format: zip
+  - id: plugin-archive
+    format_overrides:
+      - goos: windows
+        format: zip
+      - goos: darwin
+        format: zip
+      - goos: linux
+        format: zip
     name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Env.API_VERSION }}_{{ .Os }}_{{ .Arch }}"
     files:
       - none*
@@ -47,13 +57,6 @@ release:
   name_template: "v{{ .Version }}"
   extra_files:
     - glob: ./{{ .ProjectName }}_v{{ .Version }}_SHA256SUMS
-
-publishers:
-  - name: post-release
-    cmd: ./scripts/post-release.sh
-    env:
-      - RELEASE_VERSION={{ .Version }}
-      - PROJECT_NAME={{ .ProjectName }}
 
 sboms:
   - artifacts: none
