@@ -1,80 +1,75 @@
-version: 2
-project_name: packer-plugin-ansible-navigator
-
 env:
-  - API_VERSION=x5.0
+  - CGO_ENABLED=0
 
 before:
   hooks:
-    - go mod download
-    - go generate ./...
+    # Optional: run tests before building
+    - go test ./...
+    # Optional: check plugin compatibility (remove if you don't need packer's makefile)
+    - make plugin-check
 
 builds:
+  # Special case build to run plugin-check only for linux_amd64 for validation
   - id: plugin-check
     mod_timestamp: "{{ .CommitTimestamp }}"
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/{{ .ProjectName }}/version.Version={{.Version}} -X github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/{{ .ProjectName }}/version.VersionPrerelease=dev
-    env:
-      - CGO_ENABLED=0
+      - "-s -w -X {{ .ModulePath }}/version.Version={{.Version}} -X {{ .ModulePath }}/version.VersionPrerelease="
     goos:
-      - darwin
       - linux
-      - windows
     goarch:
       - amd64
+    binary: "{{ .ProjectName }}_v{{ .Version }}_{{ .Env.API_VERSION }}_{{ .Os }}_{{ .Arch }}"
+
+  - mod_timestamp: "{{ .CommitTimestamp }}"
+    flags:
+      - -trimpath
+    ldflags:
+      - "-s -w -X {{ .ModulePath }}/version.Version={{.Version}} -X {{ .ModulePath }}/version.VersionPrerelease="
+    goos:
+      - netbsd
+      - solaris
+      - openbsd
+      - freebsd
+      - windows
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - "386"
+      - arm
       - arm64
     ignore:
-      - goos: windows
+      - goos: openbsd
         goarch: arm64
       - goos: darwin
         goarch: "386"
     binary: "{{ .ProjectName }}_v{{ .Version }}_{{ .Env.API_VERSION }}_{{ .Os }}_{{ .Arch }}"
 
 archives:
-  - id: plugin-archive
-    format: zip
-    name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Env.API_VERSION }}_{{ .Os }}_{{ .Arch }}"
+  - format: zip
     files:
       - none*
+    name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Env.API_VERSION }}_{{ .Os }}_{{ .Arch }}"
 
 checksum:
   name_template: "{{ .ProjectName }}_v{{ .Version }}_SHA256SUMS"
   algorithm: sha256
 
 signs:
-  - cmd: cosign
-    stdin: "{{ .Env.COSIGN_PASSWORD }}"
-    output: true
-    artifacts: checksum
+  - artifacts: checksum
     args:
-      - sign-blob
-      - "--key=env://COSIGN_KEY"
-      - "--output-signature=${signature}"
-      - "--yes"
+      - "--batch"
+      - "--local-user"
+      - "{{ .Env.GPG_FINGERPRINT }}"
+      - "--output"
+      - "${signature}"
+      - "--detach-sign"
       - "${artifact}"
+# release:
+#   # Uncomment if you want to draft releases until you verify
+#   # draft: true
 
-release:
-  github:
-    owner: SolomonHD
-    name: packer-plugin-ansible-navigator
-  draft: false
-  prerelease: auto
-  name_template: "v{{ .Version }}"
-  extra_files:
-    - glob: ./docs/*
-    - glob: ./terraform-registry-manifest.json
-
-snapshot:
-  version_template: "{{ incpatch .Version }}-dev"
-
-changelog:
-  use: github
-  sort: asc
-  filters:
-    exclude:
-      - "^docs:"
-      - "^test:"
-      - "^chore:"
-      - "typo"
+# changelog:
+#   skip: true
