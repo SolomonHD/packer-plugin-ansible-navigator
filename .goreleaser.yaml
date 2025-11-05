@@ -44,12 +44,17 @@ release:
     owner: SolomonHD
     name: packer-plugin-ansible-navigator
   draft: false
-  name: "v{{ .Version }}"
-  tag_name: "v{{ .Version }}"
+  name_template: "v{{ .Version }}"
   extra_files:
     - glob: ./{{ .ProjectName }}_v{{ .Version }}_SHA256SUMS
+
+# Post-release hooks
+after:
   hooks:
-    post: ./scripts/post-release.sh
+    - cmd: ./scripts/post-release.sh
+      env:
+        - RELEASE_VERSION={{ .Version }}
+        - PROJECT_NAME={{ .ProjectName }}
 
 sboms:
   - artifacts: none
@@ -58,7 +63,7 @@ signs:
   - artifacts: none
 
 snapshot:
-  name_template: "{{ .Tag }}-next"
+  version_template: "{{ .Tag }}-next"
 
 changelog:
   sort: asc
