@@ -34,16 +34,11 @@ builds:
 
 archives:
   - id: plugin-archive
-    format_overrides:
-      - goos: windows
-        format: zip
-      - goos: darwin
-        format: zip
-      - goos: linux
-        format: zip
+    format: zip
     name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Env.API_VERSION }}_{{ .Os }}_{{ .Arch }}"
-    files:
-      - none*
+    builds_info:
+      mode: 0755
+    rlcp: true
 
 checksum:
   name_template: "{{ .ProjectName }}_v{{ .Version }}_SHA256SUMS"
@@ -56,13 +51,7 @@ release:
   draft: false
   name_template: "v{{ .Version }}"
   extra_files:
-    - glob: ./{{ .ProjectName }}_v{{ .Version }}_SHA256SUMS
-
-sboms:
-  - artifacts: none
-
-signs:
-  - artifacts: none
+    - glob: ./dist/{{ .ProjectName }}_v{{ .Version }}_SHA256SUMS
 
 snapshot:
   version_template: "{{ .Tag }}-next"
