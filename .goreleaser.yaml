@@ -38,28 +38,6 @@ release:
     name: packer-plugin-ansible-navigator
   draft: false
   prerelease: false
-  extra_files:
-    - glob: ./dist/*_x5.0_SHA256SUMS
 
 changelog:
   use: git
-
-# This runs after archives are created but before release
-before:
-  hooks:
-    - go mod tidy
-
-# This runs after the release is published
-publishers:
-  - name: create-x5-checksum
-    cmd: |
-      bash -c '
-      cd dist
-      # Create the x5 checksum file by copying the main one
-      cp {{ .ProjectName }}_v{{ .Version }}_SHA256SUMS {{ .ProjectName }}_v{{ .Version }}_x5.0_SHA256SUMS
-
-      # Upload using GitHub CLI
-      gh release upload {{ .Tag }} {{ .ProjectName }}_v{{ .Version }}_x5.0_SHA256SUMS --clobber
-      '
-    env:
-      - GITHUB_TOKEN={{ .Env.GITHUB_TOKEN }}
