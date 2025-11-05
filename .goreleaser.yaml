@@ -48,13 +48,12 @@ release:
   extra_files:
     - glob: ./{{ .ProjectName }}_v{{ .Version }}_SHA256SUMS
 
-# Post-release hooks
-after:
-  hooks:
-    - cmd: ./scripts/post-release.sh
-      env:
-        - RELEASE_VERSION={{ .Version }}
-        - PROJECT_NAME={{ .ProjectName }}
+publishers:
+  - name: post-release
+    cmd: ./scripts/post-release.sh
+    env:
+      - RELEASE_VERSION={{ .Version }}
+      - PROJECT_NAME={{ .ProjectName }}
 
 sboms:
   - artifacts: none
