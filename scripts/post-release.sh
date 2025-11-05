@@ -6,7 +6,7 @@ PROJECT_NAME="packer-plugin-ansible-navigator"
 
 cd dist
 
-# Create x5 checksum (copy of the main checksum)
+# Create x5 checksum
 cp ${PROJECT_NAME}_v${VERSION}_SHA256SUMS ${PROJECT_NAME}_v${VERSION}_x5_SHA256SUMS
 
 # Upload to GitHub release
