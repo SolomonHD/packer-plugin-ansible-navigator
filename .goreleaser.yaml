@@ -16,8 +16,9 @@ builds:
 
 archives:
   - id: default
-    format: zip
-    name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    # file extension now defines format; no `format:` field
+    name_template: "{{ .ProjectName }}_v{{ .Version }}_x5_{{ .Os }}_{{ .Arch }}.zip"
+    wrap_in_directory: false
     files:
       - none*
 
