@@ -10,15 +10,20 @@ builds:
       - CGO_ENABLED=0
     goos:
       - linux
+      - darwin
+      - windows
     goarch:
       - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
     mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:
   - id: default
-    # Critical: Must be zip format for Packer plugins
     format: zip
-    name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "{{ .ProjectName }}_v{{ .Version }}_x5.0_{{ .Os }}_{{ .Arch }}"
     wrap_in_directory: false
     files:
       - none*
@@ -33,6 +38,28 @@ release:
     name: packer-plugin-ansible-navigator
   draft: false
   prerelease: false
+  extra_files:
+    - glob: ./dist/*_x5.0_SHA256SUMS
 
 changelog:
   use: git
+
+# This runs after archives are created but before release
+before:
+  hooks:
+    - go mod tidy
+
+# This runs after the release is published
+publishers:
+  - name: create-x5-checksum
+    cmd: |
+      bash -c '
+      cd dist
+      # Create the x5 checksum file by copying the main one
+      cp {{ .ProjectName }}_v{{ .Version }}_SHA256SUMS {{ .ProjectName }}_v{{ .Version }}_x5.0_SHA256SUMS
+
+      # Upload using GitHub CLI
+      gh release upload {{ .Tag }} {{ .ProjectName }}_v{{ .Version }}_x5.0_SHA256SUMS --clobber
+      '
+    env:
+      - GITHUB_TOKEN={{ .Env.GITHUB_TOKEN }}
