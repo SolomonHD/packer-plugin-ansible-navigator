@@ -16,14 +16,14 @@ builds:
 
 archives:
   - id: default
-    # Packer detects format from extension, so just end with .zip
+    # modern naming: includes x5 for current Packer plugin protocol
     name_template: "{{ .ProjectName }}_v{{ .Version }}_x5_{{ .Os }}_{{ .Arch }}.zip"
     wrap_in_directory: false
     files:
       - none*
 
 checksum:
-  # Correct naming for Packer plugin expectations
+  # matching checksum naming for Packer >=1.10
   name_template: "{{ .ProjectName }}_v{{ .Version }}_x5_SHA256SUMS"
 
 release:
