@@ -1,16 +1,25 @@
 version: 2
-
 project_name: packer-plugin-ansible-navigator
 
+before:
+  hooks:
+    - go mod download
+
 builds:
-  - id: plugin
-    main: .
-    binary: packer-plugin-ansible-navigator
+  - id: plugin-check
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    hooks:
+      pre:
+        - cmd: "go build -o packer-plugin-ansible-navigator {{ .Env.ALL_LDFLAGS}} ."
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
     env:
       - CGO_ENABLED=0
     goos:
-      - linux
       - darwin
+      - linux
       - windows
     goarch:
       - amd64
@@ -18,13 +27,11 @@ builds:
     ignore:
       - goos: windows
         goarch: arm64
-    mod_timestamp: "{{ .CommitTimestamp }}"
+    binary: "{{ .ProjectName }}_v{{ .Version }}_{{ .Env.API_VERSION }}_{{ .Os }}_{{ .Arch }}"
 
 archives:
-  - id: default
-    format: zip
-    name_template: "{{ .ProjectName }}_v{{ .Version }}_x5_{{ .Os }}_{{ .Arch }}"
-    wrap_in_directory: false
+  - format: zip
+    name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Env.API_VERSION }}_{{ .Os }}_{{ .Arch }}"
     files:
       - none*
 
@@ -37,7 +44,25 @@ release:
     owner: SolomonHD
     name: packer-plugin-ansible-navigator
   draft: false
-  prerelease: false
+  name: "v{{ .Version }}"
+  tag_name: "v{{ .Version }}"
+  extra_files:
+    - glob: ./{{ .ProjectName }}_v{{ .Version }}_SHA256SUMS
+  hooks:
+    post: ./scripts/post-release.sh
+
+sboms:
+  - artifacts: none
+
+signs:
+  - artifacts: none
+
+snapshot:
+  name_template: "{{ .Tag }}-next"
 
 changelog:
-  use: git
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
