@@ -7,17 +7,15 @@ env:
 before:
   hooks:
     - go mod download
+    - go generate ./...
 
 builds:
   - id: plugin-check
     mod_timestamp: "{{ .CommitTimestamp }}"
-    hooks:
-      pre:
-        - cmd: "go build -o packer-plugin-ansible-navigator ."
     flags:
       - -trimpath
     ldflags:
-      - -s -w
+      - -s -w -X github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/{{ .ProjectName }}/version.Version={{.Version}} -X github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/{{ .ProjectName }}/version.VersionPrerelease=dev
     env:
       - CGO_ENABLED=0
     goos:
@@ -30,35 +28,53 @@ builds:
     ignore:
       - goos: windows
         goarch: arm64
+      - goos: darwin
+        goarch: "386"
     binary: "{{ .ProjectName }}_v{{ .Version }}_{{ .Env.API_VERSION }}_{{ .Os }}_{{ .Arch }}"
 
 archives:
   - id: plugin-archive
     format: zip
     name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Env.API_VERSION }}_{{ .Os }}_{{ .Arch }}"
-    builds_info:
-      mode: 0755
-    rlcp: true
+    files:
+      - none*
 
 checksum:
   name_template: "{{ .ProjectName }}_v{{ .Version }}_SHA256SUMS"
   algorithm: sha256
+
+signs:
+  - cmd: cosign
+    stdin: "{{ .Env.COSIGN_PASSWORD }}"
+    output: true
+    artifacts: checksum
+    args:
+      - sign-blob
+      - "--key=env://COSIGN_KEY"
+      - "--output-signature=${signature}"
+      - "--yes"
+      - "${artifact}"
 
 release:
   github:
     owner: SolomonHD
     name: packer-plugin-ansible-navigator
   draft: false
+  prerelease: auto
   name_template: "v{{ .Version }}"
   extra_files:
-    - glob: ./dist/{{ .ProjectName }}_v{{ .Version }}_SHA256SUMS
+    - glob: ./docs/*
+    - glob: ./terraform-registry-manifest.json
 
 snapshot:
-  version_template: "{{ .Tag }}-next"
+  version_template: "{{ incpatch .Version }}-dev"
 
 changelog:
+  use: github
   sort: asc
   filters:
     exclude:
       - "^docs:"
       - "^test:"
+      - "^chore:"
+      - "typo"
