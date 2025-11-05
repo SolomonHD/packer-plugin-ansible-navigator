@@ -19,13 +19,16 @@ builds:
 
 archives:
   - id: default
-    name_template: "{{ .ProjectName }}_v{{ .Version }}_x5_{{ .Os }}_{{ .Arch }}"
+    # Critical: Must be zip format for Packer plugins
+    format: zip
+    name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     wrap_in_directory: false
     files:
       - none*
 
 checksum:
   name_template: "{{ .ProjectName }}_v{{ .Version }}_SHA256SUMS"
+  algorithm: sha256
 
 release:
   github:
