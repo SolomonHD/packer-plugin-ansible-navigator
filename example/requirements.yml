@@ -1,5 +1,17 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+---
+# Unified requirements file supporting both roles and collections
 
+# Ansible Collections
 collections:
-  - name: artis3n.github
+  - name: community.general
+    version: ">=5.0.0"
+  - name: ansible.posix
+    version: ">=1.4.0"
+
+# Ansible Roles
+roles:
+  - name: geerlingguy.docker
+    version: "6.1.0"
+  - src: https://github.com/geerlingguy/ansible-role-nodejs
+    name: geerlingguy.nodejs
+    version: "6.0.0"

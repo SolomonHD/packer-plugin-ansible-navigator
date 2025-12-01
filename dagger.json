@@ -1,0 +1,16 @@
+{
+  "name": "packer-plugin-ansible-navigator",
+  "engineVersion": "v0.19.7",
+  "dependencies": [
+    {
+      "name": "packer-plugin",
+      "source": "github.com/solomonhd/dagger-packer-plugin@v2.0.0",
+      "pin": "fc1679f17d2c20938c4b45676ebc60bf5a539c98"
+    },
+    {
+      "name": "version-manager",
+      "source": "github.com/solomonhd/dagger-version-manager@v1.2.0",
+      "pin": "b7d5234161f988648afced8ef0ca486d02fabe70"
+    }
+  ]
+}

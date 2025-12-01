@@ -15,7 +15,7 @@ source "googlecompute" "scp" {
 build {
   sources = ["source.googlecompute.scp"]
 
-  provisioner "ansible" {
+  provisioner "ansible-navigator" {
     playbook_file = "./playbook.yml"
     sftp_command  = "/usr/bin/false"
     use_sftp      = false
