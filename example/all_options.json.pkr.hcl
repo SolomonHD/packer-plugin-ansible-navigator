@@ -19,7 +19,7 @@ build {
     command = "echo 'TODO(bhcleek): write the public key to $HOME/.ssh/known_hosts and stop using ANSIBLE_HOST_KEY_CHECKING=False'"
   }
 
-  provisioner "ansible" {
+  provisioner "ansible-navigator" {
     ansible_env_vars        = ["PACKER_ANSIBLE_TEST=1", "ANSIBLE_HOST_KEY_CHECKING=False"]
     empty_groups            = ["PACKER_EMPTY_GROUP"]
     extra_arguments         = ["--private-key", "ansible-test-id"]

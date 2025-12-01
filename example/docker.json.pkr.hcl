@@ -7,9 +7,9 @@ packer {
       source  = "github.com/hashicorp/docker"
       version = ">=1.0.0"
     }
-    ansible = {
-      source  = "github.com/hashicorp/ansible"
-      version = ">=1.0.4"
+    ansible-navigator = {
+      source  = "github.com/solomonhd/ansible-navigator"
+      version = ">=1.0.0"
     }
   }
 
@@ -26,7 +26,7 @@ build {
     inline = ["apt-get update", "apt-get -y install python"]
   }
 
-  provisioner "ansible" {
+  provisioner "ansible-navigator" {
     playbook_file = "./playbook.yml"
     sftp_command  = "/usr/bin/false"
     use_sftp      = false

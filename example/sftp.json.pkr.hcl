@@ -16,7 +16,7 @@ source "googlecompute" "sftp" {
 build {
   sources = ["source.googlecompute.sftp"]
 
-  provisioner "ansible" {
+  provisioner "ansible-navigator" {
     playbook_file = "./playbook.yml"
     sftp_command  = "/usr/lib/sftp-server -e -l INFO"
     use_sftp      = true

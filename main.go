@@ -1,5 +1,7 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+// http://www.apache.org/licenses/LICENSE-2.0
 
 package main
 
@@ -9,15 +11,20 @@ import (
 
 	"github.com/hashicorp/packer-plugin-sdk/plugin"
 
-	ansible "github.com/hashicorp/packer-plugin-ansible/provisioner/ansible"
-	ansibleLocal "github.com/hashicorp/packer-plugin-ansible/provisioner/ansible-local"
-	"github.com/hashicorp/packer-plugin-ansible/version"
+	ansiblenavigatorlocal "github.com/solomonhd/packer-plugin-ansible-navigator/provisioner/ansible-navigator"
+	ansiblenavigatorremote "github.com/solomonhd/packer-plugin-ansible-navigator/provisioner/ansible-navigator-remote"
+	"github.com/solomonhd/packer-plugin-ansible-navigator/version"
 )
 
 func main() {
 	pps := plugin.NewSet()
-	pps.RegisterProvisioner(plugin.DEFAULT_NAME, new(ansible.Provisioner))
-	pps.RegisterProvisioner("local", new(ansibleLocal.Provisioner))
+	// Register provisioners using Packer SDK naming conventions:
+	// - plugin.DEFAULT_NAME ("-packer-default-plugin-name-") for primary provisioner
+	//   -> accessible in HCL as "ansible-navigator"
+	// - "remote" for secondary provisioner
+	//   -> accessible in HCL as "ansible-navigator-remote" (Packer prefixes with plugin alias)
+	pps.RegisterProvisioner(plugin.DEFAULT_NAME, new(ansiblenavigatorlocal.Provisioner))
+	pps.RegisterProvisioner("remote", new(ansiblenavigatorremote.Provisioner))
 	pps.SetVersion(version.PluginVersion)
 	err := pps.Run()
 

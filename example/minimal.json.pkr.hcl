@@ -15,7 +15,7 @@ source "googlecompute" "minimal" {
 build {
   sources = ["source.googlecompute.minimal"]
 
-  provisioner "ansible" {
+  provisioner "ansible-navigator" {
     playbook_file = "./playbook.yml"
   }
 

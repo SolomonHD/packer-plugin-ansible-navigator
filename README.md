@@ -1,70 +1,282 @@
-# Packer Plugin Ansible
-The `Ansible` multi-component plugin can be used with HashiCorp [Packer](https://www.packer.io)
-to create custom images. For the full list of available features for this plugin see [docs](docs).
+# 🚀 Packer Plugin Ansible Navigator
 
-## Installation
+> Modern Ansible provisioning for HashiCorp Packer using **ansible-navigator** for containerized execution environments
 
-### Using pre-built releases
+[![Apache License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Go Version](https://img.shields.io/badge/Go-1.23.4+-blue.svg)](.go-version)
+[![Packer Plugin SDK](https://img.shields.io/badge/Packer%20Plugin%20SDK-v0.6.4-blue.svg)](go.mod)
 
-#### Using the `packer init` command
+## 🎯 Why Use This Plugin?
 
-Starting from version 1.7, Packer supports a new `packer init` command allowing
-automatic installation of Packer plugins. Read the
-[Packer documentation](https://www.packer.io/docs/commands/init) for more information.
+This plugin extends HashiCorp Packer to leverage **Ansible Navigator's** containerized execution environments, providing:
 
-To install this plugin, copy and paste this code into your Packer configuration .
-Then, run [`packer init`](https://www.packer.io/docs/commands/init).
+- ✅ **Containerized Ansible** - Run playbooks in isolated, reproducible environments
+- ✅ **Collection-Based Workflows** - Direct execution of Ansible Collection plays
+- ✅ **Enhanced Error Handling** - Clear per-play failure reporting
+- ✅ **Structured Logging** - JSON event streaming for CI/CD integration
+- ✅ **Modern Ansible Features** - Full compatibility with execution environments
+
+## 📋 Requirements
+
+- **Go:** 1.23.4+ (for development/building from source)
+- **Packer:** ≥ 1.10.0 (required for plugin protocol x5 support)
+- **Packer Plugin SDK:** v0.6.4+ (automatically managed via Go modules)
+- **Ansible Navigator:** Latest version recommended (runtime dependency)
+
+## � Quick Start
+
+### Installation
 
 ```hcl
 packer {
   required_plugins {
-    ansible = {
-      version = ">= 1.1.4"
-      source  = "github.com/hashicorp/ansible"
+    ansible-navigator = {
+      version = ">= 1.0.0"
+      source  = "github.com/solomonhd/ansible-navigator"
     }
   }
 }
 ```
 
-**Note: Update to Packer Plugin Installation**
+Run `packer init` to install the plugin automatically.
 
-With the new Packer release starting from version 1.14.0, the `packer init` command will automatically install official plugins from the [HashiCorp release site.](https://releases.hashicorp.com/)
+> **📖 Full Installation Guide:** See [docs/INSTALLATION.md](docs/INSTALLATION.md) for all installation methods
 
-Going forward, to use newer versions of official Packer plugins, you'll need to upgrade to Packer version 1.14.0 or later. If you're using an older version, you can still install plugins, but as a workaround, you'll need to [manually install them using the CLI.](https://developer.hashicorp.com/packer/docs/plugins/install#manually-install-plugins-using-the-cli)
+### Basic Usage
 
-There is no change to the syntax or commands for installing plugins.
+#### Example 1: Simple Playbook
 
-#### Manual installation
+```hcl
+provisioner "ansible-navigator" {
+  playbook_file = "site.yml"
+}
+```
 
-You can find pre-built binary releases of the plugin [here](https://github.com/hashicorp/packer-plugin-ansible/releases).
-Once you have downloaded the latest archive corresponding to your target OS,
-uncompress it to retrieve the plugin binary file corresponding to your platform.
-To install the plugin, please follow the Packer documentation on
-[installing a plugin](https://www.packer.io/docs/extending/plugins/#installing-plugins).
+#### Example 2: Using Collection Plays
 
+```hcl
+provisioner "ansible-navigator" {
+  plays = [
+    "community.general.docker_container",
+    "ansible.posix.firewalld"
+  ]
+  collections = [
+    "community.general:>=5.0.0",
+    "ansible.posix:1.5.4"
+  ]
+}
+```
 
-### From Sources
+#### Example 3: Production Setup with JSON Logging
 
-If you prefer to build the plugin from sources, clone the GitHub repository
-locally and run the command `go build` from the root
-directory. Upon successful compilation, a `packer-plugin-ansible` plugin
-binary file can be found in the root directory.
-To install the compiled plugin, please follow the official Packer documentation
-on [installing a plugin](https://www.packer.io/docs/extending/plugins/#installing-plugins).
+```hcl
+provisioner "ansible-navigator" {
+  plays = [
+    {
+      name = "Security Hardening"
+      target = "baseline.security.harden"
+      become = true
+    },
+    {
+      name = "Application Deployment"
+      target = "app.webapp.deploy"
+      extra_vars = {
+        environment = "production"
+        version = "${var.app_version}"
+      }
+    }
+  ]
+  
+  # Enable structured logging for CI/CD
+  navigator_mode = "json"
+  structured_logging = true
+  log_output_path = "./logs/deployment.json"
+  
+  # Global arguments applied to all plays
+  extra_arguments = ["--verbose"]
+}
+```
 
+## 🔥 Common Use Cases
 
-### Configuration
+### 1. Building Container Images
 
-For more information on how to configure the plugin, please read the
-documentation located in the [`docs/`](docs) directory.
+```hcl
+source "docker" "app" {
+  image = "ubuntu:22.04"
+  commit = true
+}
 
+build {
+  sources = ["source.docker.app"]
+  
+  provisioner "ansible-navigator" {
+    plays = [
+      {
+        name = "Build Container App"
+        target = "containers.docker.build_app"
+        extra_vars = {
+          app_name = "webapp"
+          build_version = "${var.build_number}"
+        }
+      }
+    ]
+    collections = ["community.docker:3.4.0"]
+  }
+}
+```
 
-## Contributing
+### 2. Cloud VM Configuration
 
-* If you think you've found a bug in the code or you have a question regarding
-  the usage of this software, please reach out to us by opening an issue in
-  this GitHub repository.
-* Contributions to this project are welcome: if you want to add a feature or a
-  fix a bug, please do so by opening a Pull Request in this GitHub repository.
-  In case of feature contribution, we kindly ask you to open an issue to
-  discuss it beforehand.
+```hcl
+provisioner "ansible-navigator" {
+  playbook_file = "cloud-init.yml"
+  
+  # Use specific execution environment
+  execution_environment = "quay.io/ansible/creator-ee:latest"
+  
+  groups = ["webservers", "database"]
+  inventory_file = "inventory/cloud.ini"
+}
+```
+
+### 3. Multi-Stage Application Deployment
+
+```hcl
+provisioner "ansible-navigator" {
+  plays = [
+    {
+      name = "Base Configuration"
+      target = "infra.base.configure"
+    },
+    {
+      name = "Security Hardening"
+      target = "infra.security.harden"
+      become = true
+    },
+    {
+      name = "Database Setup"
+      target = "app.database.install"
+      extra_vars = {
+        db_engine = "postgresql"
+        db_version = "14"
+      }
+    },
+    {
+      name = "Application Deployment"
+      target = "app.webserver.deploy"
+      vars_files = ["app_config.yml"]
+    }
+  ]
+  
+  requirements_file = "./requirements.yml"
+  
+  # Continue on individual play failure for debugging
+  keep_going = true
+}
+```
+
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [📦 Installation Guide](docs/INSTALLATION.md) | All installation methods and requirements |
+| [⚙️ Configuration Reference](docs/CONFIGURATION.md) | Complete list of options and parameters |
+| [🎨 Examples Gallery](docs/EXAMPLES.md) | Real-world examples and use cases |
+| [🐛 Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues and solutions |
+| [📊 JSON Logging](docs/JSON_LOGGING.md) | Structured logging for automation |
+| [🎭 Collection Plays](docs/UNIFIED_PLAYS.md) | Using Ansible Collection plays |
+
+## 🛠️ Key Features
+
+### Dual Invocation Mode
+
+Choose between traditional playbooks or modern collection plays:
+
+```hcl
+# Option A: Traditional playbook
+playbook_file = "site.yml"
+
+# Option B: Collection plays (mutually exclusive)
+plays = [
+  {
+    name = "Play Name"
+    target = "namespace.collection.play_name"
+    extra_vars = {}  # Optional per-play variables
+  }
+]
+```
+
+### Enhanced Error Reporting
+
+```
+✅ Running play: infra.base.configure
+✅ Running play: infra.security.harden
+❌ Play 'app.database.install' failed (exit code 2)
+   └─ Check logs for task: "Install PostgreSQL"
+   └─ Failed hosts: db-server-01, db-server-02
+```
+
+### Execution Environments
+
+```hcl
+# Use certified execution environments
+execution_environment = "quay.io/ansible/creator-ee:latest"
+
+# Or custom environments
+execution_environment = "myregistry.io/ansible-ee:custom"
+```
+
+## 🚦 Quick Reference
+
+### Essential Configuration Options
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| `playbook_file` | Path to Ansible playbook | `"site.yml"` |
+| `plays` | Array of play configurations | See [Collection Plays](docs/UNIFIED_PLAYS.md) |
+| `collections` | Collections to install | `["community.general:5.0.0"]` |
+| `execution_environment` | Container image for ansible-navigator | `"quay.io/ansible/creator-ee"` |
+| `inventory_file` | Ansible inventory | `"./inventory/hosts"` |
+| `extra_arguments` | Additional ansible-navigator args | `["--extra-vars", "key=value"]` |
+
+> **📖 Complete Reference:** See [docs/CONFIGURATION.md](docs/CONFIGURATION.md)
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+
+### Development Quick Start
+
+```bash
+# Clone and build
+git clone https://github.com/solomonhd/packer-plugin-ansible-navigator.git
+cd packer-plugin-ansible-navigator
+make dev
+
+# Run tests
+make test
+
+# Build for release
+make build
+```
+
+## 📜 License
+
+This project is licensed under the [Apache License 2.0](LICENSE).
+
+## 🆘 Support
+
+- 🐛 **Issues:** [GitHub Issues](https://github.com/solomonhd/packer-plugin-ansible-navigator/issues)
+- 💬 **Discussions:** [GitHub Discussions](https://github.com/solomonhd/packer-plugin-ansible-navigator/discussions)
+- 📖 **Documentation:** [Full Docs](docs/)
+
+## 🏗️ Project Status
+
+**Current Version:** 1.5.0
+**Status:** Production Ready
+**Maintained by:** SolomonHD
+
+---
+
+Made with ❤️ for the Ansible and Packer communities

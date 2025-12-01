@@ -1,6 +1,10 @@
 main
 dist/*
 docs-rendered/*
-packer-plugin-ansible
+packer-plugin-ansible-navigator
 .docs
 crash.log
+
+# Packer plugin build artifacts
+packer-plugin-ansible-navigator_v*
+*_SHA256SUM

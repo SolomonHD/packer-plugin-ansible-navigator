@@ -17,7 +17,7 @@ build {
     "source.docker.example"
   ]
 
-  provisioner "ansible-local" {
+  provisioner "ansible-navigator" {
     playbook_file   = "./local-playbook.yml"
     extra_arguments = ["--extra-vars", "\"pizza_toppings=${var.topping}\""]
   }
