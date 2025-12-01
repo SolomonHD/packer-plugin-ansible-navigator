@@ -317,7 +317,7 @@ func assertPlaybooksExecuted(comm *communicatorMock, playbooks []string) {
 		playbook = filepath.ToSlash(playbook)
 		for ; cmdIndex < len(comm.startCommand); cmdIndex++ {
 			cmd := comm.startCommand[cmdIndex]
-			if strings.Contains(cmd, "ansible-playbook") && strings.Contains(cmd, playbook) {
+			if strings.Contains(cmd, "ansible-navigator run") && strings.Contains(cmd, playbook) {
 				break
 			}
 		}

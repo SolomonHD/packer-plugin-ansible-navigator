@@ -91,6 +91,50 @@ Example playbook:
         state: present
 ```
 
+## Execution Environments
+
+Ansible Navigator runs playbooks inside containerized execution environments, providing isolated and reproducible Ansible execution. You can specify which container image to use with the `execution_environment` option.
+
+### Configuration
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator" {
+  playbook_file = "site.yml"
+  
+  # Use official Ansible execution environment
+  execution_environment = "quay.io/ansible/creator-ee:latest"
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator",
+  "playbook_file": "site.yml",
+  "execution_environment": "quay.io/ansible/creator-ee:latest"
+}
+```
+
+### Common Execution Environments
+
+- **Official Ansible EE (latest)**: `quay.io/ansible/creator-ee:latest`
+- **Official Ansible EE (specific version)**: `quay.io/ansible/creator-ee:v0.21.0`
+- **Custom organization EE**: `myregistry.io/ansible-ee:production`
+- **Local custom EE**: `localhost:5000/custom-ee:v1.0`
+
+### When to Use Custom Execution Environments
+
+- Pre-package specific Ansible versions and collections
+- Include custom Python dependencies
+- Enforce standardized environments across teams
+- Support air-gapped/offline environments
+- Meet compliance or security requirements
+
+When `execution_environment` is not specified, ansible-navigator uses its default execution environment selection.
+
 ## Configuration Reference
 
 Required Parameters:

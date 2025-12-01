@@ -1,6 +1,6 @@
-Type: `ansible-navigator-local`
+Type: `ansible-navigator`
 
-The `ansible-navigator-local` Packer provisioner will execute `ansible-navigator` in "local"
+The `ansible-navigator` Packer provisioner will execute `ansible-navigator` in "local"
 mode on the remote/guest VM using Playbook and Role files that exist on the
 guest VM. This means Ansible Navigator must be installed on the remote/guest VM.
 Playbooks and Roles can be uploaded from your build machine (the one running
@@ -49,7 +49,7 @@ build {
     "source.docker.example"
   ]
 
-  provisioner "ansible-navigator-local" {
+  provisioner "ansible-navigator" {
     playbook_file   = "./playbook.yml"
     extra_arguments = ["--extra-vars", "\"pizza_toppings=${var.topping}\""]
   }
@@ -73,7 +73,7 @@ build {
   },
   "provisioners": [
     {
-      "type": "ansible-navigator-local",
+      "type": "ansible-navigator",
       "playbook_file": "./playbook.yml",
       "extra_arguments": [
         "--extra-vars",
@@ -343,7 +343,7 @@ Execute plays directly from collections that are installed on the guest VM:
 **HCL2**
 
 ```hcl
-provisioner "ansible-navigator-local" {
+provisioner "ansible-navigator" {
   plays = [
     {
       name = "Setup Docker Container"
@@ -367,7 +367,7 @@ provisioner "ansible-navigator-local" {
 
 ```json
 {
-  "type": "ansible-navigator-local",
+  "type": "ansible-navigator",
   "plays": [
     {
       "name": "Setup Docker Container",
@@ -394,7 +394,7 @@ Execute multiple collection plays in sequence on the guest VM:
 **HCL2**
 
 ```hcl
-provisioner "ansible-navigator-local" {
+provisioner "ansible-navigator" {
   plays = [
     {
       name = "Configure Hostname"
@@ -428,7 +428,7 @@ provisioner "ansible-navigator-local" {
 
 ```json
 {
-  "type": "ansible-navigator-local",
+  "type": "ansible-navigator",
   "plays": [
     {
       "name": "Configure Hostname",
@@ -464,7 +464,7 @@ Use collection plays from a custom installation path on the guest:
 **HCL2**
 
 ```hcl
-provisioner "ansible-navigator-local" {
+provisioner "ansible-navigator" {
   plays = [
     {
       name = "Deploy Application"
@@ -495,7 +495,7 @@ provisioner "ansible-navigator-local" {
 
 ```json
 {
-  "type": "ansible-navigator-local",
+  "type": "ansible-navigator",
   "plays": [
     {
       "name": "Deploy Application",
@@ -526,7 +526,7 @@ Deploy containers locally on the guest VM using collection plays:
 **HCL2**
 
 ```hcl
-provisioner "ansible-navigator-local" {
+provisioner "ansible-navigator" {
   plays = [
     {
       name = "Create Docker Network"
@@ -557,7 +557,7 @@ provisioner "ansible-navigator-local" {
 
 ```json
 {
-  "type": "ansible-navigator-local",
+  "type": "ansible-navigator",
   "plays": [
     {
       "name": "Create Docker Network",
@@ -591,7 +591,7 @@ Quick iteration during development with verbose output:
 **HCL2**
 
 ```hcl
-provisioner "ansible-navigator-local" {
+provisioner "ansible-navigator" {
   plays = [
     {
       name = "Setup Development Environment"
@@ -623,7 +623,7 @@ provisioner "ansible-navigator-local" {
 
 ```json
 {
-  "type": "ansible-navigator-local",
+  "type": "ansible-navigator",
   "plays": [
     {
       "name": "Setup Development Environment",
