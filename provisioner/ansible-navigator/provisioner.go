@@ -3,7 +3,7 @@
 // You may obtain a copy of the License at
 // http://www.apache.org/licenses/LICENSE-2.0
 
-//go:generate packer-sdc mapstructure-to-hcl2 -type Config
+//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play
 //go:generate packer-sdc struct-markdown
 
 package ansiblenavigatorlocal
@@ -29,6 +29,24 @@ import (
 var _ packersdk.Provisioner = &Provisioner{}
 
 const DefaultStagingDir = "/tmp/packer-provisioner-ansible-local"
+
+// Play represents a single Ansible play execution with its configuration.
+// It supports both traditional playbook files and Ansible Collection role FQDNs.
+// Each play can have its own variables, tags, and privilege escalation settings.
+type Play struct {
+	// Name of the play for logging and identification
+	Name string `mapstructure:"name"`
+	// Target can be either a playbook path (.yml/.yaml) or a role FQDN
+	Target string `mapstructure:"target"`
+	// Extra variables to pass to this play
+	ExtraVars map[string]string `mapstructure:"extra_vars"`
+	// Tags to execute for this play
+	Tags []string `mapstructure:"tags"`
+	// Variables files to load for this play
+	VarsFiles []string `mapstructure:"vars_files"`
+	// Whether to use privilege escalation (become) for this play
+	Become bool `mapstructure:"become"`
+}
 
 type Config struct {
 	common.PackerConfig `mapstructure:",squash"`
@@ -180,6 +198,207 @@ type Config struct {
 	//   `ansible-galaxy` command. By default, this will install to a 'galaxy_collections' subfolder in the
 	//   staging/collections directory.
 	GalaxyCollectionsPath string `mapstructure:"galaxy_collections_path"`
+
+	// Modern Ansible Navigator fields (aligned with remote provisioner)
+
+	// Execution mode for ansible-navigator. Valid values: stdout, json, yaml, interactive.
+	// Defaults to "stdout" for non-interactive environments (Packer-safe).
+	// When set to "interactive" without a TTY, it automatically switches to "stdout".
+	NavigatorMode string `mapstructure:"navigator_mode"`
+	// The container image to use as the execution environment for ansible-navigator.
+	// Specifies which containerized environment runs the Ansible playbooks.
+	// When unset, ansible-navigator uses its default execution environment.
+	// Examples: "quay.io/ansible/creator-ee:latest", "my-registry.io/custom-ee:v1.0"
+	ExecutionEnvironment string `mapstructure:"execution_environment"`
+	// Working directory for ansible-navigator execution.
+	// When specified, ansible-navigator will be executed from this directory.
+	// Defaults to the current working directory if not set.
+	WorkDir string `mapstructure:"work_dir"`
+	// Continue executing remaining plays even if one fails.
+	// When true, a play failure won't stop execution of subsequent plays.
+	// Default: false
+	KeepGoing bool `mapstructure:"keep_going"`
+	// Enable structured JSON parsing and detailed task-level reporting.
+	// When true, parses JSON events from ansible-navigator and provides enhanced error reporting.
+	// Only effective when navigator_mode is set to "json".
+	StructuredLogging bool `mapstructure:"structured_logging"`
+	// Optional path to write a structured summary JSON file containing task results and failures.
+	// Only used when structured_logging is enabled.
+	LogOutputPath string `mapstructure:"log_output_path"`
+	// Include detailed task output in logs when using structured logging.
+	// Only effective when structured_logging is true.
+	// Default: false
+	VerboseTaskOutput bool `mapstructure:"verbose_task_output"`
+
+	// Play-based execution (aligned with remote provisioner)
+
+	// Array of play definitions supporting both playbooks and role FQDNs.
+	// Mutually exclusive with playbook_file.
+	Plays []Play `mapstructure:"plays"`
+	// Path to a unified requirements.yml file containing both roles and collections.
+	// Alternative to galaxy_file with enhanced support for modern Ansible requirements format.
+	RequirementsFile string `mapstructure:"requirements_file"`
+
+	// Collections support (aligned with remote provisioner)
+
+	// List of Ansible collections to install automatically.
+	// Each entry can be a collection name with optional version (e.g., "community.general:5.11.0")
+	// or a local path (e.g., "myorg.mycollection@/path/to/collection").
+	Collections []string `mapstructure:"collections"`
+	// Directory to cache downloaded collections.
+	// Defaults to ~/.packer.d/ansible_collections_cache if not specified.
+	CollectionsCacheDir string `mapstructure:"collections_cache_dir"`
+	// When true, skip network operations and only use locally cached collections.
+	// Fails if a required collection is not present in the cache.
+	CollectionsOffline bool `mapstructure:"collections_offline"`
+	// When true, always reinstall collections even if they are already cached.
+	CollectionsForceUpdate bool `mapstructure:"collections_force_update"`
+
+	// Group management (aligned with remote provisioner)
+
+	// The groups into which the Ansible host should be placed.
+	// When unspecified, the host is not associated with any groups.
+	// This extends inventory_groups functionality.
+	Groups []string `mapstructure:"groups"`
+	// Directory to cache downloaded roles. Similar to collections_cache_dir but for roles.
+	// Defaults to ~/.packer.d/ansible_roles_cache if not specified.
+	RolesCacheDir string `mapstructure:"roles_cache_dir"`
+	// When true, skip network operations for both collections and roles.
+	// Uses only locally cached dependencies.
+	OfflineMode bool `mapstructure:"offline_mode"`
+	// When true, always reinstall both collections and roles even if cached.
+	ForceUpdate bool `mapstructure:"force_update"`
+}
+
+// Validate performs comprehensive validation of the Config
+func (c *Config) Validate() error {
+	var errs *packersdk.MultiError
+
+	// Validate navigator mode
+	validModes := map[string]bool{
+		"stdout":      true,
+		"json":        true,
+		"yaml":        true,
+		"interactive": true,
+	}
+	if c.NavigatorMode != "" && !validModes[c.NavigatorMode] {
+		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+			"invalid navigator_mode: %s (must be one of stdout, json, yaml, interactive)",
+			c.NavigatorMode))
+	}
+
+	// Validate playbook_file vs plays mutual exclusivity
+	hasPlaybookFile := c.PlaybookFile != "" || len(c.PlaybookFiles) > 0
+	hasPlays := len(c.Plays) > 0
+
+	if hasPlaybookFile && hasPlays {
+		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+			"you may specify only one of `playbook_file`/`playbook_files` or `plays`"))
+	}
+
+	if !hasPlaybookFile && !hasPlays {
+		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+			"either `playbook_file`/`playbook_files` or `plays` must be defined"))
+	}
+
+	// Validate playbook files if specified
+	if c.PlaybookFile != "" {
+		if err := validateFileConfig(c.PlaybookFile, "playbook_file", true); err != nil {
+			errs = packersdk.MultiErrorAppend(errs, err)
+		}
+	}
+
+	for i, playbookFile := range c.PlaybookFiles {
+		if err := validateFileConfig(playbookFile, fmt.Sprintf("playbook_files[%d]", i), true); err != nil {
+			errs = packersdk.MultiErrorAppend(errs, err)
+		}
+	}
+
+	// Validate plays
+	for i, play := range c.Plays {
+		if play.Target == "" {
+			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+				"play %d: target must be specified", i))
+			continue
+		}
+
+		// Validate playbook files referenced in plays
+		if strings.HasSuffix(play.Target, ".yml") || strings.HasSuffix(play.Target, ".yaml") {
+			if err := validateFileConfig(play.Target, fmt.Sprintf("play %d target", i), true); err != nil {
+				errs = packersdk.MultiErrorAppend(errs, err)
+			}
+		}
+
+		// Validate vars_files referenced in plays
+		for j, varsFile := range play.VarsFiles {
+			if err := validateFileConfig(varsFile, fmt.Sprintf("play %d vars_files[%d]", i, j), true); err != nil {
+				errs = packersdk.MultiErrorAppend(errs, err)
+			}
+		}
+	}
+
+	// Validate galaxy_file
+	if c.GalaxyFile != "" {
+		if err := validateFileConfig(c.GalaxyFile, "galaxy_file", true); err != nil {
+			errs = packersdk.MultiErrorAppend(errs, err)
+		}
+	}
+
+	// Validate requirements_file
+	if c.RequirementsFile != "" {
+		if err := validateFileConfig(c.RequirementsFile, "requirements_file", true); err != nil {
+			errs = packersdk.MultiErrorAppend(errs, err)
+		}
+	}
+
+	// Validate inventory_file
+	if c.InventoryFile != "" {
+		if err := validateFileConfig(c.InventoryFile, "inventory_file", true); err != nil {
+			errs = packersdk.MultiErrorAppend(errs, err)
+		}
+	}
+
+	// Validate directories
+	if c.PlaybookDir != "" {
+		if err := validateDirConfig(c.PlaybookDir, "playbook_dir"); err != nil {
+			errs = packersdk.MultiErrorAppend(errs, err)
+		}
+	}
+
+	if c.GroupVars != "" {
+		if err := validateDirConfig(c.GroupVars, "group_vars"); err != nil {
+			errs = packersdk.MultiErrorAppend(errs, err)
+		}
+	}
+
+	if c.HostVars != "" {
+		if err := validateDirConfig(c.HostVars, "host_vars"); err != nil {
+			errs = packersdk.MultiErrorAppend(errs, err)
+		}
+	}
+
+	for i, path := range c.PlaybookPaths {
+		if err := validateDirConfig(path, fmt.Sprintf("playbook_paths[%d]", i)); err != nil {
+			errs = packersdk.MultiErrorAppend(errs, err)
+		}
+	}
+
+	for i, path := range c.RolePaths {
+		if err := validateDirConfig(path, fmt.Sprintf("role_paths[%d]", i)); err != nil {
+			errs = packersdk.MultiErrorAppend(errs, err)
+		}
+	}
+
+	for i, path := range c.CollectionPaths {
+		if err := validateDirConfig(path, fmt.Sprintf("collection_paths[%d]", i)); err != nil {
+			errs = packersdk.MultiErrorAppend(errs, err)
+		}
+	}
+
+	if errs != nil && len(errs.Errors) > 0 {
+		return errs
+	}
+	return nil
 }
 
 type Provisioner struct {
@@ -209,10 +428,15 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 
 	// Defaults
 	if p.config.Command == "" {
-		p.config.Command = "ANSIBLE_FORCE_COLOR=1 PYTHONUNBUFFERED=1 ansible-playbook"
+		p.config.Command = "ansible-navigator run"
 	}
 	if p.config.GalaxyCommand == "" {
 		p.config.GalaxyCommand = "ansible-galaxy"
+	}
+
+	// Set default navigator_mode to stdout for non-interactive environments
+	if p.config.NavigatorMode == "" {
+		p.config.NavigatorMode = "stdout"
 	}
 
 	if p.config.StagingDir == "" {
@@ -227,93 +451,35 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 		p.config.GalaxyCollectionsPath = filepath.ToSlash(filepath.Join(p.config.StagingDir, "galaxy_collections"))
 	}
 
-	// Validation
-	var errs *packersdk.MultiError
-
-	// Check that either playbook_file or playbook_files is specified
-	if len(p.config.PlaybookFiles) != 0 && p.config.PlaybookFile != "" {
-		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf("Either playbook_file or playbook_files can be specified, not both"))
-	}
-	if len(p.config.PlaybookFiles) == 0 && p.config.PlaybookFile == "" {
-		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf("Either playbook_file or playbook_files must be specified"))
-	}
-	if p.config.PlaybookFile != "" {
-		err = validateFileConfig(p.config.PlaybookFile, "playbook_file", true)
-		if err != nil {
-			errs = packersdk.MultiErrorAppend(errs, err)
+	// Set default cache directories if not specified
+	if p.config.CollectionsCacheDir == "" {
+		usr, err := os.UserHomeDir()
+		if err == nil {
+			p.config.CollectionsCacheDir = filepath.Join(usr, ".packer.d", "ansible_collections_cache")
 		}
 	}
 
+	if p.config.RolesCacheDir == "" {
+		usr, err := os.UserHomeDir()
+		if err == nil {
+			p.config.RolesCacheDir = filepath.Join(usr, ".packer.d", "ansible_roles_cache")
+		}
+	}
+
+	// Build absolute paths for playbook_files
 	for _, playbookFile := range p.config.PlaybookFiles {
-		if err := validateFileConfig(playbookFile, "playbook_files", true); err != nil {
-			errs = packersdk.MultiErrorAppend(errs, err)
-		} else {
-			playbookFile, err := filepath.Abs(playbookFile)
-			if err != nil {
-				errs = packersdk.MultiErrorAppend(errs, err)
-			} else {
-				p.playbookFiles = append(p.playbookFiles, playbookFile)
-			}
-		}
-	}
-
-	// Check that the inventory file exists, if configured
-	if len(p.config.InventoryFile) > 0 {
-		err = validateFileConfig(p.config.InventoryFile, "inventory_file", true)
+		absPath, err := filepath.Abs(playbookFile)
 		if err != nil {
-			errs = packersdk.MultiErrorAppend(errs, err)
+			return fmt.Errorf("failed to resolve playbook_files path: %w", err)
 		}
+		p.playbookFiles = append(p.playbookFiles, absPath)
 	}
 
-	// Check that the galaxy file exists, if configured
-	if len(p.config.GalaxyFile) > 0 {
-		err = validateFileConfig(p.config.GalaxyFile, "galaxy_file", true)
-		if err != nil {
-			errs = packersdk.MultiErrorAppend(errs, err)
-		}
+	// Call comprehensive validation
+	if err := p.config.Validate(); err != nil {
+		return err
 	}
 
-	// Check that the playbook_dir directory exists, if configured
-	if len(p.config.PlaybookDir) > 0 {
-		if err := validateDirConfig(p.config.PlaybookDir, "playbook_dir"); err != nil {
-			errs = packersdk.MultiErrorAppend(errs, err)
-		}
-	}
-
-	// Check that the group_vars directory exists, if configured
-	if len(p.config.GroupVars) > 0 {
-		if err := validateDirConfig(p.config.GroupVars, "group_vars"); err != nil {
-			errs = packersdk.MultiErrorAppend(errs, err)
-		}
-	}
-
-	// Check that the host_vars directory exists, if configured
-	if len(p.config.HostVars) > 0 {
-		if err := validateDirConfig(p.config.HostVars, "host_vars"); err != nil {
-			errs = packersdk.MultiErrorAppend(errs, err)
-		}
-	}
-
-	for _, path := range p.config.PlaybookPaths {
-		err := validateDirConfig(path, "playbook_paths")
-		if err != nil {
-			errs = packersdk.MultiErrorAppend(errs, err)
-		}
-	}
-	for _, path := range p.config.RolePaths {
-		if err := validateDirConfig(path, "role_paths"); err != nil {
-			errs = packersdk.MultiErrorAppend(errs, err)
-		}
-	}
-	for _, path := range p.config.CollectionPaths {
-		if err := validateDirConfig(path, "collection_paths"); err != nil {
-			errs = packersdk.MultiErrorAppend(errs, err)
-		}
-	}
-
-	if errs != nil && len(errs.Errors) > 0 {
-		return errs
-	}
 	return nil
 }
 
@@ -350,9 +516,16 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 			return fmt.Errorf("Error preparing inventory file: %s", err)
 		}
 		defer os.Remove(tf.Name())
-		if len(p.config.InventoryGroups) != 0 {
+
+		// Support both legacy inventory_groups and modern groups
+		groups := p.config.Groups
+		if len(groups) == 0 {
+			groups = p.config.InventoryGroups
+		}
+
+		if len(groups) != 0 {
 			content := ""
-			for _, group := range p.config.InventoryGroups {
+			for _, group := range groups {
 				content += fmt.Sprintf("[%s]\n127.0.0.1\n", group)
 			}
 			_, err = tf.Write([]byte(content))
@@ -438,8 +611,14 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 		}
 	}
 
+	// Install dependencies using GalaxyManager
+	galaxyManager := NewGalaxyManager(&p.config, ui, comm)
+	if err := galaxyManager.InstallRequirements(); err != nil {
+		return fmt.Errorf("Error installing requirements: %s", err)
+	}
+
 	if err := p.executeAnsible(ui, comm); err != nil {
-		return fmt.Errorf("Error executing Ansible: %s", err)
+		return fmt.Errorf("Error executing Ansible Navigator: %s", err)
 	}
 
 	if p.config.CleanStagingDir {
@@ -553,17 +732,93 @@ func (p *Provisioner) invokeGalaxyCommand(args []string, ui packersdk.Ui, comm p
 func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicator) error {
 	inventory := filepath.ToSlash(filepath.Join(p.config.StagingDir, filepath.Base(p.config.InventoryFile)))
 
+	if len(p.config.Plays) > 0 {
+		// Execute multiple plays
+		return p.executePlays(ui, comm, inventory)
+	} else {
+		// Execute traditional playbook(s) for backward compatibility
+		return p.executeTraditionalPlaybooks(ui, comm, inventory)
+	}
+}
+
+// executePlays executes multiple Ansible plays in sequence
+func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator, inventory string) error {
+	for i, play := range p.config.Plays {
+		playName := play.Name
+		if playName == "" {
+			playName = fmt.Sprintf("Play %d", i+1)
+		}
+
+		ui.Say(fmt.Sprintf("Executing %s: %s", playName, play.Target))
+
+		var playbookPath string
+		var cleanupFunc func()
+
+		// Determine if target is a playbook file or a role FQDN
+		if strings.HasSuffix(play.Target, ".yml") || strings.HasSuffix(play.Target, ".yaml") {
+			// It's a playbook file - upload to remote
+			ui.Message(fmt.Sprintf("Uploading playbook: %s", play.Target))
+			remotePath := filepath.ToSlash(filepath.Join(p.config.StagingDir, filepath.Base(play.Target)))
+			if err := p.uploadFile(ui, comm, remotePath, play.Target); err != nil {
+				return fmt.Errorf("Play '%s': failed to upload playbook: %s", playName, err)
+			}
+			playbookPath = remotePath
+		} else {
+			// It's a role FQDN - generate temporary playbook locally then upload
+			ui.Message(fmt.Sprintf("Generating temporary playbook for role: %s", play.Target))
+			tmpPlaybook, err := p.createRolePlaybook(play.Target, play)
+			if err != nil {
+				return fmt.Errorf("play %q: failed to generate role playbook: %w", playName, err)
+			}
+
+			// Upload generated playbook to remote
+			remotePath := filepath.ToSlash(filepath.Join(p.config.StagingDir, filepath.Base(tmpPlaybook)))
+			if err := p.uploadFile(ui, comm, remotePath, tmpPlaybook); err != nil {
+				os.Remove(tmpPlaybook)
+				return fmt.Errorf("Play '%s': failed to upload generated playbook: %s", playName, err)
+			}
+			playbookPath = remotePath
+			cleanupFunc = func() {
+				os.Remove(tmpPlaybook)
+			}
+		}
+
+		// Build extra arguments for this play
+		extraArgs := p.buildExtraArgs(play)
+
+		// Execute the play
+		err := p.executeAnsiblePlaybook(ui, comm, playbookPath, extraArgs, inventory)
+
+		// Cleanup temporary playbook if it was generated
+		if cleanupFunc != nil {
+			cleanupFunc()
+		}
+
+		if err != nil {
+			ui.Error(fmt.Sprintf("Play '%s' failed: %v", playName, err))
+			// If keep_going is false, return immediately on error
+			if !p.config.KeepGoing {
+				return fmt.Errorf("Play '%s' failed with exit code 2", playName)
+			}
+			// Otherwise, log but continue to next play
+			ui.Message(fmt.Sprintf("Continuing to next play despite failure (keep_going=true)"))
+		}
+
+		if i < len(p.config.Plays)-1 {
+			ui.Message(fmt.Sprintf("Completed %s", playName))
+		}
+	}
+
+	ui.Say("All plays completed successfully!")
+	return nil
+}
+
+// executeTraditionalPlaybooks executes traditional playbook files for backward compatibility
+func (p *Provisioner) executeTraditionalPlaybooks(ui packersdk.Ui, comm packersdk.Communicator, inventory string) error {
 	extraArgs := fmt.Sprintf(" --extra-vars \"packer_build_name=%s packer_builder_type=%s packer_http_addr=%s -o IdentitiesOnly=yes\" ",
 		p.config.PackerBuildName, p.config.PackerBuilderType, p.generatedData["PackerHTTPAddr"])
 	if len(p.config.ExtraArguments) > 0 {
 		extraArgs = extraArgs + strings.Join(p.config.ExtraArguments, " ")
-	}
-
-	// Fetch external dependencies
-	if len(p.config.GalaxyFile) > 0 {
-		if err := p.executeGalaxy(ui, comm); err != nil {
-			return fmt.Errorf("Error executing Ansible Galaxy: %s", err)
-		}
 	}
 
 	if p.config.PlaybookFile != "" {
@@ -582,49 +837,113 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 	return nil
 }
 
+// buildExtraArgs constructs extra arguments for a specific play
+func (p *Provisioner) buildExtraArgs(play Play) string {
+	extraArgs := fmt.Sprintf(" --extra-vars \"packer_build_name=%s packer_builder_type=%s packer_http_addr=%s -o IdentitiesOnly=yes\" ",
+		p.config.PackerBuildName, p.config.PackerBuilderType, p.generatedData["PackerHTTPAddr"])
+
+	// Add global extra arguments
+	if len(p.config.ExtraArguments) > 0 {
+		extraArgs = extraArgs + strings.Join(p.config.ExtraArguments, " ")
+	}
+
+	// Add per-play arguments
+	if play.Become {
+		extraArgs = extraArgs + " --become"
+	}
+
+	if len(play.Tags) > 0 {
+		extraArgs = extraArgs + " --tags " + strings.Join(play.Tags, ",")
+	}
+
+	for k, v := range play.ExtraVars {
+		extraArgs = extraArgs + fmt.Sprintf(" -e %s=%s", k, v)
+	}
+
+	for _, varsFile := range play.VarsFiles {
+		extraArgs = extraArgs + fmt.Sprintf(" -e @%s", varsFile)
+	}
+
+	return extraArgs
+}
+
+// createRolePlaybook generates a temporary playbook file for executing an Ansible role
+func (p *Provisioner) createRolePlaybook(role string, play Play) (string, error) {
+	// Create a temporary file for the playbook
+	tmpFile, err := tmp.File("packer-role-playbook-*.yml")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temporary playbook file: %w", err)
+	}
+
+	// Build the playbook content
+	playbookContent := "---\n- hosts: all\n"
+	playbookContent += "  connection: local\n"
+
+	if play.Become {
+		playbookContent += "  become: yes\n"
+	}
+
+	if len(play.VarsFiles) > 0 {
+		playbookContent += "  vars_files:\n"
+		for _, varsFile := range play.VarsFiles {
+			playbookContent += fmt.Sprintf("    - %s\n", varsFile)
+		}
+	}
+
+	playbookContent += "  roles:\n"
+	playbookContent += fmt.Sprintf("    - role: %s\n", role)
+
+	if len(play.ExtraVars) > 0 {
+		playbookContent += "      vars:\n"
+		for k, v := range play.ExtraVars {
+			playbookContent += fmt.Sprintf("        %s: %s\n", k, v)
+		}
+	}
+
+	// Write the content
+	if _, err := tmpFile.WriteString(playbookContent); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+		return "", fmt.Errorf("failed to write temporary playbook: %w", err)
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		os.Remove(tmpFile.Name())
+		return "", fmt.Errorf("failed to close temporary playbook: %w", err)
+	}
+
+	return tmpFile.Name(), nil
+}
+
 func (p *Provisioner) executeAnsiblePlaybook(
 	ui packersdk.Ui, comm packersdk.Communicator, playbookFile, extraArgs, inventory string,
 ) error {
 	ctx := context.TODO()
 	env_vars := ""
-	galaxyFileHasCollections := false
-	galaxyFileHasRoles := false
 
-	// Check if we have custom collections from either galaxy or locally. TODO: Abstract to function
-	// as we use the same check in executeGalaxy
-	if len(p.config.GalaxyFile) > 0 {
-		f, err := os.ReadFile(p.config.GalaxyFile)
-		if err != nil {
-			return err
-		}
-		galaxyFileHasCollections, _ = regexp.Match(`(?m)^collections:`, f)
-		galaxyFileHasRoles, _ = regexp.Match(`(?m)^roles:`, f)
+	// Build environment variables for collections and roles paths
+	galaxyManager := NewGalaxyManager(&p.config, ui, comm)
+	envPaths := galaxyManager.SetupEnvironmentPaths()
+	if len(envPaths) > 0 {
+		env_vars = strings.Join(envPaths, " ") + " "
 	}
 
-	collections_path := []string{}
+	// Add standard Ansible environment variables
+	env_vars += "ANSIBLE_FORCE_COLOR=1 PYTHONUNBUFFERED=1"
 
-	if galaxyFileHasCollections {
-		collections_path = append(collections_path, p.config.GalaxyCollectionsPath)
+	// Build navigator-specific flags
+	navigatorFlags := ""
+	if p.config.NavigatorMode != "" {
+		navigatorFlags += fmt.Sprintf(" --mode %s", p.config.NavigatorMode)
+	}
+	if p.config.ExecutionEnvironment != "" {
+		navigatorFlags += fmt.Sprintf(" --execution-environment %s", p.config.ExecutionEnvironment)
 	}
 
-	if len(p.config.CollectionPaths) > 0 {
-		collections_path = append(collections_path, filepath.ToSlash(filepath.Join(p.config.StagingDir, "collections")))
-	}
-
-	if len(collections_path) > 0 {
-		env_vars += fmt.Sprintf(" ANSIBLE_COLLECTIONS_PATH=$ANSIBLE_COLLECTIONS_PATH:%s",
-			strings.Join(collections_path, ":"))
-	}
-
-	if galaxyFileHasRoles {
-		env_vars += fmt.Sprintf(" ANSIBLE_ROLES_PATH=$ANSIBLE_ROLES_PATH:%s",
-			p.config.GalaxyRolesPath)
-	}
-
-	command := fmt.Sprintf("cd %s && %s %s %s%s -c local -i %s",
-		p.config.StagingDir, env_vars, p.config.Command, playbookFile, extraArgs, inventory,
+	command := fmt.Sprintf("cd %s && %s %s%s %s%s -c local -i %s",
+		p.config.StagingDir, env_vars, p.config.Command, navigatorFlags, playbookFile, extraArgs, inventory,
 	)
-	ui.Message(fmt.Sprintf("Executing Ansible: %s", command))
+	ui.Message(fmt.Sprintf("Executing Ansible Navigator: %s", command))
 	cmd := &packersdk.RemoteCmd{
 		Command: command,
 	}
