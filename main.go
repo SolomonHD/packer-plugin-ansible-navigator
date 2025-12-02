@@ -11,20 +11,20 @@ import (
 
 	"github.com/hashicorp/packer-plugin-sdk/plugin"
 
-	ansiblenavigatorlocal "github.com/solomonhd/packer-plugin-ansible-navigator/provisioner/ansible-navigator"
-	ansiblenavigatorremote "github.com/solomonhd/packer-plugin-ansible-navigator/provisioner/ansible-navigator-remote"
+	ansiblenavigator "github.com/solomonhd/packer-plugin-ansible-navigator/provisioner/ansible-navigator"
+	ansiblenavigatorlocal "github.com/solomonhd/packer-plugin-ansible-navigator/provisioner/ansible-navigator-local"
 	"github.com/solomonhd/packer-plugin-ansible-navigator/version"
 )
 
 func main() {
 	pps := plugin.NewSet()
 	// Register provisioners using Packer SDK naming conventions:
-	// - plugin.DEFAULT_NAME ("-packer-default-plugin-name-") for primary provisioner
+	// - plugin.DEFAULT_NAME ("-packer-default-plugin-name-") for primary provisioner (SSH-based)
 	//   -> accessible in HCL as "ansible-navigator"
-	// - "remote" for secondary provisioner
-	//   -> accessible in HCL as "ansible-navigator-remote" (Packer prefixes with plugin alias)
-	pps.RegisterProvisioner(plugin.DEFAULT_NAME, new(ansiblenavigatorlocal.Provisioner))
-	pps.RegisterProvisioner("remote", new(ansiblenavigatorremote.Provisioner))
+	// - "local" for secondary provisioner (runs on target)
+	//   -> accessible in HCL as "ansible-navigator-local" (Packer prefixes with plugin alias)
+	pps.RegisterProvisioner(plugin.DEFAULT_NAME, new(ansiblenavigator.Provisioner))
+	pps.RegisterProvisioner("local", new(ansiblenavigatorlocal.Provisioner))
 	pps.SetVersion(version.PluginVersion)
 	err := pps.Run()
 

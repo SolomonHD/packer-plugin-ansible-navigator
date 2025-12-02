@@ -1,8 +1,5 @@
-# directory-structure Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change standardize-provisioner-naming. Update Purpose after archive.
-## Requirements
 ### Requirement: Consistent Directory Naming
 The provisioner directory structure SHALL align with plugin registration names and Packer ecosystem conventions, following the pattern established by the official ansible plugin.
 
@@ -43,4 +40,3 @@ Go package import paths SHALL match the physical directory structure and follow 
 - **WHEN** code within one provisioner package needs to reference another
 - **THEN** import paths SHALL use the standardized directory names
 - **AND** SHALL maintain consistency across all Go files
-

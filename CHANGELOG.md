@@ -1,3 +1,42 @@
+## 3.0.0 (December 2, 2025)
+### BREAKING CHANGES:
+* **Provisioner Naming Swapped to Align with Packer Conventions**: The provisioner naming has been corrected to match the standard Packer pattern where SSH-based (remote) execution is the default:
+  - **`ansible-navigator`** (default) now runs FROM the local machine, connects TO the target via SSH (was previously on-target execution)
+  - **`ansible-navigator-local`** now runs ON the target machine with local connection (was previously the default named `ansible-navigator`)
+  - This aligns with the official HashiCorp `ansible` plugin where:
+    - `ansible` = SSH-based execution (default)
+    - `ansible-local` = on-target execution
+  - **Migration Required**: Update your Packer HCL configurations:
+    ```hcl
+    # Before (v2.x)
+    provisioner "ansible-navigator" {
+      # This ran on the target machine
+    }
+    provisioner "ansible-navigator-remote" {
+      # This connected via SSH
+    }
+    
+    # After (v3.x)
+    provisioner "ansible-navigator-local" {
+      # This runs on the target machine
+    }
+    provisioner "ansible-navigator" {
+      # This connects via SSH (now the default)
+    }
+    ```
+  - **Rationale**: The previous naming was inverted from Packer ecosystem conventions, causing confusion for users familiar with the official ansible plugin
+
+### INTERNAL CHANGES:
+* Directory structure updated to match new naming:
+  - `provisioner/ansible-navigator-remote/` → `provisioner/ansible-navigator/`
+  - `provisioner/ansible-navigator/` → `provisioner/ansible-navigator-local/`
+* Go package names updated accordingly:
+  - Primary provisioner now uses `package ansiblenavigator`
+  - Local provisioner uses `package ansiblenavigatorlocal`
+* Plugin registration updated:
+  - `plugin.DEFAULT_NAME` → SSH-based provisioner (HCL: `ansible-navigator`)
+  - `"local"` → on-target provisioner (HCL: `ansible-navigator-local`)
+
 ## 2.0.0 (December 2, 2025)
 ### BREAKING CHANGES:
 * **Renamed `plays` to `play` Block Syntax**: The configuration for multiple plays has been changed from array syntax to HCL2 block syntax following Packer/Terraform conventions:
