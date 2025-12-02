@@ -4,7 +4,7 @@
 //go:build !windows
 // +build !windows
 
-package ansiblenavigatorremote
+package ansiblenavigator
 
 import (
 	"fmt"

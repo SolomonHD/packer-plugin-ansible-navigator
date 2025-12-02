@@ -1,8 +1,5 @@
-# plugin-registration Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change standardize-provisioner-naming. Update Purpose after archive.
-## Requirements
 ### Requirement: Plugin Registration Names
 
 The plugin SHALL register two provisioners with Packer using Packer SDK naming conventions, following the pattern established by the official ansible plugin:
@@ -59,4 +56,3 @@ The package naming convention SHALL be:
 - **WHEN** examining the source code in `provisioner/ansible-navigator-local/`
 - **THEN** all Go files SHALL declare `package ansiblenavigatorlocal`
 - **AND** the package name SHALL clearly indicate the local execution mode
-
