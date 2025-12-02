@@ -234,7 +234,7 @@ type Config struct {
 
 	// Array of play definitions supporting both playbooks and role FQDNs.
 	// Mutually exclusive with playbook_file.
-	Plays []Play `mapstructure:"plays"`
+	Plays []Play `mapstructure:"play"`
 	// Path to a unified requirements.yml file containing both roles and collections.
 	// Alternative to galaxy_file with enhanced support for modern Ansible requirements format.
 	RequirementsFile string `mapstructure:"requirements_file"`
@@ -293,12 +293,12 @@ func (c *Config) Validate() error {
 
 	if hasPlaybookFile && hasPlays {
 		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-			"you may specify only one of `playbook_file`/`playbook_files` or `plays`"))
+			"you may specify only one of `playbook_file`/`playbook_files` or `play` blocks"))
 	}
 
 	if !hasPlaybookFile && !hasPlays {
 		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-			"either `playbook_file`/`playbook_files` or `plays` must be defined"))
+			"either `playbook_file`/`playbook_files` or `play` blocks must be defined"))
 	}
 
 	// Validate playbook files if specified

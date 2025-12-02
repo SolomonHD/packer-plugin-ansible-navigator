@@ -44,7 +44,7 @@ type FlatConfig struct {
 	StructuredLogging      *bool             `mapstructure:"structured_logging" cty:"structured_logging" hcl:"structured_logging"`
 	LogOutputPath          *string           `mapstructure:"log_output_path" cty:"log_output_path" hcl:"log_output_path"`
 	VerboseTaskOutput      *bool             `mapstructure:"verbose_task_output" cty:"verbose_task_output" hcl:"verbose_task_output"`
-	Plays                  []FlatPlay        `mapstructure:"plays" cty:"plays" hcl:"plays"`
+	Plays                  []FlatPlay        `mapstructure:"play" cty:"play" hcl:"play"`
 	RequirementsFile       *string           `mapstructure:"requirements_file" cty:"requirements_file" hcl:"requirements_file"`
 	Collections            []string          `mapstructure:"collections" cty:"collections" hcl:"collections"`
 	CollectionsCacheDir    *string           `mapstructure:"collections_cache_dir" cty:"collections_cache_dir" hcl:"collections_cache_dir"`
@@ -102,7 +102,7 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"structured_logging":         &hcldec.AttrSpec{Name: "structured_logging", Type: cty.Bool, Required: false},
 		"log_output_path":            &hcldec.AttrSpec{Name: "log_output_path", Type: cty.String, Required: false},
 		"verbose_task_output":        &hcldec.AttrSpec{Name: "verbose_task_output", Type: cty.Bool, Required: false},
-		"plays":                      &hcldec.BlockListSpec{TypeName: "plays", Nested: hcldec.ObjectSpec((*FlatPlay)(nil).HCL2Spec())},
+		"play":                       &hcldec.BlockListSpec{TypeName: "play", Nested: hcldec.ObjectSpec((*FlatPlay)(nil).HCL2Spec())},
 		"requirements_file":          &hcldec.AttrSpec{Name: "requirements_file", Type: cty.String, Required: false},
 		"collections":                &hcldec.AttrSpec{Name: "collections", Type: cty.List(cty.String), Required: false},
 		"collections_cache_dir":      &hcldec.AttrSpec{Name: "collections_cache_dir", Type: cty.String, Required: false},

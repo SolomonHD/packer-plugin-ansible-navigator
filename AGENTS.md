@@ -108,20 +108,19 @@ Support two mutually exclusive configuration paths:
 playbook_file = "site.yml"
 
 # Option B: Collection plays with structured configuration
-plays = [
-  {
-    name = "Migrate Node"
-    target = "integration.portainer.migrate_node"
-    extra_vars = {
-      environment = "production"
-    }
-  },
-  {
-    name = "Configure Firewall"
-    target = "acme.firewall.configure_rules"
-    vars_files = ["firewall_vars.yml"]
+play {
+  name   = "Migrate Node"
+  target = "integration.portainer.migrate_node"
+  extra_vars = {
+    environment = "production"
   }
-]
+}
+
+play {
+  name       = "Configure Firewall"
+  target     = "acme.firewall.configure_rules"
+  vars_files = ["firewall_vars.yml"]
+}
 ```
 
 * If both are set, return a config error:
@@ -227,17 +226,15 @@ Generate or update docs under `/website/docs/provisioner/ansible-navigator.mdx`:
 
 ```hcl
 provisioner "ansible-navigator" {
-  plays = [
-    {
-      name = "Migrate Node"
-      target = "integration.portainer.migrate_node"
-      extra_vars = {
-        node_type = "worker"
-        cluster_id = "prod-01"
-      }
-      vars_files = ["production.yml"]
+  play {
+    name   = "Migrate Node"
+    target = "integration.portainer.migrate_node"
+    extra_vars = {
+      node_type  = "worker"
+      cluster_id = "prod-01"
     }
-  ]
+    vars_files = ["production.yml"]
+  }
   execution_environment = "ansible-execution-env:latest"
   extra_arguments = ["--mode", "stdout"]
   inventory_directory = "inventory/"

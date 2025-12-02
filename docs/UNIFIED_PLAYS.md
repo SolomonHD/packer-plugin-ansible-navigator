@@ -21,12 +21,10 @@ The unified play execution model provides:
 provisioner "ansible-navigator" {
   requirements_file = "./requirements.yml"
   
-  plays = [
-    {
-      name   = "Setup Docker"
-      target = "geerlingguy.docker"
-    }
-  ]
+  play {
+    name   = "Setup Docker"
+    target = "geerlingguy.docker"
+  }
 }
 ```
 
@@ -46,16 +44,14 @@ provisioner "ansible-navigator" {
   force_update = false  # Always reinstall dependencies
   
   # Play definitions
-  plays = [
-    {
-      name       = "Play Name"
-      target     = "role.fqdn or playbook.yml"
-      extra_vars = { key = "value" }
-      tags       = ["tag1", "tag2"]
-      vars_files = ["vars/file.yml"]
-      become     = true
-    }
-  ]
+  play {
+    name       = "Play Name"
+    target     = "role.fqdn or playbook.yml"
+    extra_vars = { key = "value" }
+    tags       = ["tag1", "tag2"]
+    vars_files = ["vars/file.yml"]
+    become     = true
+  }
 }
 ```
 
@@ -119,20 +115,19 @@ roles:
 provisioner "ansible-navigator" {
   requirements_file = "./requirements.yml"
   
-  plays = [
-    {
-      name   = "Install Docker"
-      target = "geerlingguy.docker"
-      extra_vars = {
-        docker_install_compose = "true"
-      }
-    },
-    {
-      name   = "Install Node.js"
-      target = "geerlingguy.nodejs"
-      become = true
+  play {
+    name   = "Install Docker"
+    target = "geerlingguy.docker"
+    extra_vars = {
+      docker_install_compose = "true"
     }
-  ]
+  }
+  
+  play {
+    name   = "Install Node.js"
+    target = "geerlingguy.nodejs"
+    become = true
+  }
 }
 ```
 
@@ -142,26 +137,26 @@ provisioner "ansible-navigator" {
 provisioner "ansible-navigator" {
   requirements_file = "./requirements.yml"
   
-  plays = [
-    {
-      name   = "Base configuration"
-      target = "site.yml"
-    },
-    {
-      name   = "Install Docker"
-      target = "geerlingguy.docker"
-      extra_vars = {
-        docker_edition = "ce"
-      }
-    },
-    {
-      name       = "Deploy application"
-      target     = "deploy.yml"
-      become     = true
-      tags       = ["deploy"]
-      vars_files = ["vars/production.yml"]
+  play {
+    name   = "Base configuration"
+    target = "site.yml"
+  }
+  
+  play {
+    name   = "Install Docker"
+    target = "geerlingguy.docker"
+    extra_vars = {
+      docker_edition = "ce"
     }
-  ]
+  }
+  
+  play {
+    name       = "Deploy application"
+    target     = "deploy.yml"
+    become     = true
+    tags       = ["deploy"]
+    vars_files = ["vars/production.yml"]
+  }
 }
 ```
 
@@ -171,23 +166,22 @@ provisioner "ansible-navigator" {
 provisioner "ansible-navigator" {
   requirements_file = "./requirements.yml"
   
-  plays = [
-    {
-      name       = "Security hardening"
-      target     = "security.hardening"
-      become     = true
-      tags       = ["security", "hardening"]
-      extra_vars = {
-        security_level = "high"
-      }
-    },
-    {
-      name       = "Application deployment"
-      target     = "myorg.webapp"
-      vars_files = ["vars/app.yml", "secrets/prod.yml"]
-      tags       = ["deploy"]
+  play {
+    name       = "Security hardening"
+    target     = "security.hardening"
+    become     = true
+    tags       = ["security", "hardening"]
+    extra_vars = {
+      security_level = "high"
     }
-  ]
+  }
+  
+  play {
+    name       = "Application deployment"
+    target     = "myorg.webapp"
+    vars_files = ["vars/app.yml", "secrets/prod.yml"]
+    tags       = ["deploy"]
+  }
 }
 ```
 
@@ -200,11 +194,9 @@ provisioner "ansible-navigator" {
   roles_cache_dir       = "./cache/roles"
   offline_mode          = true
   
-  plays = [
-    {
-      target = "geerlingguy.docker"
-    }
-  ]
+  play {
+    target = "geerlingguy.docker"
+  }
 }
 ```
 
@@ -247,11 +239,9 @@ provisioner "ansible-navigator" {
 provisioner "ansible-navigator" {
   requirements_file = "requirements.yml"
   
-  plays = [
-    {
-      target = "site.yml"
-    }
-  ]
+  play {
+    target = "site.yml"
+  }
 }
 ```
 
@@ -332,12 +322,10 @@ Check the role name and verify it exists in:
 
 Enable privilege escalation:
 ```hcl
-plays = [
-  {
-    target = "role.name"
-    become = true
-  }
-]
+play {
+  target = "role.name"
+  become = true
+}
 ```
 
 ## See Also
