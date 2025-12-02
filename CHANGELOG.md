@@ -1,3 +1,30 @@
+## 2.0.0 (December 2, 2025)
+### BREAKING CHANGES:
+* **Renamed `plays` to `play` Block Syntax**: The configuration for multiple plays has been changed from array syntax to HCL2 block syntax following Packer/Terraform conventions:
+  - **Old (INCORRECT - was never valid)**: `plays = [{ ... }]`
+  - **New (CORRECT)**: `play { ... }` (repeated blocks for multiple plays)
+  - This aligns with HCL idioms where repeatable blocks use singular names (e.g., `provisioner`, `source`, `build`)
+  - **Migration Required**: Update all configurations using play-based execution:
+    ```hcl
+    # Before (array syntax - this was documented but incorrect)
+    plays = [
+      { name = "Play 1", target = "role.one" },
+      { name = "Play 2", target = "role.two" }
+    ]
+    
+    # After (correct HCL2 block syntax)
+    play {
+      name   = "Play 1"
+      target = "role.one"
+    }
+    play {
+      name   = "Play 2"
+      target = "role.two"
+    }
+    ```
+  - Error messages updated to reference `play` blocks instead of `plays`
+  - Internal Go field name `Plays` remains plural (it's a slice)
+
 ## 1.5.0 (December 1, 2025)
 ### BUG FIXES:
 * **Fixed Provisioner Registration Names**: Corrected internal registration names to follow Packer SDK naming conventions:

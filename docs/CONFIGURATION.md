@@ -30,15 +30,15 @@ provisioner "ansible-navigator" {
 }
 ```
 
-### plays
+### play
 
-**Type:** `[]object`
+**Type:** `block` (repeatable)
 **Required:** Either this or `playbook_file` must be specified
 **Conflicts with:** `playbook_file`
 
-Array of play configuration objects. Each play can have its own variables, tags, and settings.
+Play block configuration. Multiple plays are defined as repeated `play { }` blocks.
 
-**Play Object Fields:**
+**Play Block Fields:**
 - `name` (string): Display name for the play
 - `target` (string): **Required** - Either a playbook path or collection play FQDN
 - `extra_vars` (map[string]string): Variables specific to this play
@@ -48,22 +48,21 @@ Array of play configuration objects. Each play can have its own variables, tags,
 
 ```hcl
 provisioner "ansible-navigator" {
-  plays = [
-    {
-      name = "Setup Server"
-      target = "namespace.collection.play_name"
-      extra_vars = {
-        environment = "production"
-        region = "us-east-1"
-      }
-    },
-    {
-      name = "Configure Services"
-      target = "community.general.setup_server"
-      vars_files = ["vars/services.yml"]
-      become = true
+  play {
+    name   = "Setup Server"
+    target = "namespace.collection.play_name"
+    extra_vars = {
+      environment = "production"
+      region      = "us-east-1"
     }
-  ]
+  }
+  
+  play {
+    name       = "Configure Services"
+    target     = "community.general.setup_server"
+    vars_files = ["vars/services.yml"]
+    become     = true
+  }
 }
 ```
 
@@ -591,20 +590,19 @@ provisioner "ansible-navigator" {
 
 ```hcl
 provisioner "ansible-navigator" {
-  plays = [
-    {
-      name = "Security Hardening"
-      target = "baseline.security.harden"
-      become = true
-    },
-    {
-      name = "Application Configuration"
-      target = "app.deployment.configure"
-      extra_vars = {
-        deployment_type = "production"
-      }
+  play {
+    name   = "Security Hardening"
+    target = "baseline.security.harden"
+    become = true
+  }
+  
+  play {
+    name   = "Application Configuration"
+    target = "app.deployment.configure"
+    extra_vars = {
+      deployment_type = "production"
     }
-  ]
+  }
   
   requirements_file = "./requirements.yml"
   
@@ -660,15 +658,13 @@ provisioner "ansible-navigator" {
 
 ```hcl
 provisioner "ansible-navigator" {
-  plays = [
-    {
-      name = "Offline Deployment"
-      target = "app.deploy.offline"
-      extra_vars = {
-        offline_mode = "true"
-      }
+  play {
+    name   = "Offline Deployment"
+    target = "app.deploy.offline"
+    extra_vars = {
+      offline_mode = "true"
     }
-  ]
+  }
   
   collections_offline = true
   collections_cache_dir = "/mnt/shared/offline-collections"
@@ -689,13 +685,13 @@ The plugin validates configuration at runtime and will fail with clear error mes
 ### Mutual Exclusivity Errors
 
 ```
-Error: You may specify only one of `playbook_file` or `plays`
+Error: You may specify only one of `playbook_file`/`playbook_files` or `play` blocks
 ```
 
 ### Required Field Errors
 
 ```
-Error: Either `playbook_file` or `plays` must be defined
+Error: Either `playbook_file`/`playbook_files` or `play` blocks must be defined
 ```
 
 ### Invalid Value Errors
