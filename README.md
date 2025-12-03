@@ -271,7 +271,7 @@ This project is licensed under the [Apache License 2.0](LICENSE).
 
 ## 🏗️ Project Status
 
-**Current Version:** 1.5.0
+**Current Version:** 3.1.0
 **Status:** Production Ready
 **Maintained by:** SolomonHD
 

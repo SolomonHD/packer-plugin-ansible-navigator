@@ -68,6 +68,10 @@ type Play struct {
 	VarsFiles []string `mapstructure:"vars_files"`
 	// Whether to use privilege escalation (become) for this play
 	Become bool `mapstructure:"become"`
+	// User to become when using privilege escalation
+	BecomeUser string `mapstructure:"become_user"`
+	// Tags to skip for this play
+	SkipTags []string `mapstructure:"skip_tags"`
 }
 
 // Config holds the configuration for the Ansible Navigator provisioner.
@@ -994,6 +998,10 @@ func createRolePlaybook(role string, play Play) (string, error) {
 		playbookContent += "  become: yes\n"
 	}
 
+	if play.BecomeUser != "" {
+		playbookContent += fmt.Sprintf("  become_user: %s\n", play.BecomeUser)
+	}
+
 	if len(play.VarsFiles) > 0 {
 		playbookContent += "  vars_files:\n"
 		for _, varsFile := range play.VarsFiles {
@@ -1096,9 +1104,19 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 			args = append([]string{"--become"}, args...)
 		}
 
+		if play.BecomeUser != "" && !checkArg("--become-user", args) {
+			args = append([]string{"--become-user", play.BecomeUser}, args...)
+		}
+
 		if len(play.Tags) > 0 {
 			for _, tag := range play.Tags {
 				args = append([]string{"--tags", tag}, args...)
+			}
+		}
+
+		if len(play.SkipTags) > 0 {
+			for _, tag := range play.SkipTags {
+				args = append([]string{"--skip-tags", tag}, args...)
 			}
 		}
 
