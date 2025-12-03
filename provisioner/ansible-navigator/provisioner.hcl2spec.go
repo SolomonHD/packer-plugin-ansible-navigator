@@ -139,12 +139,14 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 // FlatPlay is an auto-generated flat version of Play.
 // Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
 type FlatPlay struct {
-	Name      *string           `mapstructure:"name" cty:"name" hcl:"name"`
-	Target    *string           `mapstructure:"target" cty:"target" hcl:"target"`
-	ExtraVars map[string]string `mapstructure:"extra_vars" cty:"extra_vars" hcl:"extra_vars"`
-	Tags      []string          `mapstructure:"tags" cty:"tags" hcl:"tags"`
-	VarsFiles []string          `mapstructure:"vars_files" cty:"vars_files" hcl:"vars_files"`
-	Become    *bool             `mapstructure:"become" cty:"become" hcl:"become"`
+	Name       *string           `mapstructure:"name" cty:"name" hcl:"name"`
+	Target     *string           `mapstructure:"target" cty:"target" hcl:"target"`
+	ExtraVars  map[string]string `mapstructure:"extra_vars" cty:"extra_vars" hcl:"extra_vars"`
+	Tags       []string          `mapstructure:"tags" cty:"tags" hcl:"tags"`
+	VarsFiles  []string          `mapstructure:"vars_files" cty:"vars_files" hcl:"vars_files"`
+	Become     *bool             `mapstructure:"become" cty:"become" hcl:"become"`
+	BecomeUser *string           `mapstructure:"become_user" cty:"become_user" hcl:"become_user"`
+	SkipTags   []string          `mapstructure:"skip_tags" cty:"skip_tags" hcl:"skip_tags"`
 }
 
 // FlatMapstructure returns a new FlatPlay.
@@ -159,12 +161,14 @@ func (*Play) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec.Spec } {
 // The decoded values from this spec will then be applied to a FlatPlay.
 func (*FlatPlay) HCL2Spec() map[string]hcldec.Spec {
 	s := map[string]hcldec.Spec{
-		"name":       &hcldec.AttrSpec{Name: "name", Type: cty.String, Required: false},
-		"target":     &hcldec.AttrSpec{Name: "target", Type: cty.String, Required: false},
-		"extra_vars": &hcldec.AttrSpec{Name: "extra_vars", Type: cty.Map(cty.String), Required: false},
-		"tags":       &hcldec.AttrSpec{Name: "tags", Type: cty.List(cty.String), Required: false},
-		"vars_files": &hcldec.AttrSpec{Name: "vars_files", Type: cty.List(cty.String), Required: false},
-		"become":     &hcldec.AttrSpec{Name: "become", Type: cty.Bool, Required: false},
+		"name":        &hcldec.AttrSpec{Name: "name", Type: cty.String, Required: false},
+		"target":      &hcldec.AttrSpec{Name: "target", Type: cty.String, Required: false},
+		"extra_vars":  &hcldec.AttrSpec{Name: "extra_vars", Type: cty.Map(cty.String), Required: false},
+		"tags":        &hcldec.AttrSpec{Name: "tags", Type: cty.List(cty.String), Required: false},
+		"vars_files":  &hcldec.AttrSpec{Name: "vars_files", Type: cty.List(cty.String), Required: false},
+		"become":      &hcldec.AttrSpec{Name: "become", Type: cty.Bool, Required: false},
+		"become_user": &hcldec.AttrSpec{Name: "become_user", Type: cty.String, Required: false},
+		"skip_tags":   &hcldec.AttrSpec{Name: "skip_tags", Type: cty.List(cty.String), Required: false},
 	}
 	return s
 }
