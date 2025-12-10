@@ -42,47 +42,46 @@ packer validate your-template.pkr.hcl
 
 ## Common Error Messages
 
-### Error: "You may specify only one of `playbook_file` or `plays`"
+### Error: "You may specify only one of `playbook_file` or `play` blocks"
 
-**Problem**: Both `playbook_file` and `plays` are specified in configuration.
+**Problem**: Both `playbook_file` and one or more `play` blocks are specified in configuration.
 
 **Solution**: Remove one of them. They are mutually exclusive.
 
 ❌ **Wrong:**
+
 ```hcl
 provisioner "ansible-navigator" {
   playbook_file = "site.yml"
-  plays = [  # CONFLICT!
-    {
-      name = "My Play"
-      target = "namespace.collection.play"
-    }
-  ]
+
+  play { # CONFLICT!
+    name   = "My Play"
+    target = "namespace.collection.play"
+  }
 }
 ```
 
 ✅ **Correct:**
+
 ```hcl
 # Option A: Use playbook file
 provisioner "ansible-navigator" {
   playbook_file = "site.yml"
 }
 
-# Option B: Use collection plays (array of objects)
+# Option B: Use collection plays (repeated play blocks)
 provisioner "ansible-navigator" {
-  plays = [
-    {
-      name = "My Play"
-      target = "namespace.collection.play"
-      extra_vars = {
-        environment = "production"
-      }
+  play {
+    name   = "My Play"
+    target = "namespace.collection.play"
+    extra_vars = {
+      environment = "production"
     }
-  ]
+  }
 }
 ```
 
-### Error: "Either `playbook_file` or `plays` must be defined"
+### Error: "Either `playbook_file` or `play` blocks must be defined"
 
 **Problem**: Neither `playbook_file` nor `plays` is specified.
 
@@ -92,13 +91,12 @@ provisioner "ansible-navigator" {
 provisioner "ansible-navigator" {
   # Add either:
   playbook_file = "site.yml"
-  # OR:
-  plays = [
-    {
-      name = "Configure System"
-      target = "namespace.collection.play"
-    }
-  ]
+
+  # OR one or more play blocks:
+  play {
+    name   = "Configure System"
+    target = "namespace.collection.play"
+  }
 }
 ```
 
@@ -109,6 +107,7 @@ provisioner "ansible-navigator" {
 **Solutions:**
 
 1. Install ansible-navigator:
+
 ```bash
 pip install ansible-navigator
 # or
@@ -116,11 +115,13 @@ pipx install ansible-navigator
 ```
 
 2. Add to PATH if installed locally:
+
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
 3. Specify full path in configuration:
+
 ```hcl
 provisioner "ansible-navigator" {
   command = "/usr/local/bin/ansible-navigator run"
@@ -134,16 +135,19 @@ provisioner "ansible-navigator" {
 **Solutions:**
 
 1. Check the play exists in the collection:
+
 ```bash
 ansible-doc -l | grep namespace.collection
 ```
 
 2. Verify collection is installed:
+
 ```bash
 ansible-galaxy collection list
 ```
 
 3. Enable verbose logging for details:
+
 ```hcl
 provisioner "ansible-navigator" {
   extra_arguments = ["-vvv"]
@@ -162,6 +166,7 @@ provisioner "ansible-navigator" {
 **Solutions:**
 
 1. Check Docker/Podman is running:
+
 ```bash
 docker info
 # or
@@ -169,11 +174,13 @@ podman info
 ```
 
 2. Pull image manually:
+
 ```bash
 docker pull quay.io/ansible/creator-ee:latest
 ```
 
 3. Use local image:
+
 ```hcl
 provisioner "ansible-navigator" {
   execution_environment = "localhost:5000/my-ee:latest"
@@ -181,6 +188,7 @@ provisioner "ansible-navigator" {
 ```
 
 4. Disable image pulling:
+
 ```bash
 export ANSIBLE_NAVIGATOR_PULL_POLICY=never
 ```
@@ -190,12 +198,14 @@ export ANSIBLE_NAVIGATOR_PULL_POLICY=never
 ### Plugin Not Found After Installation
 
 **Symptoms:**
+
 - `packer plugins installed` doesn't show the plugin
 - Template validation fails with "unknown provisioner"
 
 **Solutions:**
 
 1. Check plugin location:
+
 ```bash
 # Linux/macOS
 ls -la ~/.packer.d/plugins/packer-plugin-ansible-navigator
@@ -205,15 +215,18 @@ dir %APPDATA%\packer.d\plugins
 ```
 
 2. Verify file permissions:
+
 ```bash
 chmod +x ~/.packer.d/plugins/packer-plugin-ansible-navigator
 ```
 
 3. Check plugin name format:
+
 - Must start with `packer-plugin-`
 - Binary name: `packer-plugin-ansible-navigator` (exactly)
 
 4. Clear plugin cache:
+
 ```bash
 rm -rf ~/.config/packer/plugins/
 packer init your-template.pkr.hcl
@@ -222,10 +235,12 @@ packer init your-template.pkr.hcl
 ### Version Conflicts
 
 **Symptoms:**
+
 - "Version constraint not satisfied"
 - Multiple versions installed
 
 **Solution:**
+
 ```bash
 # Remove all versions
 rm ~/.packer.d/plugins/packer-plugin-ansible-navigator*
@@ -237,23 +252,27 @@ packer init -upgrade your-template.pkr.hcl
 ### Go Version Issues (Building from Source)
 
 **Symptoms:**
+
 - Build fails with Go errors
 - "undefined" errors during compilation
 
 **Solutions:**
 
 1. Update Go version:
+
 ```bash
 go version  # Should be >= 1.25.3
 ```
 
 2. Clean module cache:
+
 ```bash
 go clean -modcache
 go mod download
 ```
 
 3. Use correct build command:
+
 ```bash
 go build -o packer-plugin-ansible-navigator
 ```
@@ -267,11 +286,13 @@ go build -o packer-plugin-ansible-navigator
 **Solutions:**
 
 1. Check Galaxy server access:
+
 ```bash
 ansible-galaxy collection list
 ```
 
 2. Use explicit Galaxy configuration:
+
 ```hcl
 provisioner "ansible-navigator" {
   ansible_env_vars = [
@@ -282,11 +303,13 @@ provisioner "ansible-navigator" {
 ```
 
 3. Pre-install collections:
+
 ```bash
 ansible-galaxy collection install -r requirements.yml
 ```
 
 4. Use offline mode with cached collections:
+
 ```hcl
 provisioner "ansible-navigator" {
   collections_offline = true
@@ -323,9 +346,16 @@ provisioner "ansible-navigator" {
   keep_going = true  # ✅
   # keep_going = "true"  # ❌ Wrong type
   
-  # Arrays
-  plays = ["play1", "play2"]  # ✅
-  # plays = "play1,play2"  # ❌ Wrong type
+  # Repeatable blocks (no array syntax for play)
+  play {
+    name   = "Play 1"
+    target = "namespace.collection.play_one"
+  }
+
+  play {
+    name   = "Play 2"
+    target = "namespace.collection.play_two"
+  }
 }
 ```
 
@@ -338,6 +368,7 @@ provisioner "ansible-navigator" {
 **Solutions:**
 
 1. Install Docker:
+
 ```bash
 # Ubuntu/Debian
 sudo apt-get install docker.io
@@ -350,11 +381,13 @@ sudo systemctl start docker
 ```
 
 2. Use Podman instead:
+
 ```bash
 export ANSIBLE_NAVIGATOR_CONTAINER_ENGINE=podman
 ```
 
 3. Use ansible-playbook without containerization:
+
 ```hcl
 provisioner "ansible" {  # Use regular ansible provisioner
   playbook_file = "site.yml"
@@ -368,18 +401,21 @@ provisioner "ansible" {  # Use regular ansible provisioner
 **Solutions:**
 
 1. Build custom EE:
+
 ```dockerfile
 FROM quay.io/ansible/creator-ee:latest
 RUN pip install custom-package
 ```
 
 2. Push to registry:
+
 ```bash
 docker build -t myregistry/my-ee:latest .
 docker push myregistry/my-ee:latest
 ```
 
 3. Use in configuration:
+
 ```hcl
 provisioner "ansible-navigator" {
   execution_environment = "myregistry/my-ee:latest"
@@ -408,6 +444,7 @@ provisioner "ansible-navigator" {
 ### SSH Connection Failed
 
 **Symptoms:**
+
 - "Host key verification failed"
 - "Permission denied (publickey)"
 - "Connection refused"
@@ -415,6 +452,7 @@ provisioner "ansible-navigator" {
 **Solutions:**
 
 1. Disable host key checking:
+
 ```hcl
 provisioner "ansible-navigator" {
   ansible_env_vars = [
@@ -424,6 +462,7 @@ provisioner "ansible-navigator" {
 ```
 
 2. Specify SSH key:
+
 ```hcl
 provisioner "ansible-navigator" {
   extra_arguments = [
@@ -433,6 +472,7 @@ provisioner "ansible-navigator" {
 ```
 
 3. Debug SSH connection:
+
 ```hcl
 provisioner "ansible-navigator" {
   extra_arguments = ["-vvvv"]
@@ -450,6 +490,7 @@ provisioner "ansible-navigator" {
 **Solutions:**
 
 1. Configure WinRM properly:
+
 ```hcl
 provisioner "ansible-navigator" {
   extra_arguments = [
@@ -460,6 +501,7 @@ provisioner "ansible-navigator" {
 ```
 
 2. Enable basic auth (for testing only):
+
 ```powershell
 # On Windows target
 winrm set winrm/config/service/auth '@{Basic="true"}'
@@ -493,6 +535,7 @@ provisioner "ansible-navigator" {
 **Solutions:**
 
 1. Use collection cache:
+
 ```hcl
 provisioner "ansible-navigator" {
   collections_cache_dir = "~/.ansible/collections_cache"
@@ -500,11 +543,13 @@ provisioner "ansible-navigator" {
 ```
 
 2. Pre-download collections:
+
 ```bash
 ansible-galaxy collection download -r requirements.yml -p ./collections
 ```
 
 3. Use private Galaxy server:
+
 ```hcl
 provisioner "ansible-navigator" {
   ansible_env_vars = [
@@ -520,6 +565,7 @@ provisioner "ansible-navigator" {
 **Solutions:**
 
 1. Increase parallelism:
+
 ```hcl
 provisioner "ansible-navigator" {
   extra_arguments = [
@@ -529,6 +575,7 @@ provisioner "ansible-navigator" {
 ```
 
 2. Enable pipelining:
+
 ```hcl
 provisioner "ansible-navigator" {
   ansible_env_vars = [
@@ -538,6 +585,7 @@ provisioner "ansible-navigator" {
 ```
 
 3. Use fact caching:
+
 ```hcl
 provisioner "ansible-navigator" {
   ansible_env_vars = [
@@ -613,6 +661,7 @@ cat packer.log | grep ansible-navigator
 ### Q: Can I use this plugin without Docker/Podman?
 
 **A:** The plugin requires ansible-navigator, which typically uses container runtimes. However, you can:
+
 1. Use the standard `ansible` provisioner instead
 2. Configure ansible-navigator to work without containers (advanced)
 
@@ -666,6 +715,7 @@ provisioner "ansible-navigator" {
 ### Q: Why is my playbook not found?
 
 **A:** Check these:
+
 1. Path is relative to Packer working directory
 2. File exists and is readable
 3. YAML syntax is valid

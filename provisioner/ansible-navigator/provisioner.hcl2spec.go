@@ -29,7 +29,7 @@ type FlatConfig struct {
 	ExtraArguments          []string          `mapstructure:"extra_arguments" cty:"extra_arguments" hcl:"extra_arguments"`
 	AnsibleEnvVars          []string          `mapstructure:"ansible_env_vars" cty:"ansible_env_vars" hcl:"ansible_env_vars"`
 	PlaybookFile            *string           `mapstructure:"playbook_file" cty:"playbook_file" hcl:"playbook_file"`
-	Plays                   []FlatPlay        `mapstructure:"plays" cty:"plays" hcl:"plays"`
+	Plays                   []FlatPlay        `mapstructure:"play" cty:"play" hcl:"play"`
 	RequirementsFile        *string           `mapstructure:"requirements_file" cty:"requirements_file" hcl:"requirements_file"`
 	RolesCacheDir           *string           `mapstructure:"roles_cache_dir" cty:"roles_cache_dir" hcl:"roles_cache_dir"`
 	OfflineMode             *bool             `mapstructure:"offline_mode" cty:"offline_mode" hcl:"offline_mode"`
@@ -97,7 +97,7 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"extra_arguments":            &hcldec.AttrSpec{Name: "extra_arguments", Type: cty.List(cty.String), Required: false},
 		"ansible_env_vars":           &hcldec.AttrSpec{Name: "ansible_env_vars", Type: cty.List(cty.String), Required: false},
 		"playbook_file":              &hcldec.AttrSpec{Name: "playbook_file", Type: cty.String, Required: false},
-		"plays":                      &hcldec.BlockListSpec{TypeName: "plays", Nested: hcldec.ObjectSpec((*FlatPlay)(nil).HCL2Spec())},
+		"play":                       &hcldec.BlockListSpec{TypeName: "play", Nested: hcldec.ObjectSpec((*FlatPlay)(nil).HCL2Spec())},
 		"requirements_file":          &hcldec.AttrSpec{Name: "requirements_file", Type: cty.String, Required: false},
 		"roles_cache_dir":            &hcldec.AttrSpec{Name: "roles_cache_dir", Type: cty.String, Required: false},
 		"offline_mode":               &hcldec.AttrSpec{Name: "offline_mode", Type: cty.Bool, Required: false},

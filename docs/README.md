@@ -81,14 +81,12 @@ Choose between traditional playbooks or modern collection plays:
 # Traditional playbook
 playbook_file = "site.yml"
 
-# OR Collection plays (array of objects)
-plays = [
-  {
-    name = "My Play"
-    target = "namespace.collection.play_name"
-    extra_vars = {}  # Optional per-play variables
-  }
-]
+# OR collection plays (repeated play blocks)
+play {
+  name   = "My Play"
+  target = "namespace.collection.play_name"
+  extra_vars = {}  # Optional per-play variables
+}
 ```
 
 ### 📦 Execution Environments

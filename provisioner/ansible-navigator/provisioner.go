@@ -177,10 +177,10 @@ type Config struct {
 	//   ```
 	AnsibleEnvVars []string `mapstructure:"ansible_env_vars"`
 	// The playbook to be run by Ansible.
-	// DEPRECATED: Use plays array instead. Maintained for backward compatibility.
+	// DEPRECATED: Use `play` blocks instead. Maintained for backward compatibility.
 	PlaybookFile string `mapstructure:"playbook_file"`
-	// Array of play definitions supporting both playbooks and role FQDNs
-	Plays []Play `mapstructure:"plays"`
+	// Repeated play blocks supporting both playbooks and role FQDNs
+	Plays []Play `mapstructure:"play"`
 	// Path to a unified requirements.yml file containing both roles and collections
 	RequirementsFile string `mapstructure:"requirements_file"`
 	// Directory to cache downloaded roles. Similar to collections_cache_dir but for roles.
@@ -375,12 +375,12 @@ func (c *Config) Validate() error {
 	// Validate play configuration
 	if c.PlaybookFile != "" && len(c.Plays) > 0 {
 		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-			"you may specify only one of `playbook_file` or `plays`"))
+			"you may specify only one of `playbook_file` or `play` blocks"))
 	}
 
 	if c.PlaybookFile == "" && len(c.Plays) == 0 {
 		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-			"either `playbook_file` or `plays` must be defined"))
+			"either `playbook_file` or `play` blocks must be defined"))
 	}
 
 	// Validate playbook file if specified

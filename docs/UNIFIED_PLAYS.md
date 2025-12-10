@@ -73,12 +73,14 @@ provisioner "ansible-navigator" {
 The `target` field accepts two types:
 
 **1. Playbook Files**
+
 ```hcl
 target = "site.yml"
 target = "./playbooks/deploy.yaml"
 ```
 
 **2. Role FQDNs (Fully-Qualified Domain Names)**
+
 ```hcl
 target = "geerlingguy.docker"
 target = "namespace.collection.role"
@@ -205,12 +207,14 @@ provisioner "ansible-navigator" {
 ### Cache Directories
 
 By default, dependencies are cached in:
+
 - Collections: `~/.packer.d/ansible_collections_cache`
 - Roles: `~/.packer.d/ansible_roles_cache`
 
 ### Offline Mode
 
 When `offline_mode = true`:
+
 - No network requests are made
 - All dependencies must be present in cache
 - Build fails if required dependencies are missing
@@ -218,6 +222,7 @@ When `offline_mode = true`:
 ### Force Update
 
 When `force_update = true`:
+
 - All dependencies are reinstalled from source
 - Existing cache is overwritten
 - Useful for ensuring latest versions
@@ -245,7 +250,7 @@ provisioner "ansible-navigator" {
 }
 ```
 
-**Note**: The `playbook_file` field is still supported but deprecated. A warning will be displayed if used.
+**Note**: The `playbook_file` field is still supported but deprecated, and a warning will be displayed if used. Legacy `plays { }` blocks and `plays = [...]` array syntax are no longer supported and must be rewritten as repeated `play { ... }` blocks.
 
 ## Role Playbook Generation
 
@@ -307,6 +312,7 @@ These paths are prepended to existing environment variables if present.
 ### Plays not found
 
 Ensure dependencies are installed:
+
 ```bash
 ansible-galaxy install -r requirements.yml
 ```
@@ -314,13 +320,15 @@ ansible-galaxy install -r requirements.yml
 ### Role not found
 
 Check the role name and verify it exists in:
-- Galaxy: https://galaxy.ansible.com
+
+- Galaxy: <https://galaxy.ansible.com>
 - Requirements file
 - Local cache directory
 
 ### Permission denied
 
 Enable privilege escalation:
+
 ```hcl
 play {
   target = "role.name"

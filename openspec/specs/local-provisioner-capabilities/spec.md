@@ -30,7 +30,7 @@ The local provisioner SHALL use `ansible-navigator run` as the default command i
 
 ### Requirement: Play-Based Execution
 
-The local provisioner SHALL support both traditional playbook files and modern collection-based plays through mutually exclusive configuration options. The play configuration MUST use HCL2 block syntax with the singular block name `play` (repeated `play { }` blocks), following standard HCL idioms for repeatable blocks.
+The local provisioner SHALL support both traditional playbook files and modern collection-based plays through mutually exclusive configuration options. The play configuration MUST use HCL2 block syntax with the singular block name `play` (repeated `play { }` blocks), following standard HCL idioms for repeatable blocks. Legacy plural or array-based configuration forms for plays MUST NOT be accepted.
 
 #### Scenario: Playbook file execution
 
@@ -49,7 +49,7 @@ The local provisioner SHALL support both traditional playbook files and modern c
 
 #### Scenario: Invalid play array assignment syntax
 
-- **GIVEN** a configuration attempting `play = [...]` array assignment syntax
+- **GIVEN** a configuration attempting `play = [...]` or `plays = [...]` array assignment syntax
 - **WHEN** Packer parses the configuration
 - **THEN** it SHALL return an error indicating block syntax is required
 - **AND** the error message SHALL suggest using `play { }` block format
@@ -72,18 +72,6 @@ The local provisioner SHALL support both traditional playbook files and modern c
 - **GIVEN** a configuration with neither `playbook_file` nor `play` blocks
 - **WHEN** the configuration is validated
 - **THEN** it SHALL return an error: "either `playbook_file` or `play` must be defined"
-
-#### Scenario: Play with become_user
-
-- **GIVEN** a `play` block with `become_user = "root"`
-- **WHEN** the provisioner executes the play
-- **THEN** it SHALL pass `--become-user root` to the ansible command
-
-#### Scenario: Play with skip_tags
-
-- **GIVEN** a `play` block with `skip_tags = ["tag1", "tag2"]`
-- **WHEN** the provisioner executes the play
-- **THEN** it SHALL pass `--skip-tags tag1,tag2` to the ansible command
 
 ### Requirement: Navigator Mode
 
@@ -207,15 +195,17 @@ The local provisioner SHALL have properly generated HCL2 spec files for all conf
 
 ### Requirement: HCL Block Naming Convention
 
-The provisioner SHALL follow HCL idioms for block naming, using singular names for blocks that can be repeated.
+The local provisioner SHALL follow HCL idioms for block naming, using singular names for blocks that can be repeated.
 
 #### Scenario: Block name follows HCL conventions
+
 - **GIVEN** the provisioner HCL2 spec definition
 - **WHEN** defining blocks that represent individual items in a collection
 - **THEN** the block SHALL use singular naming (`play` not `plays`)
 - **AND** multiple items SHALL be expressed as repeated singular blocks
 
 #### Scenario: Deprecated plural block name (migration)
+
 - **GIVEN** a configuration using the deprecated `plays { }` block name
 - **WHEN** Packer parses the configuration
 - **THEN** it SHALL return an error indicating the block is not recognized
