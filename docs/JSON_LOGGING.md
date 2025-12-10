@@ -17,14 +17,19 @@ When `navigator_mode = "json"` and `structured_logging = true`, the provisioner 
 
 ```hcl
 provisioner "ansible-navigator" {
-  requirements_file = "./requirements.yml"
-  navigator_mode = "json"
-  structured_logging = true
-  
-  plays = [
-    { name = "Setup base system", target = "geerlingguy.docker" },
-    { name = "Deploy application", target = "myorg.webserver.deploy" }
-  ]
+  requirements_file   = "./requirements.yml"
+  navigator_mode      = "json"
+  structured_logging  = true
+
+  play {
+    name   = "Setup base system"
+    target = "geerlingguy.docker"
+  }
+
+  play {
+    name   = "Deploy application"
+    target = "myorg.webserver.deploy"
+  }
 }
 ```
 
@@ -32,15 +37,20 @@ provisioner "ansible-navigator" {
 
 ```hcl
 provisioner "ansible-navigator" {
-  requirements_file = "./requirements.yml"
-  navigator_mode = "json"
-  structured_logging = true
-  log_output_path = "./logs/ansible-summary.json"
-  
-  plays = [
-    { name = "Provision base system", target = "geerlingguy.docker" },
-    { name = "Deploy app", target = "myorg.webserver.deploy" }
-  ]
+  requirements_file   = "./requirements.yml"
+  navigator_mode      = "json"
+  structured_logging  = true
+  log_output_path     = "./logs/ansible-summary.json"
+
+  play {
+    name   = "Provision base system"
+    target = "geerlingguy.docker"
+  }
+
+  play {
+    name   = "Deploy app"
+    target = "myorg.webserver.deploy"
+  }
 }
 ```
 
@@ -111,17 +121,19 @@ Use the structured summary file for integration with CI/CD pipelines:
 
 ```hcl
 provisioner "ansible-navigator" {
-  navigator_mode = "json"
-  structured_logging = true
-  log_output_path = "${path.root}/build-artifacts/ansible-summary.json"
-  
-  plays = [
-    { name = "Deploy", target = "deploy.yml" }
-  ]
+  navigator_mode      = "json"
+  structured_logging  = true
+  log_output_path     = "${path.root}/build-artifacts/ansible-summary.json"
+
+  play {
+    name   = "Deploy"
+    target = "deploy.yml"
+  }
 }
 ```
 
 The summary file can be parsed by your CI/CD system to:
+
 - Generate detailed build reports
 - Track deployment metrics
 - Alert on specific failures
@@ -133,13 +145,14 @@ Enable structured logging during development to get detailed feedback:
 
 ```hcl
 provisioner "ansible-navigator" {
-  navigator_mode = "json"
-  structured_logging = true
-  log_output_path = "./debug/ansible-run-${timestamp()}.json"
-  
-  plays = [
-    { name = "Debug playbook", target = "debug.yml" }
-  ]
+  navigator_mode      = "json"
+  structured_logging  = true
+  log_output_path     = "./debug/ansible-run-${timestamp()}.json"
+
+  play {
+    name   = "Debug playbook"
+    target = "debug.yml"
+  }
 }
 ```
 
@@ -149,13 +162,14 @@ Maintain execution logs for compliance and auditing:
 
 ```hcl
 provisioner "ansible-navigator" {
-  navigator_mode = "json"
-  structured_logging = true
-  log_output_path = "/var/log/packer/ansible-${build.ID}.json"
-  
-  plays = [
-    { name = "Production deployment", target = "production.yml" }
-  ]
+  navigator_mode      = "json"
+  structured_logging  = true
+  log_output_path     = "/var/log/packer/ansible-${build.ID}.json"
+
+  play {
+    name   = "Production deployment"
+    target = "production.yml"
+  }
 }
 ```
 
@@ -164,11 +178,13 @@ provisioner "ansible-navigator" {
 ### Invalid JSON
 
 If ansible-navigator outputs malformed JSON, the provisioner will:
+
 - Log a warning message
 - Skip the invalid event
 - Continue processing subsequent events
 
 Example warning:
+
 ```
 [Warning] Skipped malformed JSON event: unexpected EOF
 ```
@@ -176,6 +192,7 @@ Example warning:
 ### No Events Received
 
 If no valid events are parsed:
+
 ```
 [Warning] No valid events parsed from ansible-navigator output.
 ```
@@ -183,6 +200,7 @@ If no valid events are parsed:
 ### Task Failures
 
 Failed tasks are reported with details:
+
 ```
 [Error] 2 task(s) failed during play execution.
   - Task 'Configure firewall' on host 'web1.example.com'
@@ -192,6 +210,7 @@ Failed tasks are reported with details:
 ## Backward Compatibility
 
 Structured logging is opt-in and fully backward compatible:
+
 - Default behavior (`structured_logging = false`) remains unchanged
 - Works only when `navigator_mode = "json"`
 - When disabled, output is streamed line-by-line as before

@@ -97,9 +97,9 @@
     ```
 
 - `playbook_file` (string) - The playbook to be run by Ansible.
-  DEPRECATED: Use plays array instead. Maintained for backward compatibility.
+  DEPRECATED: Use `play` blocks instead. Maintained for backward compatibility.
 
-- `plays` ([]Play) - Array of play definitions supporting both playbooks and role FQDNs
+- `play` ([]Play) - Repeated play blocks supporting both playbooks and role FQDNs
 
 - `requirements_file` (string) - Path to a unified requirements.yml file containing both roles and collections
 

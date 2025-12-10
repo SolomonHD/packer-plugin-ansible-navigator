@@ -4,11 +4,13 @@
 These instructions are for AI assistants working in this project.
 
 Always open `@/openspec/AGENTS.md` when the request:
+
 - Mentions planning or proposals (words like proposal, spec, change, plan)
 - Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
 - Sounds ambiguous and you need the authoritative spec before coding
 
 Use `@/openspec/AGENTS.md` to learn:
+
 - How to create and apply change proposals
 - Spec format and conventions
 - Project structure and guidelines
@@ -50,17 +52,19 @@ Follow the goals, constraints, and conventions outlined below.
 
 1. **Rename and Rebrand**
 
-   * Replace all identifiers, module paths, and documentation references from:
+   - Replace all identifiers, module paths, and documentation references from:
 
      ```
      packer-plugin-ansible → packer-plugin-ansible-navigator
      ```
-   * Update plugin registration and display name:
+
+   - Update plugin registration and display name:
 
      ```go
      "ansible" → "ansible-navigator"
      ```
-   * Update Go module path in `go.mod` to:
+
+   - Update Go module path in `go.mod` to:
 
      ```go
      module github.com/solomonhd/packer-plugin-ansible-navigator
@@ -68,9 +72,9 @@ Follow the goals, constraints, and conventions outlined below.
 
 2. **License**
 
-   * Replace existing license with **Apache License 2.0**.
-   * Add a `LICENSE` file with the full Apache 2.0 text.
-   * Include this header in all new Go files:
+   - Replace existing license with **Apache License 2.0**.
+   - Add a `LICENSE` file with the full Apache 2.0 text.
+   - Include this header in all new Go files:
 
      ```go
      // Licensed under the Apache License, Version 2.0 (the "License");
@@ -81,9 +85,9 @@ Follow the goals, constraints, and conventions outlined below.
 
 3. **Core Functionality**
 
-   * Continue to use HashiCorp’s [Packer Plugin SDK](https://github.com/hashicorp/packer-plugin-sdk).
-   * Maintain SSH and WinRM communicator compatibility.
-   * Replace invocations of:
+   - Continue to use HashiCorp’s [Packer Plugin SDK](https://github.com/hashicorp/packer-plugin-sdk).
+   - Maintain SSH and WinRM communicator compatibility.
+   - Replace invocations of:
 
      ```bash
      ansible-playbook
@@ -123,12 +127,12 @@ play {
 }
 ```
 
-* If both are set, return a config error:
+- If both are set, return a config error:
 
-  > “You may specify only one of `playbook_file` or `plays`.”
-* If neither is set, return:
+  > “You may specify only one of `playbook_file` or `play` blocks.”
+- If neither is set, return:
 
-  > “Either `playbook_file` or `plays` must be defined.”
+  > “Either `playbook_file` or `play` blocks must be defined.”
 
 ---
 
@@ -136,9 +140,9 @@ play {
 
 Implement detailed error and progress feedback for AI and users.
 
-#### On Play Execution Failure:
+#### On Play Execution Failure
 
-If running multiple plays (from `plays` array), report which play failed:
+If running multiple plays (from `play` blocks), report which play failed:
 
 ```plaintext
 ERROR: Play 'integration.portainer.migrate_node' failed (exit code 2)
@@ -150,7 +154,7 @@ Continue printing:
 Aborting remaining plays. Check the above output for the failing play.
 ```
 
-#### On Config Validation Failure:
+#### On Config Validation Failure
 
 Provide user-focused messages during `Prepare()`:
 
@@ -158,7 +162,7 @@ Provide user-focused messages during `Prepare()`:
 Invalid configuration: both playbook_file and plays are set.
 ```
 
-#### On Missing Dependencies:
+#### On Missing Dependencies
 
 If `ansible-navigator` binary is missing or not executable:
 
@@ -166,10 +170,10 @@ If `ansible-navigator` binary is missing or not executable:
 Error: ansible-navigator not found in PATH. Please install it before running this provisioner.
 ```
 
-#### On Execution Errors:
+#### On Execution Errors
 
-* Stream `ansible-navigator`’s stdout/stderr directly to the Packer UI.
-* Include context in Go errors:
+- Stream `ansible-navigator`’s stdout/stderr directly to the Packer UI.
+- Include context in Go errors:
 
   ```go
   return fmt.Errorf("ansible-navigator run failed for %s: %w", play, err)
@@ -189,20 +193,20 @@ ui.Error(fmt.Sprintf("Play %s failed: %v", play, err))
 
 All error conditions must be surfaced through both:
 
-* The UI (for console logs)
-* Go `error` returns (for CI/CD and automation)
+- The UI (for console logs)
+- Go `error` returns (for CI/CD and automation)
 
 ---
 
 ### 4. Testing and Validation
 
-* Add unit tests under `/provisioner/ansible_navigator/tests/`
-* Include scenarios for:
+- Add unit tests under `/provisioner/ansible_navigator/tests/`
+- Include scenarios for:
 
-  * Multiple plays (success + failure)
-  * Missing `ansible-navigator` binary
-  * Invalid config (both fields set)
-  * Normal single playbook execution
+  - Multiple plays (success + failure)
+  - Missing `ansible-navigator` binary
+  - Invalid config (both fields set)
+  - Normal single playbook execution
 
 Example test pattern:
 
@@ -269,15 +273,15 @@ Build completed successfully!
 
 ## 🧩 Summary
 
-| Area            | Requirement                                            |
-| --------------- | ------------------------------------------------------ |
-| License         | Apache 2.0                                             |
-| Module Path     | `github.com/solomonhd/packer-plugin-ansible-navigator` |
-| Plugin Name     | `ansible-navigator`                                    |
-| Error Reporting | Detailed per-play failure logs                         |
-| Compatibility   | SSH + WinRM, Packer SDK                                |
-| Primary Command | `ansible-navigator run`                                |
-| Config Schema   | `playbook_file` or `plays[]` (mutually exclusive)      |
+| Area            | Requirement                                             |
+| --------------- | ------------------------------------------------------- |
+| License         | Apache 2.0                                              |
+| Module Path     | `github.com/solomonhd/packer-plugin-ansible-navigator`  |
+| Plugin Name     | `ansible-navigator`                                     |
+| Error Reporting | Detailed per-play failure logs                          |
+| Compatibility   | SSH + WinRM, Packer SDK                                 |
+| Primary Command | `ansible-navigator run`                                 |
+| Config Schema   | `playbook_file` or repeated `play` blocks (exclusive)   |
 
 ---
 

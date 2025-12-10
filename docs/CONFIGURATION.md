@@ -18,9 +18,9 @@ Complete configuration options for the Packer Plugin Ansible Navigator.
 
 ### playbook_file
 
-**Type:** `string`  
-**Required:** Either this or `plays` must be specified  
-**Conflicts with:** `plays`
+**Type:** `string`
+**Required:** Either this or `play` blocks must be specified
+**Conflicts with:** `play`
 
 Path to the Ansible playbook file.
 
@@ -39,6 +39,7 @@ provisioner "ansible-navigator" {
 Play block configuration. Multiple plays are defined as repeated `play { }` blocks.
 
 **Play Block Fields:**
+
 - `name` (string): Display name for the play
 - `target` (string): **Required** - Either a playbook path or collection play FQDN
 - `extra_vars` (map[string]string): Variables specific to this play
@@ -317,6 +318,7 @@ provisioner "ansible-navigator" {
 ```
 
 **Examples:**
+
 ```hcl
 # Official Ansible EE (latest version)
 execution_environment = "quay.io/ansible/creator-ee:latest"

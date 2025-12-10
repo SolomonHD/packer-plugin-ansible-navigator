@@ -163,13 +163,13 @@ func TestConfigValidationWithPlays(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "you may specify only one of",
+			errorMsg:    "you may specify only one of `playbook_file` or `play` blocks",
 		},
 		{
 			name:        "Neither playbook_file nor plays specified",
 			config:      Config{},
 			expectError: true,
-			errorMsg:    "either `playbook_file` or `plays` must be defined",
+			errorMsg:    "either `playbook_file` or `play` blocks must be defined",
 		},
 	}
 

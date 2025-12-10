@@ -521,6 +521,8 @@ provisioner "ansible-navigator" {
     {
       name = "Configure Firewall"
       target = "ansible.posix.firewalld"
+      become = true
+      become_user = "root"
       extra_vars = {
         enable_firewall = true
       }
@@ -555,6 +557,8 @@ provisioner "ansible-navigator" {
     {
       "name": "Configure Firewall",
       "target": "ansible.posix.firewalld",
+      "become": true,
+      "become_user": "root",
       "extra_vars": {
         "enable_firewall": true
       }
@@ -596,6 +600,7 @@ provisioner "ansible-navigator" {
         replicas = 3
         environment = "production"
       }
+      skip_tags = ["test", "debug"]
     },
     {
       name = "Verify Deployment"
@@ -639,7 +644,8 @@ provisioner "ansible-navigator" {
         "stack_name": "production-app",
         "replicas": 3,
         "environment": "production"
-      }
+      },
+      "skip_tags": ["test", "debug"]
     },
     {
       "name": "Verify Deployment",
