@@ -73,15 +73,17 @@ If you're migrating from the traditional Ansible provisioner:
 
 ## Key Features
 
-### 🎯 Dual Invocation Mode
+### 🎯 Play Blocks (ordered)
 
-Choose between traditional playbooks or modern collection plays:
+Provisioning is defined by one or more ordered `play { ... }` blocks:
 
 ```hcl
-# Traditional playbook
-playbook_file = "site.yml"
+# Playbook target (.yml/.yaml)
+play {
+  target = "site.yml"
+}
 
-# OR collection plays (repeated play blocks)
+# Role FQDN target
 play {
   name   = "My Play"
   target = "namespace.collection.play_name"

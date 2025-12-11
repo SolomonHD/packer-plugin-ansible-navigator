@@ -17,12 +17,12 @@ func TestConfigValidate(t *testing.T) {
 	// Create temporary test files
 	tmpDir := t.TempDir()
 	validPlaybook := filepath.Join(tmpDir, "test.yml")
-	validGalaxyFile := filepath.Join(tmpDir, "requirements.yml")
+	validRequirementsFile := filepath.Join(tmpDir, "requirements.yml")
 
 	if err := os.WriteFile(validPlaybook, []byte("---\n- hosts: all\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(validGalaxyFile, []byte("roles:\n  - role: test\n"), 0644); err != nil {
+	if err := os.WriteFile(validRequirementsFile, []byte("roles:\n  - role: test\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -33,23 +33,14 @@ func TestConfigValidate(t *testing.T) {
 		errMsg  string
 	}{
 		{
-			name: "valid playbook file",
+			name: "valid playbook target",
 			config: Config{
-				PlaybookFile: validPlaybook,
+				Plays: []Play{{Target: validPlaybook}},
 			},
 			wantErr: false,
 		},
 		{
-			name: "valid plays array",
-			config: Config{
-				Plays: []Play{
-					{Target: validPlaybook},
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "valid role FQDN",
+			name: "valid role target",
 			config: Config{
 				Plays: []Play{
 					{Target: "namespace.collection.role_name"},
@@ -58,21 +49,10 @@ func TestConfigValidate(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "both playbook_file and plays specified",
-			config: Config{
-				PlaybookFile: validPlaybook,
-				Plays: []Play{
-					{Target: "test.role"},
-				},
-			},
-			wantErr: true,
-			errMsg:  "you may specify only one of",
-		},
-		{
-			name:    "neither playbook_file nor plays specified",
+			name:    "no plays specified",
 			config:  Config{},
 			wantErr: true,
-			errMsg:  "must be defined",
+			errMsg:  "at least one `play` block must be defined",
 		},
 		{
 			name: "play without target",
@@ -87,7 +67,7 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "invalid navigator mode",
 			config: Config{
-				PlaybookFile:  validPlaybook,
+				Plays:         []Play{{Target: "namespace.collection.role_name"}},
 				NavigatorMode: "invalid",
 			},
 			wantErr: true,
@@ -96,7 +76,7 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "valid navigator mode stdout",
 			config: Config{
-				PlaybookFile:  validPlaybook,
+				Plays:         []Play{{Target: "namespace.collection.role_name"}},
 				NavigatorMode: "stdout",
 			},
 			wantErr: false,
@@ -104,7 +84,7 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "valid navigator mode json",
 			config: Config{
-				PlaybookFile:  validPlaybook,
+				Plays:         []Play{{Target: "namespace.collection.role_name"}},
 				NavigatorMode: "json",
 			},
 			wantErr: false,
@@ -112,7 +92,7 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "valid navigator mode yaml",
 			config: Config{
-				PlaybookFile:  validPlaybook,
+				Plays:         []Play{{Target: "namespace.collection.role_name"}},
 				NavigatorMode: "yaml",
 			},
 			wantErr: false,
@@ -120,7 +100,7 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "valid navigator mode interactive",
 			config: Config{
-				PlaybookFile:  validPlaybook,
+				Plays:         []Play{{Target: "namespace.collection.role_name"}},
 				NavigatorMode: "interactive",
 			},
 			wantErr: false,
@@ -128,8 +108,8 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "invalid port too high",
 			config: Config{
-				PlaybookFile: validPlaybook,
-				LocalPort:    70000,
+				Plays:     []Play{{Target: "namespace.collection.role_name"}},
+				LocalPort: 70000,
 			},
 			wantErr: true,
 			errMsg:  "must be a valid port",
@@ -137,15 +117,15 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "valid port",
 			config: Config{
-				PlaybookFile: validPlaybook,
-				LocalPort:    8080,
+				Plays:     []Play{{Target: "namespace.collection.role_name"}},
+				LocalPort: 8080,
 			},
 			wantErr: false,
 		},
 		{
 			name: "invalid adapter key type",
 			config: Config{
-				PlaybookFile:   validPlaybook,
+				Plays:          []Play{{Target: "namespace.collection.role_name"}},
 				AdapterKeyType: "INVALID",
 			},
 			wantErr: true,
@@ -154,7 +134,7 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "valid adapter key type RSA",
 			config: Config{
-				PlaybookFile:   validPlaybook,
+				Plays:          []Play{{Target: "namespace.collection.role_name"}},
 				AdapterKeyType: "RSA",
 			},
 			wantErr: false,
@@ -162,7 +142,7 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "valid adapter key type ECDSA",
 			config: Config{
-				PlaybookFile:   validPlaybook,
+				Plays:          []Play{{Target: "namespace.collection.role_name"}},
 				AdapterKeyType: "ECDSA",
 			},
 			wantErr: false,
@@ -170,25 +150,25 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "missing playbook file",
 			config: Config{
-				PlaybookFile: "/nonexistent/file.yml",
+				Plays: []Play{{Target: "/nonexistent/file.yml"}},
 			},
 			wantErr: true,
 			errMsg:  "is invalid",
 		},
 		{
-			name: "missing galaxy file",
+			name: "missing requirements file",
 			config: Config{
-				PlaybookFile: validPlaybook,
-				GalaxyFile:   "/nonexistent/galaxy.yml",
+				Plays:            []Play{{Target: validPlaybook}},
+				RequirementsFile: "/nonexistent/requirements.yml",
 			},
 			wantErr: true,
 			errMsg:  "is invalid",
 		},
 		{
-			name: "valid galaxy file",
+			name: "valid requirements file",
 			config: Config{
-				PlaybookFile: validPlaybook,
-				GalaxyFile:   validGalaxyFile,
+				Plays:            []Play{{Target: validPlaybook}},
+				RequirementsFile: validRequirementsFile,
 			},
 			wantErr: false,
 		},
@@ -268,7 +248,7 @@ func TestConfigValidate_InventoryDirectory(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := Config{
-				PlaybookFile:       validPlaybook,
+				Plays:              []Play{{Target: validPlaybook}},
 				InventoryDirectory: tt.setupFunc(),
 			}
 
@@ -312,7 +292,7 @@ func TestConfigValidate_SSHKeyFiles(t *testing.T) {
 		{
 			name: "valid ssh authorized key file",
 			config: Config{
-				PlaybookFile:         validPlaybook,
+				Plays:                []Play{{Target: validPlaybook}},
 				SSHAuthorizedKeyFile: validKeyFile,
 			},
 			wantErr: false,
@@ -320,7 +300,7 @@ func TestConfigValidate_SSHKeyFiles(t *testing.T) {
 		{
 			name: "valid ssh host key file",
 			config: Config{
-				PlaybookFile:   validPlaybook,
+				Plays:          []Play{{Target: validPlaybook}},
 				SSHHostKeyFile: validKeyFile,
 			},
 			wantErr: false,
@@ -328,7 +308,7 @@ func TestConfigValidate_SSHKeyFiles(t *testing.T) {
 		{
 			name: "missing ssh authorized key file",
 			config: Config{
-				PlaybookFile:         validPlaybook,
+				Plays:                []Play{{Target: validPlaybook}},
 				SSHAuthorizedKeyFile: "/nonexistent/key.pem",
 			},
 			wantErr: true,
@@ -337,7 +317,7 @@ func TestConfigValidate_SSHKeyFiles(t *testing.T) {
 		{
 			name: "missing ssh host key file",
 			config: Config{
-				PlaybookFile:   validPlaybook,
+				Plays:          []Play{{Target: validPlaybook}},
 				SSHHostKeyFile: "/nonexistent/host_key.pem",
 			},
 			wantErr: true,
@@ -375,7 +355,7 @@ func TestPrepare_Defaults(t *testing.T) {
 
 	p := &Provisioner{}
 	config := map[string]interface{}{
-		"playbook_file":      validPlaybook,
+		"play":               []map[string]interface{}{{"target": validPlaybook}},
 		"skip_version_check": true,
 	}
 
@@ -439,7 +419,7 @@ func TestPrepare_UseProxy(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &Provisioner{}
 			config := map[string]interface{}{
-				"playbook_file":      validPlaybook,
+				"play":               []map[string]interface{}{{"target": validPlaybook}},
 				"skip_version_check": true,
 			}
 			if tt.useProxy != nil {

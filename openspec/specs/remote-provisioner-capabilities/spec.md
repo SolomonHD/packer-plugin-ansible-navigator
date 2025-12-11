@@ -1,6 +1,7 @@
 # remote-provisioner-capabilities Specification
 
 ## Purpose
+
 TBD - created by archiving change swap-provisioner-naming. Update Purpose after archive.
 ## Requirements
 ### Requirement: SSH-Based Remote Execution
@@ -39,24 +40,35 @@ The default `ansible-navigator` provisioner SHALL run ansible-navigator from the
 - **AND** the full image reference SHALL be preserved including registry, repository, and tag
 
 ### Requirement: Play-Based Execution
-The SSH-based provisioner SHALL support both traditional playbook files and modern collection-based plays through mutually exclusive configuration options.
 
-#### Scenario: Playbook file execution
-- **GIVEN** a configuration with `playbook_file = "site.yml"`
-- **AND** no `play` blocks are specified
-- **WHEN** the provisioner executes
-- **THEN** it SHALL run the specified playbook against the target via SSH
+The SSH-based provisioner SHALL execute provisioning via one or more ordered `play { ... }` blocks. Each play SHALL specify a `target`.
 
-#### Scenario: Collection plays execution
-- **GIVEN** a configuration with one or more `play` blocks
-- **AND** `playbook_file` is not specified
-- **WHEN** the provisioner executes
-- **THEN** it SHALL execute each play in sequence against the target
+#### Scenario: At least one play is required
 
-#### Scenario: Mutual exclusivity validation
-- **GIVEN** a configuration with both `playbook_file` and `play` blocks
+- **GIVEN** a configuration using `provisioner "ansible-navigator"`
+- **AND** no `play { ... }` blocks are defined
 - **WHEN** the configuration is validated
-- **THEN** it SHALL return an error: "you may specify only one of `playbook_file` or `play`"
+- **THEN** validation SHALL fail
+- **AND** the error message SHALL state that at least one `play` block must be defined
+
+#### Scenario: Playbook target execution
+
+- **GIVEN** a configuration with a `play` block whose `target` ends in `.yml` or `.yaml`
+- **WHEN** the provisioner executes
+- **THEN** it SHALL run that playbook against the target via SSH
+
+#### Scenario: Role FQDN target execution
+
+- **GIVEN** a configuration with a `play` block whose `target` does not end in `.yml` or `.yaml`
+- **WHEN** the provisioner executes
+- **THEN** it SHALL treat the target as a role FQDN
+- **AND** it SHALL generate a temporary playbook and execute it via SSH
+
+#### Scenario: Ordered execution
+
+- **GIVEN** a configuration with multiple `play { ... }` blocks
+- **WHEN** the provisioner executes
+- **THEN** it SHALL execute each play in declaration order
 
 ### Requirement: Default Navigator Command
 
@@ -96,71 +108,52 @@ The SSH-based provisioner SHALL use ansible-navigator as its default executable,
 - **AND** the error message SHALL mention both PATH and `ansible_navigator_path` as resolution mechanisms
 
 ### Requirement: Navigator Mode Support
+
 The SSH-based provisioner SHALL support configuring the ansible-navigator execution mode.
 
 #### Scenario: Default mode is stdout
+
 - **GIVEN** a configuration without `navigator_mode` specified
 - **WHEN** the provisioner executes
 - **THEN** it SHALL use mode `stdout` for Packer-safe non-interactive output
 
 #### Scenario: JSON mode with structured logging
+
 - **GIVEN** a configuration with `navigator_mode = "json"` and `structured_logging = true`
 - **WHEN** the provisioner executes
 - **THEN** it SHALL parse JSON events and provide detailed task-level reporting
 
-### Requirement: Collections Management
-The SSH-based provisioner SHALL support automatic installation of Ansible collections on the local machine.
+### Requirement: Dependency Management (requirements_file)
 
-#### Scenario: Inline collections specification
-- **GIVEN** a configuration with `collections = ["community.general:>=5.0.0"]`
-- **WHEN** the provisioner executes
-- **THEN** it SHALL install the specified collections on the local machine before running
+The SSH-based provisioner SHALL support dependency installation via an optional `requirements_file` that can define both roles and collections.
 
-#### Scenario: Requirements file for collections
+#### Scenario: requirements_file installs roles and collections
+
 - **GIVEN** a configuration with `requirements_file = "requirements.yml"`
 - **WHEN** the provisioner executes
-- **THEN** it SHALL install collections and roles from the requirements file
+- **THEN** it SHALL install roles and collections from that file before executing any plays
+
+#### Scenario: requirements_file omitted
+
+- **GIVEN** a configuration with no `requirements_file`
+- **WHEN** the provisioner executes
+- **THEN** it SHALL proceed without performing dependency installation
 
 ### Requirement: Inventory Generation
+
 The SSH-based provisioner SHALL generate dynamic inventory for the target host.
 
 #### Scenario: Packer communicator as inventory source
+
 - **WHEN** the provisioner executes
 - **THEN** it SHALL generate an inventory with the target host
 - **AND** the host SHALL be configured with connection details from the Packer communicator
 
 #### Scenario: Host groups assignment
+
 - **GIVEN** a configuration with `groups = ["webservers", "production"]`
 - **WHEN** the inventory is generated
 - **THEN** the target host SHALL be assigned to all specified groups
-
-### Requirement: Play block naming and validation (remote)
-
-The SSH-based provisioner SHALL expose multi-play configuration via a singular repeatable `play` block and SHALL reject legacy plural or array-based forms that conflict with this naming.
-
-#### Scenario: Singular play block naming
-
-- **GIVEN** a Packer configuration using `provisioner "ansible-navigator"`
-- **AND** one or more `play { ... }` blocks are defined
-- **WHEN** the configuration is parsed
-- **THEN** each `play { ... }` block SHALL be accepted as a repeatable block
-- **AND** the resulting configuration SHALL represent the plays as a collection in declaration order
-
-#### Scenario: Legacy plays block rejected
-
-- **GIVEN** a configuration that defines one or more `plays { ... }` blocks
-- **WHEN** the configuration is validated
-- **THEN** validation SHALL fail
-- **AND** the error message SHALL explain that `plays` blocks are no longer supported
-- **AND** the error message SHALL direct the user to use repeated `play { ... }` blocks instead
-
-#### Scenario: Array syntax rejected in favor of blocks
-
-- **GIVEN** a configuration that attempts `plays = [...]` or `play = [...]` array-style syntax
-- **WHEN** the configuration is validated
-- **THEN** validation SHALL fail
-- **AND** the error message SHALL state that HCL2 block syntax is required
-- **AND** the error message SHALL include an example using `play { ... }` blocks
 
 ### Requirement: Remote HOME Expansion for Path-Like Configuration
 
@@ -169,7 +162,7 @@ The SSH-based ansible-navigator provisioner SHALL expand HOME-relative (`~`) pat
 #### Scenario: Expand bare tilde to HOME
 
 - **GIVEN** a configuration for `provisioner "ansible-navigator"`
-- **AND** one or more path-like fields (e.g., `playbook_file`, `requirements_file`, `inventory_file`, `work_dir`, Galaxy-related paths) are set to `"~"`
+- **AND** one or more path-like fields (e.g., `requirements_file`, `inventory_file`, `work_dir`, Galaxy-related paths, play `target` when it is a playbook path, and play `vars_files` entries) are set to `"~"`
 - **WHEN** the configuration is prepared or validated
 - **THEN** each `"~"` value SHALL be expanded to the user's HOME directory as reported by the local environment
 - **AND** subsequent validation and execution SHALL use the expanded absolute path
@@ -218,7 +211,7 @@ The SSH-based ansible-navigator provisioner SHALL support an `ansible_navigator_
 - **GIVEN** a configuration for `provisioner "ansible-navigator"` with:
   - `ansible_navigator_path` set to one or more directories
 - **AND** ansible-navigator is installed only under one of those directories
-- **WHEN** the provisioner executes ansible-navigator to run a playbook or plays
+- **WHEN** the provisioner executes ansible-navigator to run one or more plays
 - **THEN** it SHALL construct the `exec.Command` environment using the same PATH-prepending behavior as the version check
 - **AND** ansible-navigator SHALL be resolved from one of the configured directories
 
@@ -337,7 +330,294 @@ The SSH-based provisioner SHALL force unbuffered Python output to ensure logs ar
 
 #### Scenario: PYTHONUNBUFFERED injection
 
-- **WHEN** the provisioner executes `ansible-navigator` (for plays or playbooks)
+- **WHEN** the provisioner executes `ansible-navigator` for play execution
 - **THEN** it SHALL inject `PYTHONUNBUFFERED=1` into the environment variables
 - **AND** this SHALL ensure that Python output is flushed immediately
+
+### Requirement: Ansible Configuration File Generation
+
+The SSH-based provisioner SHALL support generating a temporary ansible.cfg file from a declarative configuration map, automatically applying defaults for execution environment use cases.
+
+#### Scenario: User-specified ansible.cfg sections
+
+- **GIVEN** a configuration with `ansible_cfg` set to a map containing section names as keys and key-value pairs as content:
+
+  ```hcl
+  ansible_cfg = {
+    defaults = {
+      remote_tmp = "/tmp/.ansible/tmp"
+      host_key_checking = "False"
+    }
+    ssh_connection = {
+      pipelining = "True"
+    }
+  }
+  ```
+
+- **WHEN** the provisioner prepares for execution
+- **THEN** it SHALL generate a temporary file named `/tmp/packer-ansible-cfg-<random>.ini` (or equivalent in system temp directory)
+- **AND** the file SHALL contain valid INI format with sections and key-value pairs
+- **AND** the file path SHALL be added to the cleanup list
+
+#### Scenario: Generated INI file format
+
+- **GIVEN** a configuration with multiple sections in `ansible_cfg`
+- **WHEN** the temporary ansible.cfg file is generated
+- **THEN** it SHALL use standard INI format with `[section_name]` headers
+- **AND** each key-value pair SHALL be written as `key = value`
+- **AND** sections SHALL be separated by blank lines for readability
+- **AND** all string values SHALL be written without quotes
+
+#### Scenario: ANSIBLE_CONFIG environment variable set
+
+- **GIVEN** a generated ansible.cfg file at path `/tmp/packer-ansible-cfg-ABC123.ini`
+- **WHEN** the provisioner executes ansible-navigator
+- **THEN** it SHALL set `ANSIBLE_CONFIG=/tmp/packer-ansible-cfg-ABC123.ini` in the command environment
+- **AND** the environment variable SHALL be present for both version checks and play execution
+
+#### Scenario: Cleanup after provisioning success
+
+- **GIVEN** a generated ansible.cfg file
+- **WHEN** provisioning completes successfully
+- **THEN** the temporary ansible.cfg file SHALL be deleted
+- **AND** the cleanup SHALL occur in a deferred function to ensure execution even if other cleanup fails
+
+#### Scenario: Cleanup after provisioning failure
+
+- **GIVEN** a generated ansible.cfg file
+- **WHEN** a play or playbook execution fails
+- **THEN** the temporary ansible.cfg file SHALL still be deleted
+- **AND** the cleanup SHALL occur before the error is returned to the caller
+
+#### Scenario: Default configuration for execution environments
+
+- **GIVEN** a configuration with `execution_environment` set to a container image
+- **AND** `ansible_cfg` is NOT explicitly specified
+- **WHEN** the provisioner prepares for execution
+- **THEN** it SHALL automatically apply default ansible.cfg settings:
+
+  ```hcl
+  ansible_cfg = {
+    defaults = {
+      remote_tmp = "/tmp/.ansible/tmp"
+      local_tmp  = "/tmp/.ansible-local"
+    }
+  }
+  ```
+
+- **AND** these defaults SHALL prevent "Permission denied: /.ansible" errors for non-root container users
+
+#### Scenario: User-provided ansible.cfg overrides automatic defaults
+
+- **GIVEN** a configuration with `execution_environment` set
+- **AND** `ansible_cfg` is explicitly specified by the user
+- **WHEN** the provisioner prepares for execution
+- **THEN** it SHALL use the user-specified `ansible_cfg` settings
+- **AND** it SHALL NOT apply automatic defaults
+- **AND** the user's configuration SHALL take full precedence
+
+#### Scenario: No ansible.cfg generation when not configured
+
+- **GIVEN** a configuration without `execution_environment`
+- **AND** `ansible_cfg` is not specified
+- **WHEN** the provisioner prepares for execution
+- **THEN** it SHALL NOT generate a temporary ansible.cfg file
+- **AND** it SHALL NOT set the ANSIBLE_CONFIG environment variable
+- **AND** Ansible SHALL use its normal configuration search order
+
+#### Scenario: Ansible's normal config file precedence honored
+
+- **GIVEN** a user has an existing `ansible.cfg` file in their working directory
+- **AND** the provisioner has generated a temporary ansible.cfg file
+- **WHEN** ansible-navigator executes
+- **THEN** Ansible's normal configuration precedence SHALL apply
+- **AND** if the user's `ansible.cfg` is in a higher-precedence location, it SHALL take priority
+- **AND** the generated file SHALL only be used if no higher-precedence config exists
+
+#### Scenario: Empty or malformed ansible_cfg rejected
+
+- **GIVEN** a configuration with `ansible_cfg` set to an empty map `{}`
+- **OR** `ansible_cfg` set to a non-map type
+- **WHEN** the configuration is validated
+- **THEN** validation SHALL fail with a clear error message
+- **AND** the error SHALL explain that `ansible_cfg` must be a map of section names to key-value pairs
+
+#### Scenario: Invalid section or key names allowed
+
+- **GIVEN** a configuration with `ansible_cfg` containing section or key names not recognized by Ansible
+- **WHEN** the provisioner generates the ansible.cfg file
+- **THEN** it SHALL write them to the file as provided
+- **AND** it SHALL NOT validate against Ansible's known options
+- **AND** Ansible itself SHALL handle unknown options per its normal behavior
+
+#### Scenario: Special characters in values preserved
+
+- **GIVEN** a configuration with `ansible_cfg` containing values with special characters (spaces, quotes, etc.)
+- **WHEN** the INI file is generated
+- **THEN** values SHALL be written literally without additional quoting
+- **AND** special characters SHALL be preserved as-is
+- **AND** bash-style quoting or escaping SHALL NOT be applied
+
+### Requirement: Navigator Config File Generation
+
+The remote provisioner SHALL support generating ansible-navigator.yml configuration files from a declarative HCL map and using them to control ansible-navigator behavior.
+
+#### Scenario: User-specified navigator_config generates YAML file
+
+- **GIVEN** a configuration with:
+
+  ```hcl
+  navigator_config = {
+    mode = "stdout"
+    execution-environment = {
+      enabled = true
+      image = "quay.io/ansible/creator-ee:latest"
+      pull-policy = "missing"
+    }
+    ansible = {
+      config = {
+        defaults = {
+          remote_tmp = "/tmp/.ansible/tmp"
+        }
+      }
+    }
+  }
+  ```
+
+- **WHEN** the provisioner prepares for execution
+- **THEN** it SHALL generate a temporary file named `/tmp/packer-navigator-cfg-<uuid>.yml` (or equivalent in system temp directory)
+- **AND** the file SHALL contain valid YAML matching the ansible-navigator.yml schema
+- **AND** the file path SHALL be recorded for cleanup
+
+#### Scenario: ANSIBLE_NAVIGATOR_CONFIG set in environment
+
+- **GIVEN** a generated ansible-navigator.yml file at a known path
+- **WHEN** the provisioner executes ansible-navigator commands
+- **THEN** it SHALL set `ANSIBLE_NAVIGATOR_CONFIG=/path/to/file` in the environment
+- **AND** this SHALL occur for all ansible-navigator executions
+
+#### Scenario: Cleanup after provisioning
+
+- **GIVEN** a generated ansible-navigator.yml file
+- **WHEN** provisioning completes (success or failure)
+- **THEN** the temporary ansible-navigator.yml file SHALL be deleted
+
+#### Scenario: Automatic EE defaults when execution environment enabled
+
+- **GIVEN** a configuration with:
+
+  ```hcl
+  navigator_config = {
+    execution-environment = {
+      enabled = true
+      image = "quay.io/ansible/creator-ee:latest"
+    }
+  }
+  ```
+
+- **AND** the user has NOT specified `ansible.config.defaults.remote_tmp` or `ansible.config.defaults.local_tmp`
+- **AND** the user has NOT specified `execution-environment.environment-variables`
+- **WHEN** the provisioner generates the ansible-navigator.yml file
+- **THEN** it SHALL automatically include:
+
+  ```yaml
+  ansible:
+    config:
+      defaults:
+        remote_tmp: "/tmp/.ansible/tmp"
+        local_tmp: "/tmp/.ansible-local"
+  execution-environment:
+    environment-variables:
+      ANSIBLE_REMOTE_TMP: "/tmp/.ansible/tmp"
+      ANSIBLE_LOCAL_TMP: "/tmp/.ansible-local"
+  ```
+
+- **AND** these defaults SHALL prevent "Permission denied: /.ansible/tmp" errors in EE containers
+
+#### Scenario: User-provided values override automatic defaults
+
+- **GIVEN** a configuration with `execution-environment.enabled = true`
+- **AND** the user has explicitly specified temp directory settings in navigator_config
+- **WHEN** the provisioner generates the ansible-navigator.yml file
+- **THEN** it SHALL use the user-specified values
+- **AND** it SHALL NOT apply automatic defaults
+- **AND** the user's configuration SHALL take full precedence
+
+#### Scenario: No config file generation when navigator_config not specified
+
+- **GIVEN** a configuration without `navigator_config`
+- **WHEN** the provisioner prepares for execution
+- **THEN** it SHALL NOT generate an ansible-navigator.yml file
+- **AND** it SHALL NOT set the ANSIBLE_NAVIGATOR_CONFIG environment variable
+- **AND** ansible-navigator SHALL use its normal configuration search order
+
+#### Scenario: navigator_config takes precedence over legacy options
+
+- **GIVEN** a configuration with both legacy options and navigator_config:
+
+  ```hcl
+  execution_environment = "legacy-image:latest"
+  navigator_mode = "json"
+  
+  navigator_config = {
+    execution-environment = {
+      enabled = true
+      image = "new-image:latest"
+    }
+    mode = "stdout"
+  }
+  ```
+
+- **WHEN** ansible-navigator is executed
+- **THEN** the settings from `navigator_config` SHALL be used
+- **AND** the legacy options SHALL be ignored in favor of navigator_config
+- **AND** the generated config file SHALL use "new-image:latest" and "stdout" mode
+
+#### Scenario: Complex nested structure preserved
+
+- **GIVEN** a configuration with deeply nested navigator_config:
+
+  ```hcl
+  navigator_config = {
+    ansible = {
+      config = {
+        defaults = {
+          remote_tmp = "/tmp/.ansible/tmp"
+          host_key_checking = "False"
+        }
+        ssh_connection = {
+          pipelining = "True"
+          timeout = "30"
+        }
+      }
+    }
+    execution-environment = {
+      enabled = true
+      image = "custom:latest"
+      environment-variables = {
+        ANSIBLE_REMOTE_TMP = "/custom/tmp"
+        CUSTOM_VAR = "value"
+      }
+    }
+  }
+  ```
+
+- **WHEN** the YAML file is generated
+- **THEN** the nested structure SHALL be preserved exactly
+- **AND** all keys and values SHALL be written correctly
+
+### Requirement: Configuration Validation
+
+The remote provisioner Config.Validate() method SHALL validate all supported configuration options.
+
+#### Scenario: Comprehensive validation
+
+- **WHEN** Config.Validate() is called
+- **THEN** it SHALL validate:
+  - One or more `play` blocks are defined
+  - Each play has a non-empty `target`
+  - SSH connection parameters are valid
+  - `navigator_config`, if specified, is a non-empty map
+  - Command does not contain embedded arguments
+  - All legacy options are still validated (no breaking changes)
 

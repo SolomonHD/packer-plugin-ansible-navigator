@@ -38,28 +38,15 @@ func NewGalaxyManager(config *Config, ui packersdk.Ui) *GalaxyManager {
 
 // InstallRequirements installs all requirements (roles and collections) based on configuration
 func (gm *GalaxyManager) InstallRequirements() error {
-	// Handle unified requirements file if specified
-	if gm.config.RequirementsFile != "" {
-		gm.ui.Message(fmt.Sprintf("Installing dependencies from requirements file: %s", gm.config.RequirementsFile))
-		if err := gm.installFromFile(gm.config.RequirementsFile); err != nil {
-			return fmt.Errorf("failed to install requirements: %w", err)
-		}
+	// requirements_file is the only supported dependency installation mechanism.
+	if gm.config.RequirementsFile == "" {
 		return nil
 	}
 
-	// Handle legacy galaxy_file for backward compatibility
-	if gm.config.GalaxyFile != "" {
-		gm.ui.Message(fmt.Sprintf("Installing dependencies from galaxy file: %s", gm.config.GalaxyFile))
-		if err := gm.installFromFile(gm.config.GalaxyFile); err != nil {
-			return fmt.Errorf("failed to install galaxy dependencies: %w", err)
-		}
+	gm.ui.Message(fmt.Sprintf("Installing dependencies from requirements file: %s", gm.config.RequirementsFile))
+	if err := gm.installFromFile(gm.config.RequirementsFile); err != nil {
+		return fmt.Errorf("failed to install requirements: %w", err)
 	}
-
-	// Handle inline collections if specified
-	if err := gm.installCollections(); err != nil {
-		return fmt.Errorf("failed to install collections: %w", err)
-	}
-
 	return nil
 }
 
@@ -154,106 +141,7 @@ func (gm *GalaxyManager) installCollectionsFromFile(filePath string) error {
 	return gm.executeGalaxyCommand(args, "collections")
 }
 
-// installCollections installs inline collections specified in config
-func (gm *GalaxyManager) installCollections() error {
-	// Skip if no inline collections specified
-	if len(gm.config.Collections) == 0 && gm.config.CollectionsRequirements == "" {
-		return nil
-	}
-
-	// Install from collections requirements file if specified
-	if gm.config.CollectionsRequirements != "" {
-		return gm.installCollectionsFromFile(gm.config.CollectionsRequirements)
-	}
-
-	// Install individual collections
-	for _, collection := range gm.config.Collections {
-		if err := gm.installCollection(collection); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// installCollection installs a single collection
-func (gm *GalaxyManager) installCollection(collection string) error {
-	gm.ui.Message(fmt.Sprintf("Installing collection: %s", collection))
-
-	// Check if already installed and not forcing update
-	if !gm.config.CollectionsForceUpdate && !gm.config.ForceUpdate {
-		if gm.isCollectionInstalled(collection) {
-			gm.ui.Message(fmt.Sprintf("Collection '%s' already cached, skipping", collection))
-			return nil
-		}
-	}
-
-	// Check offline mode
-	if gm.config.CollectionsOffline || gm.config.OfflineMode {
-		if !gm.isCollectionInstalled(collection) {
-			return fmt.Errorf("collection %q not found and offline mode is enabled", collection)
-		}
-		gm.ui.Message(fmt.Sprintf("Collection '%s' found in cache (offline mode)", collection))
-		return nil
-	}
-
-	// Parse collection spec (handle local paths)
-	collectionSpec := collection
-	if strings.Contains(collection, "@") {
-		parts := strings.SplitN(collection, "@", 2)
-		collectionSpec = parts[1]
-	}
-
-	// Build installation command
-	args := []string{"collection", "install", collectionSpec}
-
-	if gm.config.CollectionsCacheDir != "" {
-		args = append(args, "-p", gm.config.CollectionsCacheDir)
-	} else if gm.config.CollectionsPath != "" {
-		args = append(args, "-p", gm.config.CollectionsPath)
-	}
-
-	if gm.config.CollectionsForceUpdate || gm.config.ForceUpdate {
-		args = append(args, "--force")
-	}
-
-	return gm.executeGalaxyCommand(args, collection)
-}
-
-// isCollectionInstalled checks if a collection is already installed
-func (gm *GalaxyManager) isCollectionInstalled(collection string) bool {
-	// Parse collection name (remove version if present)
-	collectionName := collection
-	if strings.Contains(collectionName, ":") {
-		collectionName = strings.Split(collectionName, ":")[0]
-	}
-	if strings.Contains(collectionName, "@") {
-		collectionName = strings.Split(collectionName, "@")[0]
-	}
-
-	// Parse namespace and name
-	parts := strings.Split(collectionName, ".")
-	if len(parts) != 2 {
-		return false
-	}
-
-	namespace := parts[0]
-	name := parts[1]
-
-	// Determine cache directory
-	cacheDir := gm.config.CollectionsCacheDir
-	if cacheDir == "" {
-		cacheDir = gm.config.CollectionsPath
-	}
-	if cacheDir == "" {
-		return false
-	}
-
-	// Check for MANIFEST.json
-	manifestPath := filepath.Join(cacheDir, "ansible_collections", namespace, name, "MANIFEST.json")
-	_, err := os.Stat(manifestPath)
-	return err == nil
-}
+// NOTE: legacy inline collections and legacy galaxy_file paths are intentionally removed.
 
 // executeGalaxyCommand executes an ansible-galaxy command with streaming output
 func (gm *GalaxyManager) executeGalaxyCommand(args []string, target string) error {

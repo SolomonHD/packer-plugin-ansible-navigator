@@ -153,38 +153,16 @@ func TestConfigValidationWithPlays(t *testing.T) {
 			errorMsg:    "target must be specified",
 		},
 		{
-			name: "Both playbook_file and plays specified",
-			config: Config{
-				PlaybookFile: "site.yml",
-				Plays: []Play{
-					{
-						Target: "geerlingguy.docker",
-					},
-				},
-			},
-			expectError: true,
-			errorMsg:    "you may specify only one of `playbook_file` or `play` blocks",
-		},
-		{
-			name:        "Neither playbook_file nor plays specified",
+			name:        "No plays specified",
 			config:      Config{},
 			expectError: true,
-			errorMsg:    "either `playbook_file` or `play` blocks must be defined",
+			errorMsg:    "at least one `play` block must be defined",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &Provisioner{
-				config: tt.config,
-			}
-			p.config.Command = "ansible-navigator run"
-			p.config.GalaxyCommand = "ansible-galaxy"
-			p.config.HostAlias = "default"
-			p.config.User = "testuser"
-			p.config.SkipVersionCheck = true
-
-			err := p.Prepare(&tt.config)
+			err := tt.config.Validate()
 
 			if tt.expectError {
 				assert.Error(t, err)

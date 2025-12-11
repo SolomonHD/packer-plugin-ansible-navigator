@@ -64,8 +64,8 @@ func TestConfigValidate_AnsibleCfgEmptyMapErrors(t *testing.T) {
 	defer os.Remove(playbookFile.Name())
 
 	cfg := &Config{
-		PlaybookFile: playbookFile.Name(),
-		AnsibleCfg:   map[string]map[string]string{},
+		Plays:      []Play{{Target: playbookFile.Name()}},
+		AnsibleCfg: map[string]map[string]string{},
 	}
 
 	err = cfg.Validate()
@@ -81,7 +81,7 @@ func TestProvisionerPrepare_AppliesAnsibleCfgDefaultsWhenExecutionEnvironmentSet
 	require.NoError(t, err)
 	defer os.Remove(playbookFile.Name())
 
-	config["playbook_file"] = playbookFile.Name()
+	config["play"] = []map[string]interface{}{{"target": playbookFile.Name()}}
 	config["execution_environment"] = "quay.io/ansible/creator-ee:latest"
 
 	err = p.Prepare(config)
@@ -100,7 +100,7 @@ func TestProvisionerPrepare_DoesNotOverrideExplicitAnsibleCfgWhenExecutionEnviro
 	require.NoError(t, err)
 	defer os.Remove(playbookFile.Name())
 
-	config["playbook_file"] = playbookFile.Name()
+	config["play"] = []map[string]interface{}{{"target": playbookFile.Name()}}
 	config["execution_environment"] = "quay.io/ansible/creator-ee:latest"
 	config["ansible_cfg"] = map[string]interface{}{
 		"defaults": map[string]interface{}{
@@ -124,7 +124,7 @@ func TestProvisionerProvision_UploadsAnsibleCfgAndSetsANSIBLE_CONFIG(t *testing.
 	require.NoError(t, err)
 	defer os.Remove(playbookFile.Name())
 
-	config["playbook_file"] = playbookFile.Name()
+	config["play"] = []map[string]interface{}{{"target": playbookFile.Name()}}
 	config["ansible_cfg"] = map[string]interface{}{
 		"defaults": map[string]interface{}{
 			"remote_tmp": "/tmp/.ansible/tmp",
@@ -148,7 +148,7 @@ func TestProvisionerProvision_UploadsAnsibleCfgAndSetsANSIBLE_CONFIG(t *testing.
 	// Upload includes <staging_dir>/ansible.cfg
 	foundUpload := false
 	for _, dest := range comm.uploadDestination {
-		if strings.HasSuffix(filepath.ToSlash(dest), filepath.ToSlash(filepath.Join(p.config.StagingDir, "ansible.cfg"))) {
+		if strings.HasSuffix(filepath.ToSlash(dest), filepath.ToSlash(filepath.Join(p.stagingDir, "ansible.cfg"))) {
 			foundUpload = true
 			break
 		}
@@ -157,7 +157,7 @@ func TestProvisionerProvision_UploadsAnsibleCfgAndSetsANSIBLE_CONFIG(t *testing.
 
 	// Remote command includes ANSIBLE_CONFIG=<staging_dir>/ansible.cfg
 	foundEnv := false
-	needle := "ANSIBLE_CONFIG=" + filepath.ToSlash(filepath.Join(p.config.StagingDir, "ansible.cfg"))
+	needle := "ANSIBLE_CONFIG=" + filepath.ToSlash(filepath.Join(p.stagingDir, "ansible.cfg"))
 	for _, cmd := range comm.startCommand {
 		if strings.Contains(cmd, needle) {
 			foundEnv = true

@@ -94,11 +94,17 @@ type Config struct {
 	// Execution mode for ansible-navigator. Valid values: stdout, json, yaml, interactive.
 	// Defaults to "stdout" for non-interactive environments (Packer-safe).
 	// When set to "interactive" without a TTY, it automatically switches to "stdout".
+	//
+	// DEPRECATED: Use navigator_config.mode instead.
+	// This field will be removed in a future version. See MIGRATION.md for migration guidance.
 	NavigatorMode string `mapstructure:"navigator_mode"`
 	// The container image to use as the execution environment for ansible-navigator.
 	// Specifies which containerized environment runs the Ansible playbooks.
 	// When unset, ansible-navigator uses its default execution environment.
 	// Examples: "quay.io/ansible/creator-ee:latest", "my-registry.io/custom-ee:v1.0"
+	//
+	// DEPRECATED: Use navigator_config.execution-environment instead.
+	// This field will be removed in a future version. See MIGRATION.md for migration guidance.
 	ExecutionEnvironment string `mapstructure:"execution_environment"`
 	// Working directory for ansible-navigator execution.
 	// When specified, ansible-navigator will be executed from this directory.
@@ -159,6 +165,9 @@ type Config struct {
 	// If the lefthand side of a value contains 'secret' or 'password' (case
 	// insensitive) it will be hidden from output. For example, passing
 	// "my_password=secr3t" will hide "secr3t" from output.
+	//
+	// DEPRECATED: Use navigator_config options instead.
+	// This field will be removed in a future version. See MIGRATION.md for migration guidance.
 	ExtraArguments []string `mapstructure:"extra_arguments"`
 	// Environment variables to set before
 	//   running Ansible. Usage example:
@@ -178,10 +187,10 @@ type Config struct {
 	//   ```json
 	//   "ansible_env_vars": [ "WINRM_PASSWORD={{.WinRMPassword}}" ],
 	//   ```
+	//
+	// DEPRECATED: Use navigator_config.execution-environment.environment-variables instead.
+	// This field will be removed in a future version. See MIGRATION.md for migration guidance.
 	AnsibleEnvVars []string `mapstructure:"ansible_env_vars"`
-	// The playbook to be run by Ansible.
-	// DEPRECATED: Use `play` blocks instead. Maintained for backward compatibility.
-	PlaybookFile string `mapstructure:"playbook_file"`
 	// Repeated play blocks supporting both playbooks and role FQDNs
 	Plays []Play `mapstructure:"play"`
 	// Path to a unified requirements.yml file containing both roles and collections
@@ -195,6 +204,9 @@ type Config struct {
 	// When true, always reinstall both collections and roles even if cached.
 	ForceUpdate bool `mapstructure:"force_update"`
 	// Specifies --ssh-extra-args on command line defaults to -o IdentitiesOnly=yes
+	//
+	// DEPRECATED: Use navigator_config or play-level SSH configuration instead.
+	// This field will be removed in a future version. See MIGRATION.md for migration guidance.
 	AnsibleSSHExtraArgs []string `mapstructure:"ansible_ssh_extra_args"`
 	// The groups into which the Ansible host should
 	//  be placed. When unspecified, the host is not associated with any groups.
@@ -252,9 +264,8 @@ type Config struct {
 	//  transfer files. The command should read and write on stdin and stdout,
 	//  respectively. Defaults to `/usr/lib/sftp-server -e`.
 	SFTPCmd string `mapstructure:"sftp_command"`
-	// Check if ansible is installed prior to
-	//  running. Set this to `true`, for example, if you're going to install
-	//  ansible during the packer run.
+	// Check if ansible-navigator is installed prior to running.
+	// Set this to `true`, for example, if you're going to install it during the packer run.
 	SkipVersionCheck bool `mapstructure:"skip_version_check"`
 	// Maximum time to wait for ansible-navigator version check to complete.
 	// Defaults to "60s". This prevents indefinite hangs when ansible-navigator
@@ -294,13 +305,11 @@ type Config struct {
 	//  and using "--on-error=ask" in order to leave your instance running while you
 	//  test your playbook. this option is not used if you set an `inventory_file`.
 	KeepInventoryFile bool `mapstructure:"keep_inventory_file"`
-	// A requirements file which provides a way to
-	//  install roles or collections with the [ansible-galaxy
-	//  cli](https://docs.ansible.com/ansible/latest/galaxy/user_guide.html#the-ansible-galaxy-command-line-tool)
-	//  on the local machine before executing `ansible-playbook`. By default, this is empty.
-	GalaxyFile string `mapstructure:"galaxy_file"`
 	// The command to invoke ansible-galaxy. By default, this is
 	// `ansible-galaxy`.
+	//
+	// DEPRECATED: Unnecessary with requirements_file. The plugin handles dependency installation automatically.
+	// This field will be removed in a future version. See MIGRATION.md for migration guidance.
 	GalaxyCommand string `mapstructure:"galaxy_command"`
 	// Force overwriting an existing role.
 	//  Adds `--force` option to `ansible-galaxy` command. By default, this is
@@ -314,27 +323,21 @@ type Config struct {
 	//   install the roles. Adds `--roles-path /path/to/your/roles` to
 	//   `ansible-galaxy` command. By default, this is empty, and thus `--roles-path`
 	//   option is not added to the command.
+	//
+	// DEPRECATED: Use navigator_config or requirements_file instead.
+	// This field will be removed in a future version. See MIGRATION.md for migration guidance.
 	RolesPath string `mapstructure:"roles_path"`
 	// The path to the directory on your local system in which to
 	//   install the collections. Adds `--collections-path /path/to/your/collections` to
 	//   `ansible-galaxy` command. By default, this is empty, and thus `--collections-path`
 	//   option is not added to the command.
+	//
+	// DEPRECATED: Use navigator_config or requirements_file instead.
+	// This field will be removed in a future version. See MIGRATION.md for migration guidance.
 	CollectionsPath string `mapstructure:"collections_path"`
-	// List of Ansible collections to install automatically.
-	// Each entry can be a collection name with optional version (e.g., "community.general:5.11.0")
-	// or a local path (e.g., "myorg.mycollection@/path/to/collection").
-	Collections []string `mapstructure:"collections"`
 	// Directory to cache downloaded collections.
 	// Defaults to ~/.packer.d/ansible_collections_cache if not specified.
 	CollectionsCacheDir string `mapstructure:"collections_cache_dir"`
-	// When true, skip network operations and only use locally cached collections.
-	// Fails if a required collection is not present in the cache.
-	CollectionsOffline bool `mapstructure:"collections_offline"`
-	// When true, always reinstall collections even if they are already cached.
-	CollectionsForceUpdate bool `mapstructure:"collections_force_update"`
-	// Path to a requirements.yml file for installing collections.
-	// This is an alternative to specifying collections inline.
-	CollectionsRequirements string `mapstructure:"collections_requirements"`
 	// When `true`, set up a localhost proxy adapter
 	// so that Ansible has an IP address to connect to, even if your guest does not
 	// have an IP address. For example, the adapter is necessary for Docker builds
@@ -392,8 +395,25 @@ type Config struct {
 	//       pipelining = "True"
 	//     }
 	//   }
-	AnsibleCfg   map[string]map[string]string `mapstructure:"ansible_cfg"`
-	userWasEmpty bool
+	//
+	// DEPRECATED: Use navigator_config.ansible.config instead.
+	// This field will be removed in a future version. See MIGRATION.md for migration guidance.
+	AnsibleCfg map[string]map[string]string `mapstructure:"ansible_cfg"`
+	// Modern declarative ansible-navigator configuration via YAML file generation.
+	// Maps directly to ansible-navigator.yml schema structure.
+	// Supports full ansible-navigator.yml structure including:
+	//   - ansible section (config overrides, playbook settings)
+	//   - execution-environment object (enabled, image, pull-policy, environment-variables)
+	//   - mode (stdout, json, yaml, interactive)
+	//   - All other ansible-navigator.yml options
+	// When provided:
+	//   - Plugin generates temporary ansible-navigator.yml file
+	//   - Sets ANSIBLE_NAVIGATOR_CONFIG environment variable
+	//   - Automatically sets EE temp dir defaults when execution-environment.enabled = true
+	//   - Cleans up config file after execution
+	// When both navigator_config and legacy options present, navigator_config takes precedence.
+	NavigatorConfig map[string]interface{} `mapstructure:"navigator_config"`
+	userWasEmpty    bool
 }
 
 // Validate performs comprehensive validation of the Config
@@ -421,21 +441,9 @@ func (c *Config) Validate() error {
 	}
 
 	// Validate play configuration
-	if c.PlaybookFile != "" && len(c.Plays) > 0 {
+	if len(c.Plays) == 0 {
 		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-			"you may specify only one of `playbook_file` or `play` blocks"))
-	}
-
-	if c.PlaybookFile == "" && len(c.Plays) == 0 {
-		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-			"either `playbook_file` or `play` blocks must be defined"))
-	}
-
-	// Validate playbook file if specified
-	if c.PlaybookFile != "" {
-		if err := validateFileConfig(c.PlaybookFile, "playbook_file", true); err != nil {
-			errs = packersdk.MultiErrorAppend(errs, err)
-		}
+			"at least one `play` block must be defined"))
 	}
 
 	// Validate plays
@@ -455,12 +463,6 @@ func (c *Config) Validate() error {
 	}
 
 	// Validate files
-	if c.GalaxyFile != "" {
-		if err := validateFileConfig(c.GalaxyFile, "galaxy_file", true); err != nil {
-			errs = packersdk.MultiErrorAppend(errs, err)
-		}
-	}
-
 	if c.RequirementsFile != "" {
 		if err := validateFileConfig(c.RequirementsFile, "requirements_file", true); err != nil {
 			errs = packersdk.MultiErrorAppend(errs, err)
@@ -512,6 +514,12 @@ func (c *Config) Validate() error {
 	if c.AnsibleCfg != nil && len(c.AnsibleCfg) == 0 {
 		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
 			"ansible_cfg cannot be an empty map. Either provide configuration sections or omit the field"))
+	}
+
+	// Validate navigator_config
+	if c.NavigatorConfig != nil && len(c.NavigatorConfig) == 0 {
+		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+			"navigator_config cannot be an empty map. Either provide configuration or omit the field"))
 	}
 
 	if errs != nil && len(errs.Errors) > 0 {
@@ -572,10 +580,8 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	}
 
 	// Apply HOME expansion to path-like configuration fields
-	p.config.PlaybookFile = expandUserPath(p.config.PlaybookFile)
 	p.config.InventoryFile = expandUserPath(p.config.InventoryFile)
 	p.config.InventoryDirectory = expandUserPath(p.config.InventoryDirectory)
-	p.config.GalaxyFile = expandUserPath(p.config.GalaxyFile)
 	p.config.RequirementsFile = expandUserPath(p.config.RequirementsFile)
 	p.config.SSHHostKeyFile = expandUserPath(p.config.SSHHostKeyFile)
 	p.config.SSHAuthorizedKeyFile = expandUserPath(p.config.SSHAuthorizedKeyFile)
@@ -615,15 +621,6 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	if p.config.NavigatorMode == "interactive" && !term.IsTerminal(int(os.Stdout.Fd())) {
 		log.Printf("[Warning] No TTY detected — switching ansible-navigator mode to 'stdout'.")
 		p.config.NavigatorMode = "stdout"
-	}
-
-	// Show deprecation warning for playbook_file
-	if p.config.PlaybookFile != "" {
-		ui := &packersdk.BasicUi{
-			Reader: os.Stdin,
-			Writer: os.Stdout,
-		}
-		ui.Say("Warning: 'playbook_file' is deprecated. Please use 'plays' array instead.")
 	}
 
 	// Apply default ansible.cfg when execution_environment is set but ansible_cfg is not
@@ -725,7 +722,42 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	if err := p.config.Validate(); err != nil {
 		return err
 	}
+
+	// Emit deprecation warnings
+	p.logDeprecationWarnings()
+
 	return nil
+}
+
+// logDeprecationWarnings logs warnings for deprecated configuration fields
+func (p *Provisioner) logDeprecationWarnings() {
+	if p.config.AnsibleCfg != nil {
+		log.Printf("[WARNING] 'ansible_cfg' is deprecated and will be removed in a future version. Use 'navigator_config.ansible.config' instead. See MIGRATION.md for details.")
+	}
+	if len(p.config.AnsibleEnvVars) > 0 {
+		log.Printf("[WARNING] 'ansible_env_vars' is deprecated and will be removed in a future version. Use 'navigator_config.execution-environment.environment-variables' instead. See MIGRATION.md for details.")
+	}
+	if len(p.config.AnsibleSSHExtraArgs) > 0 {
+		log.Printf("[WARNING] 'ansible_ssh_extra_args' is deprecated and will be removed in a future version. Use navigator_config or play-level options instead. See MIGRATION.md for details.")
+	}
+	if len(p.config.ExtraArguments) > 0 {
+		log.Printf("[WARNING] 'extra_arguments' is deprecated and will be removed in a future version. Use navigator_config instead. See MIGRATION.md for details.")
+	}
+	if p.config.ExecutionEnvironment != "" {
+		log.Printf("[WARNING] 'execution_environment' is deprecated and will be removed in a future version. Use 'navigator_config.execution-environment' instead. See MIGRATION.md for details.")
+	}
+	if p.config.NavigatorMode != "" && p.config.NavigatorMode != "stdout" {
+		log.Printf("[WARNING] 'navigator_mode' is deprecated and will be removed in a future version. Use 'navigator_config.mode' instead. See MIGRATION.md for details.")
+	}
+	if p.config.RolesPath != "" {
+		log.Printf("[WARNING] 'roles_path' is deprecated and will be removed in a future version. Use navigator_config or requirements_file instead. See MIGRATION.md for details.")
+	}
+	if p.config.CollectionsPath != "" {
+		log.Printf("[WARNING] 'collections_path' is deprecated and will be removed in a future version. Use navigator_config or requirements_file instead. See MIGRATION.md for details.")
+	}
+	if p.config.GalaxyCommand != "" && p.config.GalaxyCommand != "ansible-galaxy" {
+		log.Printf("[WARNING] 'galaxy_command' is deprecated and will be removed in a future version. Unnecessary with requirements_file. See MIGRATION.md for details.")
+	}
 }
 
 func (p *Provisioner) getVersion() error {
@@ -1207,6 +1239,29 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 		}()
 	}
 
+	// Generate and setup ansible-navigator.yml if configured
+	var navigatorConfigPath string
+	if p.config.NavigatorConfig != nil && len(p.config.NavigatorConfig) > 0 {
+		yamlContent, err := generateNavigatorConfigYAML(p.config.NavigatorConfig)
+		if err != nil {
+			return fmt.Errorf("failed to generate navigator_config YAML: %w", err)
+		}
+
+		navigatorConfigPath, err = createNavigatorConfigFile(yamlContent)
+		if err != nil {
+			return fmt.Errorf("failed to create temporary ansible-navigator.yml: %w", err)
+		}
+
+		ui.Message(fmt.Sprintf("Generated ansible-navigator.yml at %s", navigatorConfigPath))
+
+		// Ensure cleanup on exit (success or failure)
+		defer func() {
+			if err := os.Remove(navigatorConfigPath); err != nil {
+				ui.Message(fmt.Sprintf("Warning: failed to remove temporary ansible-navigator.yml: %v", err))
+			}
+		}()
+	}
+
 	// Install dependencies using GalaxyManager
 	galaxyManager := NewGalaxyManager(&p.config, ui)
 
@@ -1219,19 +1274,14 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 		return fmt.Errorf("failed to setup environment paths: %w", err)
 	}
 
-	if len(p.config.Plays) > 0 {
-		// Execute multiple plays
-		return p.executePlays(ui, comm, privKeyFile, httpAddr, ansibleCfgPath)
-	} else {
-		// Execute single playbook (backward compatibility)
-		return p.executeSinglePlaybook(ui, privKeyFile, httpAddr, ansibleCfgPath)
-	}
+	// Execute plays (required by validation)
+	return p.executePlays(ui, comm, privKeyFile, httpAddr, ansibleCfgPath, navigatorConfigPath)
 }
 
 // executePlays executes multiple Ansible plays in sequence.
 // If a play fails and keep_going is false, execution stops immediately.
 // Otherwise, errors are logged and execution continues to the next play.
-func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string, httpAddr string, ansibleCfgPath string) error {
+func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string, httpAddr string, ansibleCfgPath string, navigatorConfigPath string) error {
 	inventory := p.config.InventoryFile
 
 	for i, play := range p.config.Plays {
@@ -1320,6 +1370,10 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 		if ansibleCfgPath != "" {
 			cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_CONFIG=%s", ansibleCfgPath))
 		}
+		// Add ANSIBLE_NAVIGATOR_CONFIG if navigator_config was provided
+		if navigatorConfigPath != "" {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_NAVIGATOR_CONFIG=%s", navigatorConfigPath))
+		}
 		if len(envvars) > 0 {
 			cmd.Env = append(cmd.Env, envvars...)
 		}
@@ -1352,53 +1406,6 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 	}
 
 	ui.Say("All plays completed successfully!")
-	return nil
-}
-
-// executeSinglePlaybook executes a single playbook file.
-// This method maintains backward compatibility with the playbook_file configuration.
-func (p *Provisioner) executeSinglePlaybook(ui packersdk.Ui, privKeyFile string, httpAddr string, ansibleCfgPath string) error {
-	playbook, _ := filepath.Abs(p.config.PlaybookFile)
-	inventory := p.config.InventoryFile
-
-	args, envvars := p.createCmdArgs(httpAddr, inventory, playbook, privKeyFile)
-
-	// Add --mode flag at the beginning of args
-	args = append([]string{"--mode", p.config.NavigatorMode}, args...)
-
-	// Add execution environment flags if set (ansible-navigator v3+ format)
-	if p.config.ExecutionEnvironment != "" {
-		args = append([]string{"--ee", "true", "--eei", p.config.ExecutionEnvironment}, args...)
-	}
-
-	// Prepend "run" as first argument
-	cmdArgs := append([]string{"run"}, args...)
-	cmd := exec.Command(p.config.Command, cmdArgs...)
-
-	// Set environment with modified PATH if needed
-	if len(p.config.AnsibleNavigatorPath) > 0 {
-		cmd.Env = buildEnvWithPath(p.config.AnsibleNavigatorPath)
-	} else {
-		cmd.Env = os.Environ()
-	}
-	// Add ANSIBLE_CONFIG if ansible.cfg was generated
-	if ansibleCfgPath != "" {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_CONFIG=%s", ansibleCfgPath))
-	}
-	if len(envvars) > 0 {
-		cmd.Env = append(cmd.Env, envvars...)
-	}
-
-	// Set working directory if specified
-	if p.config.WorkDir != "" {
-		cmd.Dir = p.config.WorkDir
-	}
-
-	err := p.executeAnsibleCommand(ui, cmd, "playbook execution")
-	if err != nil {
-		return fmt.Errorf("ansible-navigator run failed for %s: %w", playbook, err)
-	}
-
 	return nil
 }
 

@@ -29,7 +29,6 @@ type FlatConfig struct {
 	VerboseTaskOutput       *bool                        `mapstructure:"verbose_task_output" cty:"verbose_task_output" hcl:"verbose_task_output"`
 	ExtraArguments          []string                     `mapstructure:"extra_arguments" cty:"extra_arguments" hcl:"extra_arguments"`
 	AnsibleEnvVars          []string                     `mapstructure:"ansible_env_vars" cty:"ansible_env_vars" hcl:"ansible_env_vars"`
-	PlaybookFile            *string                      `mapstructure:"playbook_file" cty:"playbook_file" hcl:"playbook_file"`
 	Plays                   []FlatPlay                   `mapstructure:"play" cty:"play" hcl:"play"`
 	RequirementsFile        *string                      `mapstructure:"requirements_file" cty:"requirements_file" hcl:"requirements_file"`
 	RolesCacheDir           *string                      `mapstructure:"roles_cache_dir" cty:"roles_cache_dir" hcl:"roles_cache_dir"`
@@ -55,20 +54,16 @@ type FlatConfig struct {
 	InventoryFile           *string                      `mapstructure:"inventory_file" cty:"inventory_file" hcl:"inventory_file"`
 	Limit                   *string                      `mapstructure:"limit" cty:"limit" hcl:"limit"`
 	KeepInventoryFile       *bool                        `mapstructure:"keep_inventory_file" cty:"keep_inventory_file" hcl:"keep_inventory_file"`
-	GalaxyFile              *string                      `mapstructure:"galaxy_file" cty:"galaxy_file" hcl:"galaxy_file"`
 	GalaxyCommand           *string                      `mapstructure:"galaxy_command" cty:"galaxy_command" hcl:"galaxy_command"`
 	GalaxyForceInstall      *bool                        `mapstructure:"galaxy_force_install" cty:"galaxy_force_install" hcl:"galaxy_force_install"`
 	GalaxyForceWithDeps     *bool                        `mapstructure:"galaxy_force_with_deps" cty:"galaxy_force_with_deps" hcl:"galaxy_force_with_deps"`
 	RolesPath               *string                      `mapstructure:"roles_path" cty:"roles_path" hcl:"roles_path"`
 	CollectionsPath         *string                      `mapstructure:"collections_path" cty:"collections_path" hcl:"collections_path"`
-	Collections             []string                     `mapstructure:"collections" cty:"collections" hcl:"collections"`
 	CollectionsCacheDir     *string                      `mapstructure:"collections_cache_dir" cty:"collections_cache_dir" hcl:"collections_cache_dir"`
-	CollectionsOffline      *bool                        `mapstructure:"collections_offline" cty:"collections_offline" hcl:"collections_offline"`
-	CollectionsForceUpdate  *bool                        `mapstructure:"collections_force_update" cty:"collections_force_update" hcl:"collections_force_update"`
-	CollectionsRequirements *string                      `mapstructure:"collections_requirements" cty:"collections_requirements" hcl:"collections_requirements"`
 	UseProxy                *bool                        `mapstructure:"use_proxy" cty:"use_proxy" hcl:"use_proxy"`
 	WinRMUseHTTP            *bool                        `mapstructure:"ansible_winrm_use_http" cty:"ansible_winrm_use_http" hcl:"ansible_winrm_use_http"`
 	AnsibleCfg              map[string]map[string]string `mapstructure:"ansible_cfg" cty:"ansible_cfg" hcl:"ansible_cfg"`
+	NavigatorConfig         map[string]interface{}       `mapstructure:"navigator_config" cty:"navigator_config" hcl:"navigator_config"`
 }
 
 // FlatMapstructure returns a new FlatConfig.
@@ -102,7 +97,6 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"verbose_task_output":        &hcldec.AttrSpec{Name: "verbose_task_output", Type: cty.Bool, Required: false},
 		"extra_arguments":            &hcldec.AttrSpec{Name: "extra_arguments", Type: cty.List(cty.String), Required: false},
 		"ansible_env_vars":           &hcldec.AttrSpec{Name: "ansible_env_vars", Type: cty.List(cty.String), Required: false},
-		"playbook_file":              &hcldec.AttrSpec{Name: "playbook_file", Type: cty.String, Required: false},
 		"play":                       &hcldec.BlockListSpec{TypeName: "play", Nested: hcldec.ObjectSpec((*FlatPlay)(nil).HCL2Spec())},
 		"requirements_file":          &hcldec.AttrSpec{Name: "requirements_file", Type: cty.String, Required: false},
 		"roles_cache_dir":            &hcldec.AttrSpec{Name: "roles_cache_dir", Type: cty.String, Required: false},
@@ -128,20 +122,16 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"inventory_file":             &hcldec.AttrSpec{Name: "inventory_file", Type: cty.String, Required: false},
 		"limit":                      &hcldec.AttrSpec{Name: "limit", Type: cty.String, Required: false},
 		"keep_inventory_file":        &hcldec.AttrSpec{Name: "keep_inventory_file", Type: cty.Bool, Required: false},
-		"galaxy_file":                &hcldec.AttrSpec{Name: "galaxy_file", Type: cty.String, Required: false},
 		"galaxy_command":             &hcldec.AttrSpec{Name: "galaxy_command", Type: cty.String, Required: false},
 		"galaxy_force_install":       &hcldec.AttrSpec{Name: "galaxy_force_install", Type: cty.Bool, Required: false},
 		"galaxy_force_with_deps":     &hcldec.AttrSpec{Name: "galaxy_force_with_deps", Type: cty.Bool, Required: false},
 		"roles_path":                 &hcldec.AttrSpec{Name: "roles_path", Type: cty.String, Required: false},
 		"collections_path":           &hcldec.AttrSpec{Name: "collections_path", Type: cty.String, Required: false},
-		"collections":                &hcldec.AttrSpec{Name: "collections", Type: cty.List(cty.String), Required: false},
 		"collections_cache_dir":      &hcldec.AttrSpec{Name: "collections_cache_dir", Type: cty.String, Required: false},
-		"collections_offline":        &hcldec.AttrSpec{Name: "collections_offline", Type: cty.Bool, Required: false},
-		"collections_force_update":   &hcldec.AttrSpec{Name: "collections_force_update", Type: cty.Bool, Required: false},
-		"collections_requirements":   &hcldec.AttrSpec{Name: "collections_requirements", Type: cty.String, Required: false},
 		"use_proxy":                  &hcldec.AttrSpec{Name: "use_proxy", Type: cty.Bool, Required: false},
 		"ansible_winrm_use_http":     &hcldec.AttrSpec{Name: "ansible_winrm_use_http", Type: cty.Bool, Required: false},
 		"ansible_cfg":                &hcldec.AttrSpec{Name: "ansible_cfg", Type: cty.Map(cty.String), Required: false},
+		"navigator_config":           &hcldec.AttrSpec{Name: "navigator_config", Type: cty.Map(cty.String), Required: false},
 	}
 	return s
 }

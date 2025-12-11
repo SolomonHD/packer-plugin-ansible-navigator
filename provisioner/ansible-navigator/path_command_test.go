@@ -201,8 +201,8 @@ func TestConfigValidateCommandWithWhitespace(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := Config{
-				Command:      tt.command,
-				PlaybookFile: validPlaybook,
+				Command: tt.command,
+				Plays:   []Play{{Target: validPlaybook}},
 			}
 
 			err := cfg.Validate()
@@ -255,7 +255,7 @@ func TestPrepareWithAnsibleNavigatorPath(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &Provisioner{}
 			config := map[string]interface{}{
-				"playbook_file":          validPlaybook,
+				"play":                   []map[string]interface{}{{"target": validPlaybook}},
 				"skip_version_check":     true,
 				"ansible_navigator_path": tt.ansibleNavigatorPath,
 			}
@@ -269,76 +269,30 @@ func TestPrepareWithAnsibleNavigatorPath(t *testing.T) {
 }
 
 func TestPreparePathExpansion(t *testing.T) {
-	tmpDir := t.TempDir()
 	home, err := os.UserHomeDir()
 	require.NoError(t, err)
 
-	// Create test file in temp dir to simulate HOME-relative file
-	testPlaybook := filepath.Join(tmpDir, "test.yml")
-	if err := os.WriteFile(testPlaybook, []byte("---\n- hosts: all\n"), 0644); err != nil {
-		t.Fatal(err)
+	// Create a playbook in HOME so we can reference it via ~
+	homePlaybook, err := os.CreateTemp(home, "packer-ansible-navigator-home-playbook-*.yml")
+	require.NoError(t, err)
+	_, _ = homePlaybook.WriteString("---\n- hosts: all\n")
+	require.NoError(t, homePlaybook.Close())
+	defer os.Remove(homePlaybook.Name())
+
+	tildePlaybook := filepath.ToSlash(filepath.Join("~", filepath.Base(homePlaybook.Name())))
+	absPlaybook := filepath.Join(home, filepath.Base(homePlaybook.Name()))
+
+	p := &Provisioner{}
+	config := map[string]interface{}{
+		"skip_version_check": true,
+		"play":               []map[string]interface{}{{"target": tildePlaybook}},
+		"command":            "~/bin/ansible-navigator",
+		"work_dir":           "~/ansible-work",
 	}
 
-	tests := []struct {
-		name         string
-		fieldName    string
-		inputValue   interface{}
-		expectedPath string
-		setupFunc    func() string
-	}{
-		{
-			name:       "Absolute path unchanged",
-			fieldName:  "playbook_file",
-			inputValue: testPlaybook,
-			setupFunc: func() string {
-				return testPlaybook
-			},
-		},
-		{
-			name:       "Command with tilde expanded",
-			fieldName:  "command",
-			inputValue: "~/bin/ansible-navigator",
-			setupFunc: func() string {
-				return filepath.Join(home, "bin/ansible-navigator")
-			},
-		},
-		{
-			name:       "WorkDir with tilde expanded",
-			fieldName:  "work_dir",
-			inputValue: "~/ansible-work",
-			setupFunc: func() string {
-				return filepath.Join(home, "ansible-work")
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := &Provisioner{}
-			config := map[string]interface{}{
-				"skip_version_check": true,
-				"playbook_file":      testPlaybook, // Always provide a valid playbook
-				tt.fieldName:         tt.inputValue,
-			}
-
-			err := p.Prepare(config)
-			// Note: This might fail validation if file doesn't exist, but we're testing expansion
-			if err != nil && !strings.Contains(err.Error(), "is invalid") {
-				t.Logf("Prepare error (may be expected): %v", err)
-			}
-
-			expected := tt.setupFunc()
-			var actual string
-			switch tt.fieldName {
-			case "command":
-				actual = p.config.Command
-			case "work_dir":
-				actual = p.config.WorkDir
-			case "playbook_file":
-				actual = p.config.PlaybookFile
-			}
-
-			assert.Equal(t, expected, actual, "Path expansion mismatch for %s", tt.fieldName)
-		})
-	}
+	require.NoError(t, p.Prepare(config))
+	require.Equal(t, filepath.Join(home, "bin/ansible-navigator"), p.config.Command)
+	require.Equal(t, filepath.Join(home, "ansible-work"), p.config.WorkDir)
+	require.Len(t, p.config.Plays, 1)
+	require.Equal(t, absPlaybook, p.config.Plays[0].Target)
 }

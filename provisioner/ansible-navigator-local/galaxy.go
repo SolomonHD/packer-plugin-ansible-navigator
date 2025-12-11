@@ -19,44 +19,37 @@ import (
 // GalaxyManager handles all Ansible Galaxy operations for roles and collections
 // Adapted for local provisioner communicator-based execution
 type GalaxyManager struct {
-	config *Config
-	ui     packersdk.Ui
-	comm   packersdk.Communicator
+	config                *Config
+	ui                    packersdk.Ui
+	comm                  packersdk.Communicator
+	stagingDir            string
+	galaxyRolesPath       string
+	galaxyCollectionsPath string
 }
 
 // NewGalaxyManager creates a new GalaxyManager instance
-func NewGalaxyManager(config *Config, ui packersdk.Ui, comm packersdk.Communicator) *GalaxyManager {
+func NewGalaxyManager(config *Config, ui packersdk.Ui, comm packersdk.Communicator, stagingDir string, galaxyRolesPath string, galaxyCollectionsPath string) *GalaxyManager {
 	return &GalaxyManager{
-		config: config,
-		ui:     ui,
-		comm:   comm,
+		config:                config,
+		ui:                    ui,
+		comm:                  comm,
+		stagingDir:            stagingDir,
+		galaxyRolesPath:       galaxyRolesPath,
+		galaxyCollectionsPath: galaxyCollectionsPath,
 	}
 }
 
 // InstallRequirements installs all requirements (roles and collections) based on configuration
 func (gm *GalaxyManager) InstallRequirements() error {
-	// Handle unified requirements file if specified
-	if gm.config.RequirementsFile != "" {
-		gm.ui.Message(fmt.Sprintf("Installing dependencies from requirements file: %s", gm.config.RequirementsFile))
-		if err := gm.installFromFile(gm.config.RequirementsFile); err != nil {
-			return fmt.Errorf("failed to install requirements: %w", err)
-		}
+	// requirements_file is the only supported dependency installation mechanism.
+	if gm.config.RequirementsFile == "" {
 		return nil
 	}
 
-	// Handle legacy galaxy_file for backward compatibility
-	if gm.config.GalaxyFile != "" {
-		gm.ui.Message(fmt.Sprintf("Installing dependencies from galaxy file: %s", gm.config.GalaxyFile))
-		if err := gm.installFromFile(gm.config.GalaxyFile); err != nil {
-			return fmt.Errorf("failed to install galaxy dependencies: %w", err)
-		}
+	gm.ui.Message(fmt.Sprintf("Installing dependencies from requirements file: %s", gm.config.RequirementsFile))
+	if err := gm.installFromFile(gm.config.RequirementsFile); err != nil {
+		return fmt.Errorf("failed to install requirements: %w", err)
 	}
-
-	// Handle inline collections if specified
-	if err := gm.installCollections(); err != nil {
-		return fmt.Errorf("failed to install collections: %w", err)
-	}
-
 	return nil
 }
 
@@ -85,7 +78,7 @@ func (gm *GalaxyManager) installFromFile(filePath string) error {
 	hasCollections := regexp.MustCompile(`(?m)^collections:`).Match(content)
 
 	// Construct remote path for requirements file
-	remoteReqFile := filepath.ToSlash(filepath.Join(gm.config.StagingDir, filepath.Base(filePath)))
+	remoteReqFile := filepath.ToSlash(filepath.Join(gm.stagingDir, filepath.Base(filePath)))
 
 	// Install roles if present (or if it's v1 format without collections)
 	if hasRoles || !hasCollections {
@@ -114,7 +107,7 @@ func (gm *GalaxyManager) installRolesFromFile(remoteFilePath string) error {
 	args := []string{"install", "-r", remoteFilePath}
 
 	// Add roles path
-	rolesPath := gm.config.GalaxyRolesPath
+	rolesPath := gm.galaxyRolesPath
 	if gm.config.RolesCacheDir != "" {
 		rolesPath = gm.config.RolesCacheDir
 	}
@@ -136,7 +129,7 @@ func (gm *GalaxyManager) installCollectionsFromFile(remoteFilePath string) error
 	args := []string{"collection", "install", "-r", remoteFilePath}
 
 	// Add collections path
-	collectionsPath := gm.config.GalaxyCollectionsPath
+	collectionsPath := gm.galaxyCollectionsPath
 	if gm.config.CollectionsCacheDir != "" {
 		collectionsPath = gm.config.CollectionsCacheDir
 	}
@@ -152,63 +145,13 @@ func (gm *GalaxyManager) installCollectionsFromFile(remoteFilePath string) error
 	return gm.executeGalaxyCommand(args, "collections")
 }
 
-// installCollections installs inline collections specified in config
-func (gm *GalaxyManager) installCollections() error {
-	// Skip if no inline collections specified
-	if len(gm.config.Collections) == 0 {
-		return nil
-	}
-
-	// Check offline mode
-	if gm.config.CollectionsOffline || gm.config.OfflineMode {
-		gm.ui.Message("Offline mode enabled for collections: skipping installation")
-		return nil
-	}
-
-	// Install individual collections
-	for _, collection := range gm.config.Collections {
-		if err := gm.installCollection(collection); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// installCollection installs a single collection
-func (gm *GalaxyManager) installCollection(collection string) error {
-	gm.ui.Message(fmt.Sprintf("Installing collection: %s", collection))
-
-	// Parse collection spec (handle local paths)
-	collectionSpec := collection
-	if strings.Contains(collection, "@") {
-		parts := strings.SplitN(collection, "@", 2)
-		collectionSpec = parts[1]
-	}
-
-	// Build installation command
-	args := []string{"collection", "install", collectionSpec}
-
-	collectionsPath := gm.config.GalaxyCollectionsPath
-	if gm.config.CollectionsCacheDir != "" {
-		collectionsPath = gm.config.CollectionsCacheDir
-	}
-	if collectionsPath != "" {
-		args = append(args, "-p", filepath.ToSlash(collectionsPath))
-	}
-
-	if gm.config.CollectionsForceUpdate || gm.config.ForceUpdate {
-		args = append(args, "--force")
-	}
-
-	return gm.executeGalaxyCommand(args, collection)
-}
+// NOTE: legacy inline collections and legacy galaxy_file paths are intentionally removed.
 
 // executeGalaxyCommand executes an ansible-galaxy command via communicator
 func (gm *GalaxyManager) executeGalaxyCommand(args []string, target string) error {
 	ctx := context.TODO()
 	command := fmt.Sprintf("cd %s && %s %s",
-		gm.config.StagingDir, gm.config.GalaxyCommand, strings.Join(args, " "))
+		gm.stagingDir, gm.config.GalaxyCommand, strings.Join(args, " "))
 	gm.ui.Message(fmt.Sprintf("Executing Ansible Galaxy: %s", command))
 
 	cmd := &packersdk.RemoteCmd{

@@ -44,88 +44,6 @@
   ]
   ```
 
-- `group_vars` (string) - A path to the directory containing ansible group
-  variables on your local system to be copied to the remote machine. By
-  default, this is empty.
-
-- `host_vars` (string) - A path to the directory containing ansible host variables on your local
-  system to be copied to the remote machine. By default, this is empty.
-
-- `playbook_dir` (string) - A path to the complete ansible directory structure on your local system
-  to be copied to the remote machine as the `staging_directory` before all
-  other files and directories.
-
-- `playbook_file` (string) - The playbook file to be executed by ansible. This file must exist on your
-  local system and will be uploaded to the remote machine. This option is
-  exclusive with `playbook_files`.
-
-- `playbook_files` ([]string) - The playbook files to be executed by ansible. These files must exist on
-  your local system. If the files don't exist in the `playbook_dir` or you
-  don't set `playbook_dir` they will be uploaded to the remote machine. This
-  option is exclusive with `playbook_file`.
-
-- `playbook_paths` ([]string) - An array of directories of playbook files on your local system. These
-  will be uploaded to the remote machine under `staging_directory`/playbooks.
-  By default, this is empty.
-
-- `role_paths` ([]string) - An array of paths to role directories on your local system. These will be
-  uploaded to the remote machine under `staging_directory`/roles. By default,
-  this is empty.
-
-- `collection_paths` ([]string) - An array of local paths of collections to upload.
-
-- `staging_directory` (string) - The directory where files will be uploaded. Packer requires write
-  permissions in this directory.
-
-- `clean_staging_directory` (bool) - If set to `true`, the content of the `staging_directory` will be removed after
-  executing ansible. By default this is set to `false`.
-
-- `inventory_file` (string) - The inventory file to be used by ansible. This
-  file must exist on your local system and will be uploaded to the remote
-  machine.
-  
-  When using an inventory file, it's also required to `--limit` the hosts to the
-  specified host you're building. The `--limit` argument can be provided in the
-  `extra_arguments` option.
-  
-  An example inventory file may look like:
-  
-  ```text
-  [chi-dbservers]
-  db-01 ansible_connection=local
-  db-02 ansible_connection=local
-  
-  [chi-appservers]
-  app-01 ansible_connection=local
-  app-02 ansible_connection=local
-  
-  [chi:children]
-  chi-dbservers
-  chi-appservers
-  
-  [dbservers:children]
-  chi-dbservers
-  
-  [appservers:children]
-  chi-appservers
-  ```
-
-- `inventory_groups` ([]string) - `inventory_groups` (string) - A comma-separated list of groups to which
-  packer will assign the host `127.0.0.1`. A value of `my_group_1,my_group_2`
-  will generate an Ansible inventory like:
-  
-  ```text
-  [my_group_1]
-  127.0.0.1
-  [my_group_2]
-  127.0.0.1
-  ```
-
-- `galaxy_file` (string) - A requirements file which provides a way to
-   install roles or collections with the [ansible-galaxy
-   cli](https://docs.ansible.com/ansible/latest/galaxy/user_guide.html#the-ansible-galaxy-command-line-tool)
-   on the local machine before executing `ansible-playbook`. By default, this is empty.
-
 - `galaxy_command` (string) - The command to invoke ansible-galaxy. By default, this is
   `ansible-galaxy`.
 
@@ -138,16 +56,6 @@
 - `galaxy_force_install` (bool) - Force overwriting an existing role.
    Adds `--force` option to `ansible-galaxy` command. By default, this is
    `false`.
-
-- `galaxy_roles_path` (string) - The path to the directory on the remote system in which to
-    install the roles. Adds `--roles-path /path/to/your/roles` to
-    `ansible-galaxy` command. By default, this will install to a 'galaxy_roles' subfolder in the
-    staging/roles directory.
-
-- `galaxy_collections_path` (string) - The path to the directory on the remote system in which to
-    install the collections. Adds `--collections-path /path/to/your/collections` to
-    `ansible-galaxy` command. By default, this will install to a 'galaxy_collections' subfolder in the
-    staging/collections directory.
 
 - `navigator_mode` (string) - Execution mode for ansible-navigator. Valid values: stdout, json, yaml, interactive.
   Defaults to "stdout" for non-interactive environments (Packer-safe).
@@ -183,21 +91,8 @@
 - `requirements_file` (string) - Path to a unified requirements.yml file containing both roles and collections.
   Alternative to galaxy_file with enhanced support for modern Ansible requirements format.
 
-- `collections` ([]string) - List of Ansible collections to install automatically.
-  Each entry can be a collection name with optional version (e.g., "community.general:5.11.0")
-  or a local path (e.g., "myorg.mycollection@/path/to/collection").
-
 - `collections_cache_dir` (string) - Directory to cache downloaded collections.
   Defaults to ~/.packer.d/ansible_collections_cache if not specified.
-
-- `collections_offline` (bool) - When true, skip network operations and only use locally cached collections.
-  Fails if a required collection is not present in the cache.
-
-- `collections_force_update` (bool) - When true, always reinstall collections even if they are already cached.
-
-- `groups` ([]string) - The groups into which the Ansible host should be placed.
-  When unspecified, the host is not associated with any groups.
-  This extends inventory_groups functionality.
 
 - `roles_cache_dir` (string) - Directory to cache downloaded roles. Similar to collections_cache_dir but for roles.
   Defaults to ~/.packer.d/ansible_roles_cache if not specified.
@@ -230,5 +125,20 @@
         pipelining = "True"
       }
     }
+
+- `navigator_config` (map[string]interface{}) - Modern declarative ansible-navigator configuration via YAML file generation.
+  Maps directly to ansible-navigator.yml schema structure.
+  Supports full ansible-navigator.yml structure including:
+    - ansible section (config overrides, playbook settings)
+    - execution-environment object (enabled, image, pull-policy, environment-variables)
+    - mode (stdout, json, yaml, interactive)
+    - All other ansible-navigator.yml options
+  When provided:
+    - Plugin generates temporary ansible-navigator.yml file on local side
+    - Uploads it to the target alongside playbooks
+    - Sets ANSIBLE_NAVIGATOR_CONFIG environment variable in remote shell
+    - Automatically sets EE temp dir defaults when execution-environment.enabled = true
+    - Cleans up config file after execution
+  When both navigator_config and legacy options present, navigator_config takes precedence.
 
 <!-- End of code generated from the comments of the Config struct in provisioner/ansible-navigator-local/provisioner.go; -->
