@@ -288,4 +288,28 @@
   
   Default: `false`
 
+- `ansible_cfg` (map[string]map[string]string) - A map of Ansible configuration settings organized by INI sections.
+  This automatically generates a temporary ansible.cfg file before provisioning begins.
+  The plugin passes the path via the ANSIBLE_CONFIG environment variable.
+  
+  When execution_environment is set but ansible_cfg is not explicitly configured,
+  the plugin automatically applies defaults to fix "Permission denied: /.ansible" errors:
+    ansible_cfg = {
+      defaults = {
+        remote_tmp = "/tmp/.ansible/tmp"
+        local_tmp  = "/tmp/.ansible-local"
+      }
+    }
+  
+  Example:
+    ansible_cfg = {
+      defaults = {
+        remote_tmp      = "/tmp/.ansible/tmp"
+        host_key_checking = "False"
+      }
+      ssh_connection = {
+        pipelining = "True"
+      }
+    }
+
 <!-- End of code generated from the comments of the Config struct in provisioner/ansible-navigator/provisioner.go; -->

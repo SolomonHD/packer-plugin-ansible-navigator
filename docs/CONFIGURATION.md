@@ -105,6 +105,66 @@ provisioner "ansible-navigator" {
 }
 ```
 
+### ansible_cfg
+
+**Type:** `map(map(string))`  
+**Default:** _unset_ (but see **Execution Environment Defaults** below)
+
+Declarative **ansible.cfg** settings, organized by INI section.
+
+When set, the plugin will:
+
+- Generate a temporary INI file on the **local** machine.
+- Set `ANSIBLE_CONFIG` for all `ansible-navigator` executions so Ansible uses the generated file.
+- Clean up the temporary file after provisioning completes.
+
+```hcl
+provisioner "ansible-navigator" {
+  play {
+    name   = "Configure system"
+    target = "integration.common_tasks.setup"
+  }
+
+  ansible_cfg = {
+    defaults = {
+      remote_tmp         = "/tmp/.ansible/tmp"
+      local_tmp          = "/tmp/.ansible-local"
+      host_key_checking  = "False"
+      timeout            = "30"
+    }
+    ssh_connection = {
+      pipelining = "True"
+      ssh_args   = "-o ControlMaster=auto -o ControlPersist=60s"
+    }
+  }
+}
+```
+
+#### Execution Environment Defaults
+
+If `execution_environment` is set and `ansible_cfg` is **not** explicitly configured, the plugin automatically applies defaults to prevent non-root container failures caused by `/.ansible/tmp`:
+
+```hcl
+ansible_cfg = {
+  defaults = {
+    remote_tmp = "/tmp/.ansible/tmp"
+    local_tmp  = "/tmp/.ansible-local"
+  }
+}
+```
+
+#### Troubleshooting: ansible.cfg precedence
+
+When the plugin generates an ansible.cfg file, it sets `ANSIBLE_CONFIG=...` for the `ansible-navigator` process. This overrides Ansible's normal config search order.
+
+If you need to force a different config file, you can set `ANSIBLE_CONFIG` yourself via `ansible_env_vars` (this is appended after the plugin-generated value and will take precedence in most environments):
+
+```hcl
+ansible_env_vars = [
+  "ANSIBLE_CONFIG=/path/to/your/ansible.cfg",
+]
+```
+
 ### user
 
 **Type:** `string`  

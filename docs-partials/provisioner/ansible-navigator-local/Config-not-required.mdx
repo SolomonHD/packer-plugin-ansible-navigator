@@ -207,4 +207,28 @@
 
 - `force_update` (bool) - When true, always reinstall both collections and roles even if cached.
 
+- `ansible_cfg` (map[string]map[string]string) - A map of Ansible configuration settings organized by INI sections.
+  This automatically generates a temporary ansible.cfg file before provisioning begins.
+  The file is uploaded to the remote machine and its path is passed via ANSIBLE_CONFIG.
+  
+  When execution_environment is set but ansible_cfg is not explicitly configured,
+  the plugin automatically applies defaults to fix "Permission denied: /.ansible" errors:
+    ansible_cfg = {
+      defaults = {
+        remote_tmp = "/tmp/.ansible/tmp"
+        local_tmp  = "/tmp/.ansible-local"
+      }
+    }
+  
+  Example:
+    ansible_cfg = {
+      defaults = {
+        remote_tmp      = "/tmp/.ansible/tmp"
+        host_key_checking = "False"
+      }
+      ssh_connection = {
+        pipelining = "True"
+      }
+    }
+
 <!-- End of code generated from the comments of the Config struct in provisioner/ansible-navigator-local/provisioner.go; -->

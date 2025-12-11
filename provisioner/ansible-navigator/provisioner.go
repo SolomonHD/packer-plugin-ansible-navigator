@@ -29,6 +29,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -368,6 +369,30 @@ type Config struct {
 	//
 	// Default: `false`
 	WinRMUseHTTP bool `mapstructure:"ansible_winrm_use_http"`
+	// A map of Ansible configuration settings organized by INI sections.
+	// This automatically generates a temporary ansible.cfg file before provisioning begins.
+	// The plugin passes the path via the ANSIBLE_CONFIG environment variable.
+	//
+	// When execution_environment is set but ansible_cfg is not explicitly configured,
+	// the plugin automatically applies defaults to fix "Permission denied: /.ansible" errors:
+	//   ansible_cfg = {
+	//     defaults = {
+	//       remote_tmp = "/tmp/.ansible/tmp"
+	//       local_tmp  = "/tmp/.ansible-local"
+	//     }
+	//   }
+	//
+	// Example:
+	//   ansible_cfg = {
+	//     defaults = {
+	//       remote_tmp      = "/tmp/.ansible/tmp"
+	//       host_key_checking = "False"
+	//     }
+	//     ssh_connection = {
+	//       pipelining = "True"
+	//     }
+	//   }
+	AnsibleCfg   map[string]map[string]string `mapstructure:"ansible_cfg"`
 	userWasEmpty bool
 }
 
@@ -483,6 +508,12 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	// Validate ansible_cfg
+	if c.AnsibleCfg != nil && len(c.AnsibleCfg) == 0 {
+		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+			"ansible_cfg cannot be an empty map. Either provide configuration sections or omit the field"))
+	}
+
 	if errs != nil && len(errs.Errors) > 0 {
 		return errs
 	}
@@ -593,6 +624,17 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 			Writer: os.Stdout,
 		}
 		ui.Say("Warning: 'playbook_file' is deprecated. Please use 'plays' array instead.")
+	}
+
+	// Apply default ansible.cfg when execution_environment is set but ansible_cfg is not
+	if p.config.ExecutionEnvironment != "" && p.config.AnsibleCfg == nil {
+		log.Println("[INFO] ExecutionEnvironment is set but ansible_cfg is not. Applying defaults for container compatibility.")
+		p.config.AnsibleCfg = map[string]map[string]string{
+			"defaults": {
+				"remote_tmp": "/tmp/.ansible/tmp",
+				"local_tmp":  "/tmp/.ansible-local",
+			},
+		}
 	}
 
 	// Set default cache directories if not specified
@@ -1142,6 +1184,29 @@ func createRolePlaybook(role string, play Play) (string, error) {
 func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string) error {
 	httpAddr := p.generatedData["PackerHTTPAddr"].(string)
 
+	// Generate and setup ansible.cfg if configured
+	var ansibleCfgPath string
+	if p.config.AnsibleCfg != nil {
+		content, err := generateAnsibleCfg(p.config.AnsibleCfg)
+		if err != nil {
+			return fmt.Errorf("failed to generate ansible.cfg: %w", err)
+		}
+
+		ansibleCfgPath, err = createTempAnsibleCfg(content)
+		if err != nil {
+			return fmt.Errorf("failed to create temporary ansible.cfg: %w", err)
+		}
+
+		ui.Message(fmt.Sprintf("Generated ansible.cfg at %s", ansibleCfgPath))
+
+		// Ensure cleanup on exit (success or failure)
+		defer func() {
+			if err := os.Remove(ansibleCfgPath); err != nil {
+				ui.Message(fmt.Sprintf("Warning: failed to remove temporary ansible.cfg: %v", err))
+			}
+		}()
+	}
+
 	// Install dependencies using GalaxyManager
 	galaxyManager := NewGalaxyManager(&p.config, ui)
 
@@ -1156,17 +1221,17 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 
 	if len(p.config.Plays) > 0 {
 		// Execute multiple plays
-		return p.executePlays(ui, comm, privKeyFile, httpAddr)
+		return p.executePlays(ui, comm, privKeyFile, httpAddr, ansibleCfgPath)
 	} else {
 		// Execute single playbook (backward compatibility)
-		return p.executeSinglePlaybook(ui, privKeyFile, httpAddr)
+		return p.executeSinglePlaybook(ui, privKeyFile, httpAddr, ansibleCfgPath)
 	}
 }
 
 // executePlays executes multiple Ansible plays in sequence.
 // If a play fails and keep_going is false, execution stops immediately.
 // Otherwise, errors are logged and execution continues to the next play.
-func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string, httpAddr string) error {
+func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string, httpAddr string, ansibleCfgPath string) error {
 	inventory := p.config.InventoryFile
 
 	for i, play := range p.config.Plays {
@@ -1251,6 +1316,10 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 		} else {
 			cmd.Env = os.Environ()
 		}
+		// Add ANSIBLE_CONFIG if ansible.cfg was generated
+		if ansibleCfgPath != "" {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_CONFIG=%s", ansibleCfgPath))
+		}
 		if len(envvars) > 0 {
 			cmd.Env = append(cmd.Env, envvars...)
 		}
@@ -1288,7 +1357,7 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 
 // executeSinglePlaybook executes a single playbook file.
 // This method maintains backward compatibility with the playbook_file configuration.
-func (p *Provisioner) executeSinglePlaybook(ui packersdk.Ui, privKeyFile string, httpAddr string) error {
+func (p *Provisioner) executeSinglePlaybook(ui packersdk.Ui, privKeyFile string, httpAddr string, ansibleCfgPath string) error {
 	playbook, _ := filepath.Abs(p.config.PlaybookFile)
 	inventory := p.config.InventoryFile
 
@@ -1311,6 +1380,10 @@ func (p *Provisioner) executeSinglePlaybook(ui packersdk.Ui, privKeyFile string,
 		cmd.Env = buildEnvWithPath(p.config.AnsibleNavigatorPath)
 	} else {
 		cmd.Env = os.Environ()
+	}
+	// Add ANSIBLE_CONFIG if ansible.cfg was generated
+	if ansibleCfgPath != "" {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_CONFIG=%s", ansibleCfgPath))
 	}
 	if len(envvars) > 0 {
 		cmd.Env = append(cmd.Env, envvars...)
@@ -1732,6 +1805,71 @@ func buildEnvWithPath(ansibleNavigatorPath []string) []string {
 	}
 
 	return env
+}
+
+// generateAnsibleCfg generates INI-formatted content from a map of sections
+// Returns the formatted string and any validation errors
+func generateAnsibleCfg(sections map[string]map[string]string) (string, error) {
+	if len(sections) == 0 {
+		return "", fmt.Errorf("ansible_cfg cannot be empty")
+	}
+
+	var buf strings.Builder
+	sectionNames := make([]string, 0, len(sections))
+	for section := range sections {
+		sectionNames = append(sectionNames, section)
+	}
+	sort.Strings(sectionNames)
+
+	for _, section := range sectionNames {
+		settings := sections[section]
+		// Write section header
+		buf.WriteString(fmt.Sprintf("[%s]\n", section))
+
+		// Write settings
+		keys := make([]string, 0, len(settings))
+		for key := range settings {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			buf.WriteString(fmt.Sprintf("%s = %s\n", key, settings[key]))
+		}
+
+		// Add blank line between sections
+		buf.WriteString("\n")
+	}
+
+	return buf.String(), nil
+}
+
+// createTempAnsibleCfg writes ansible.cfg content to a temporary file
+// Returns the absolute path to the file
+func createTempAnsibleCfg(content string) (string, error) {
+	tmpFile, err := os.CreateTemp("", "packer-ansible-cfg-*.ini")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temporary ansible.cfg file: %w", err)
+	}
+
+	if _, err := tmpFile.WriteString(content); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+		return "", fmt.Errorf("failed to write ansible.cfg content: %w", err)
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		os.Remove(tmpFile.Name())
+		return "", fmt.Errorf("failed to close ansible.cfg temp file: %w", err)
+	}
+
+	// Return absolute path
+	absPath, err := filepath.Abs(tmpFile.Name())
+	if err != nil {
+		os.Remove(tmpFile.Name())
+		return "", fmt.Errorf("failed to get absolute path for ansible.cfg: %w", err)
+	}
+
+	return absPath, nil
 }
 
 // checkArg Evaluates if argname is in args
