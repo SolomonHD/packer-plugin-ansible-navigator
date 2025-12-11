@@ -10,64 +10,65 @@ import (
 // FlatConfig is an auto-generated flat version of Config.
 // Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
 type FlatConfig struct {
-	PackerBuildName         *string           `mapstructure:"packer_build_name" cty:"packer_build_name" hcl:"packer_build_name"`
-	PackerBuilderType       *string           `mapstructure:"packer_builder_type" cty:"packer_builder_type" hcl:"packer_builder_type"`
-	PackerCoreVersion       *string           `mapstructure:"packer_core_version" cty:"packer_core_version" hcl:"packer_core_version"`
-	PackerDebug             *bool             `mapstructure:"packer_debug" cty:"packer_debug" hcl:"packer_debug"`
-	PackerForce             *bool             `mapstructure:"packer_force" cty:"packer_force" hcl:"packer_force"`
-	PackerOnError           *string           `mapstructure:"packer_on_error" cty:"packer_on_error" hcl:"packer_on_error"`
-	PackerUserVars          map[string]string `mapstructure:"packer_user_variables" cty:"packer_user_variables" hcl:"packer_user_variables"`
-	PackerSensitiveVars     []string          `mapstructure:"packer_sensitive_variables" cty:"packer_sensitive_variables" hcl:"packer_sensitive_variables"`
-	Command                 *string           `mapstructure:"command" cty:"command" hcl:"command"`
-	AnsibleNavigatorPath    []string          `mapstructure:"ansible_navigator_path" cty:"ansible_navigator_path" hcl:"ansible_navigator_path"`
-	NavigatorMode           *string           `mapstructure:"navigator_mode" cty:"navigator_mode" hcl:"navigator_mode"`
-	ExecutionEnvironment    *string           `mapstructure:"execution_environment" cty:"execution_environment" hcl:"execution_environment"`
-	WorkDir                 *string           `mapstructure:"work_dir" cty:"work_dir" hcl:"work_dir"`
-	KeepGoing               *bool             `mapstructure:"keep_going" cty:"keep_going" hcl:"keep_going"`
-	StructuredLogging       *bool             `mapstructure:"structured_logging" cty:"structured_logging" hcl:"structured_logging"`
-	LogOutputPath           *string           `mapstructure:"log_output_path" cty:"log_output_path" hcl:"log_output_path"`
-	VerboseTaskOutput       *bool             `mapstructure:"verbose_task_output" cty:"verbose_task_output" hcl:"verbose_task_output"`
-	ExtraArguments          []string          `mapstructure:"extra_arguments" cty:"extra_arguments" hcl:"extra_arguments"`
-	AnsibleEnvVars          []string          `mapstructure:"ansible_env_vars" cty:"ansible_env_vars" hcl:"ansible_env_vars"`
-	PlaybookFile            *string           `mapstructure:"playbook_file" cty:"playbook_file" hcl:"playbook_file"`
-	Plays                   []FlatPlay        `mapstructure:"play" cty:"play" hcl:"play"`
-	RequirementsFile        *string           `mapstructure:"requirements_file" cty:"requirements_file" hcl:"requirements_file"`
-	RolesCacheDir           *string           `mapstructure:"roles_cache_dir" cty:"roles_cache_dir" hcl:"roles_cache_dir"`
-	OfflineMode             *bool             `mapstructure:"offline_mode" cty:"offline_mode" hcl:"offline_mode"`
-	ForceUpdate             *bool             `mapstructure:"force_update" cty:"force_update" hcl:"force_update"`
-	AnsibleSSHExtraArgs     []string          `mapstructure:"ansible_ssh_extra_args" cty:"ansible_ssh_extra_args" hcl:"ansible_ssh_extra_args"`
-	Groups                  []string          `mapstructure:"groups" cty:"groups" hcl:"groups"`
-	EmptyGroups             []string          `mapstructure:"empty_groups" cty:"empty_groups" hcl:"empty_groups"`
-	HostAlias               *string           `mapstructure:"host_alias" cty:"host_alias" hcl:"host_alias"`
-	User                    *string           `mapstructure:"user" cty:"user" hcl:"user"`
-	LocalPort               *int              `mapstructure:"local_port" cty:"local_port" hcl:"local_port"`
-	SSHHostKeyFile          *string           `mapstructure:"ssh_host_key_file" cty:"ssh_host_key_file" hcl:"ssh_host_key_file"`
-	SSHAuthorizedKeyFile    *string           `mapstructure:"ssh_authorized_key_file" cty:"ssh_authorized_key_file" hcl:"ssh_authorized_key_file"`
-	AdapterKeyType          *string           `mapstructure:"ansible_proxy_key_type" cty:"ansible_proxy_key_type" hcl:"ansible_proxy_key_type"`
-	AnsibleProxyBindAddress *string           `mapstructure:"ansible_proxy_bind_address" cty:"ansible_proxy_bind_address" hcl:"ansible_proxy_bind_address"`
-	AnsibleProxyHost        *string           `mapstructure:"ansible_proxy_host" cty:"ansible_proxy_host" hcl:"ansible_proxy_host"`
-	SFTPCmd                 *string           `mapstructure:"sftp_command" cty:"sftp_command" hcl:"sftp_command"`
-	SkipVersionCheck        *bool             `mapstructure:"skip_version_check" cty:"skip_version_check" hcl:"skip_version_check"`
-	VersionCheckTimeout     *string           `mapstructure:"version_check_timeout" cty:"version_check_timeout" hcl:"version_check_timeout"`
-	UseSFTP                 *bool             `mapstructure:"use_sftp" cty:"use_sftp" hcl:"use_sftp"`
-	InventoryDirectory      *string           `mapstructure:"inventory_directory" cty:"inventory_directory" hcl:"inventory_directory"`
-	InventoryFileTemplate   *string           `mapstructure:"inventory_file_template" cty:"inventory_file_template" hcl:"inventory_file_template"`
-	InventoryFile           *string           `mapstructure:"inventory_file" cty:"inventory_file" hcl:"inventory_file"`
-	Limit                   *string           `mapstructure:"limit" cty:"limit" hcl:"limit"`
-	KeepInventoryFile       *bool             `mapstructure:"keep_inventory_file" cty:"keep_inventory_file" hcl:"keep_inventory_file"`
-	GalaxyFile              *string           `mapstructure:"galaxy_file" cty:"galaxy_file" hcl:"galaxy_file"`
-	GalaxyCommand           *string           `mapstructure:"galaxy_command" cty:"galaxy_command" hcl:"galaxy_command"`
-	GalaxyForceInstall      *bool             `mapstructure:"galaxy_force_install" cty:"galaxy_force_install" hcl:"galaxy_force_install"`
-	GalaxyForceWithDeps     *bool             `mapstructure:"galaxy_force_with_deps" cty:"galaxy_force_with_deps" hcl:"galaxy_force_with_deps"`
-	RolesPath               *string           `mapstructure:"roles_path" cty:"roles_path" hcl:"roles_path"`
-	CollectionsPath         *string           `mapstructure:"collections_path" cty:"collections_path" hcl:"collections_path"`
-	Collections             []string          `mapstructure:"collections" cty:"collections" hcl:"collections"`
-	CollectionsCacheDir     *string           `mapstructure:"collections_cache_dir" cty:"collections_cache_dir" hcl:"collections_cache_dir"`
-	CollectionsOffline      *bool             `mapstructure:"collections_offline" cty:"collections_offline" hcl:"collections_offline"`
-	CollectionsForceUpdate  *bool             `mapstructure:"collections_force_update" cty:"collections_force_update" hcl:"collections_force_update"`
-	CollectionsRequirements *string           `mapstructure:"collections_requirements" cty:"collections_requirements" hcl:"collections_requirements"`
-	UseProxy                *bool             `mapstructure:"use_proxy" cty:"use_proxy" hcl:"use_proxy"`
-	WinRMUseHTTP            *bool             `mapstructure:"ansible_winrm_use_http" cty:"ansible_winrm_use_http" hcl:"ansible_winrm_use_http"`
+	PackerBuildName         *string                      `mapstructure:"packer_build_name" cty:"packer_build_name" hcl:"packer_build_name"`
+	PackerBuilderType       *string                      `mapstructure:"packer_builder_type" cty:"packer_builder_type" hcl:"packer_builder_type"`
+	PackerCoreVersion       *string                      `mapstructure:"packer_core_version" cty:"packer_core_version" hcl:"packer_core_version"`
+	PackerDebug             *bool                        `mapstructure:"packer_debug" cty:"packer_debug" hcl:"packer_debug"`
+	PackerForce             *bool                        `mapstructure:"packer_force" cty:"packer_force" hcl:"packer_force"`
+	PackerOnError           *string                      `mapstructure:"packer_on_error" cty:"packer_on_error" hcl:"packer_on_error"`
+	PackerUserVars          map[string]string            `mapstructure:"packer_user_variables" cty:"packer_user_variables" hcl:"packer_user_variables"`
+	PackerSensitiveVars     []string                     `mapstructure:"packer_sensitive_variables" cty:"packer_sensitive_variables" hcl:"packer_sensitive_variables"`
+	Command                 *string                      `mapstructure:"command" cty:"command" hcl:"command"`
+	AnsibleNavigatorPath    []string                     `mapstructure:"ansible_navigator_path" cty:"ansible_navigator_path" hcl:"ansible_navigator_path"`
+	NavigatorMode           *string                      `mapstructure:"navigator_mode" cty:"navigator_mode" hcl:"navigator_mode"`
+	ExecutionEnvironment    *string                      `mapstructure:"execution_environment" cty:"execution_environment" hcl:"execution_environment"`
+	WorkDir                 *string                      `mapstructure:"work_dir" cty:"work_dir" hcl:"work_dir"`
+	KeepGoing               *bool                        `mapstructure:"keep_going" cty:"keep_going" hcl:"keep_going"`
+	StructuredLogging       *bool                        `mapstructure:"structured_logging" cty:"structured_logging" hcl:"structured_logging"`
+	LogOutputPath           *string                      `mapstructure:"log_output_path" cty:"log_output_path" hcl:"log_output_path"`
+	VerboseTaskOutput       *bool                        `mapstructure:"verbose_task_output" cty:"verbose_task_output" hcl:"verbose_task_output"`
+	ExtraArguments          []string                     `mapstructure:"extra_arguments" cty:"extra_arguments" hcl:"extra_arguments"`
+	AnsibleEnvVars          []string                     `mapstructure:"ansible_env_vars" cty:"ansible_env_vars" hcl:"ansible_env_vars"`
+	PlaybookFile            *string                      `mapstructure:"playbook_file" cty:"playbook_file" hcl:"playbook_file"`
+	Plays                   []FlatPlay                   `mapstructure:"play" cty:"play" hcl:"play"`
+	RequirementsFile        *string                      `mapstructure:"requirements_file" cty:"requirements_file" hcl:"requirements_file"`
+	RolesCacheDir           *string                      `mapstructure:"roles_cache_dir" cty:"roles_cache_dir" hcl:"roles_cache_dir"`
+	OfflineMode             *bool                        `mapstructure:"offline_mode" cty:"offline_mode" hcl:"offline_mode"`
+	ForceUpdate             *bool                        `mapstructure:"force_update" cty:"force_update" hcl:"force_update"`
+	AnsibleSSHExtraArgs     []string                     `mapstructure:"ansible_ssh_extra_args" cty:"ansible_ssh_extra_args" hcl:"ansible_ssh_extra_args"`
+	Groups                  []string                     `mapstructure:"groups" cty:"groups" hcl:"groups"`
+	EmptyGroups             []string                     `mapstructure:"empty_groups" cty:"empty_groups" hcl:"empty_groups"`
+	HostAlias               *string                      `mapstructure:"host_alias" cty:"host_alias" hcl:"host_alias"`
+	User                    *string                      `mapstructure:"user" cty:"user" hcl:"user"`
+	LocalPort               *int                         `mapstructure:"local_port" cty:"local_port" hcl:"local_port"`
+	SSHHostKeyFile          *string                      `mapstructure:"ssh_host_key_file" cty:"ssh_host_key_file" hcl:"ssh_host_key_file"`
+	SSHAuthorizedKeyFile    *string                      `mapstructure:"ssh_authorized_key_file" cty:"ssh_authorized_key_file" hcl:"ssh_authorized_key_file"`
+	AdapterKeyType          *string                      `mapstructure:"ansible_proxy_key_type" cty:"ansible_proxy_key_type" hcl:"ansible_proxy_key_type"`
+	AnsibleProxyBindAddress *string                      `mapstructure:"ansible_proxy_bind_address" cty:"ansible_proxy_bind_address" hcl:"ansible_proxy_bind_address"`
+	AnsibleProxyHost        *string                      `mapstructure:"ansible_proxy_host" cty:"ansible_proxy_host" hcl:"ansible_proxy_host"`
+	SFTPCmd                 *string                      `mapstructure:"sftp_command" cty:"sftp_command" hcl:"sftp_command"`
+	SkipVersionCheck        *bool                        `mapstructure:"skip_version_check" cty:"skip_version_check" hcl:"skip_version_check"`
+	VersionCheckTimeout     *string                      `mapstructure:"version_check_timeout" cty:"version_check_timeout" hcl:"version_check_timeout"`
+	UseSFTP                 *bool                        `mapstructure:"use_sftp" cty:"use_sftp" hcl:"use_sftp"`
+	InventoryDirectory      *string                      `mapstructure:"inventory_directory" cty:"inventory_directory" hcl:"inventory_directory"`
+	InventoryFileTemplate   *string                      `mapstructure:"inventory_file_template" cty:"inventory_file_template" hcl:"inventory_file_template"`
+	InventoryFile           *string                      `mapstructure:"inventory_file" cty:"inventory_file" hcl:"inventory_file"`
+	Limit                   *string                      `mapstructure:"limit" cty:"limit" hcl:"limit"`
+	KeepInventoryFile       *bool                        `mapstructure:"keep_inventory_file" cty:"keep_inventory_file" hcl:"keep_inventory_file"`
+	GalaxyFile              *string                      `mapstructure:"galaxy_file" cty:"galaxy_file" hcl:"galaxy_file"`
+	GalaxyCommand           *string                      `mapstructure:"galaxy_command" cty:"galaxy_command" hcl:"galaxy_command"`
+	GalaxyForceInstall      *bool                        `mapstructure:"galaxy_force_install" cty:"galaxy_force_install" hcl:"galaxy_force_install"`
+	GalaxyForceWithDeps     *bool                        `mapstructure:"galaxy_force_with_deps" cty:"galaxy_force_with_deps" hcl:"galaxy_force_with_deps"`
+	RolesPath               *string                      `mapstructure:"roles_path" cty:"roles_path" hcl:"roles_path"`
+	CollectionsPath         *string                      `mapstructure:"collections_path" cty:"collections_path" hcl:"collections_path"`
+	Collections             []string                     `mapstructure:"collections" cty:"collections" hcl:"collections"`
+	CollectionsCacheDir     *string                      `mapstructure:"collections_cache_dir" cty:"collections_cache_dir" hcl:"collections_cache_dir"`
+	CollectionsOffline      *bool                        `mapstructure:"collections_offline" cty:"collections_offline" hcl:"collections_offline"`
+	CollectionsForceUpdate  *bool                        `mapstructure:"collections_force_update" cty:"collections_force_update" hcl:"collections_force_update"`
+	CollectionsRequirements *string                      `mapstructure:"collections_requirements" cty:"collections_requirements" hcl:"collections_requirements"`
+	UseProxy                *bool                        `mapstructure:"use_proxy" cty:"use_proxy" hcl:"use_proxy"`
+	WinRMUseHTTP            *bool                        `mapstructure:"ansible_winrm_use_http" cty:"ansible_winrm_use_http" hcl:"ansible_winrm_use_http"`
+	AnsibleCfg              map[string]map[string]string `mapstructure:"ansible_cfg" cty:"ansible_cfg" hcl:"ansible_cfg"`
 }
 
 // FlatMapstructure returns a new FlatConfig.
@@ -140,6 +141,7 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"collections_requirements":   &hcldec.AttrSpec{Name: "collections_requirements", Type: cty.String, Required: false},
 		"use_proxy":                  &hcldec.AttrSpec{Name: "use_proxy", Type: cty.Bool, Required: false},
 		"ansible_winrm_use_http":     &hcldec.AttrSpec{Name: "ansible_winrm_use_http", Type: cty.Bool, Required: false},
+		"ansible_cfg":                &hcldec.AttrSpec{Name: "ansible_cfg", Type: cty.Map(cty.String), Required: false},
 	}
 	return s
 }

@@ -225,6 +225,25 @@ execution_environment = "quay.io/ansible/creator-ee:latest"
 execution_environment = "myregistry.io/ansible-ee:custom"
 ```
 
+### Automatic ansible.cfg generation (execution environments)
+
+When using execution environments, Ansible inside the container can fail if it tries to write temp files under `/.ansible/tmp` as a non-root user.
+
+This plugin supports an `ansible_cfg` option to generate a temporary `ansible.cfg` and set `ANSIBLE_CONFIG` automatically:
+
+```hcl
+provisioner "ansible-navigator" {
+  execution_environment = "quay.io/ansible/creator-ee:latest"
+
+  ansible_cfg = {
+    defaults = {
+      remote_tmp = "/tmp/.ansible/tmp"
+      local_tmp  = "/tmp/.ansible-local"
+    }
+  }
+}
+```
+
 ## 🚦 Quick Reference
 
 ### Essential Configuration Options
@@ -235,6 +254,7 @@ execution_environment = "myregistry.io/ansible-ee:custom"
 | `play` | Play block configuration (repeatable) | See [Collection Plays](docs/UNIFIED_PLAYS.md) |
 | `collections` | Collections to install | `["community.general:5.0.0"]` |
 | `execution_environment` | Container image for ansible-navigator | `"quay.io/ansible/creator-ee"` |
+| `ansible_cfg` | Generate ansible.cfg and set `ANSIBLE_CONFIG` | `{ defaults = { remote_tmp = "/tmp/.ansible/tmp" } }` |
 | `inventory_file` | Ansible inventory | `"./inventory/hosts"` |
 | `extra_arguments` | Additional ansible-navigator args | `["--extra-vars", "key=value"]` |
 
