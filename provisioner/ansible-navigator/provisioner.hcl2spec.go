@@ -19,6 +19,7 @@ type FlatConfig struct {
 	PackerUserVars          map[string]string `mapstructure:"packer_user_variables" cty:"packer_user_variables" hcl:"packer_user_variables"`
 	PackerSensitiveVars     []string          `mapstructure:"packer_sensitive_variables" cty:"packer_sensitive_variables" hcl:"packer_sensitive_variables"`
 	Command                 *string           `mapstructure:"command" cty:"command" hcl:"command"`
+	AnsibleNavigatorPath    []string          `mapstructure:"ansible_navigator_path" cty:"ansible_navigator_path" hcl:"ansible_navigator_path"`
 	NavigatorMode           *string           `mapstructure:"navigator_mode" cty:"navigator_mode" hcl:"navigator_mode"`
 	ExecutionEnvironment    *string           `mapstructure:"execution_environment" cty:"execution_environment" hcl:"execution_environment"`
 	WorkDir                 *string           `mapstructure:"work_dir" cty:"work_dir" hcl:"work_dir"`
@@ -87,6 +88,7 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"packer_user_variables":      &hcldec.AttrSpec{Name: "packer_user_variables", Type: cty.Map(cty.String), Required: false},
 		"packer_sensitive_variables": &hcldec.AttrSpec{Name: "packer_sensitive_variables", Type: cty.List(cty.String), Required: false},
 		"command":                    &hcldec.AttrSpec{Name: "command", Type: cty.String, Required: false},
+		"ansible_navigator_path":     &hcldec.AttrSpec{Name: "ansible_navigator_path", Type: cty.List(cty.String), Required: false},
 		"navigator_mode":             &hcldec.AttrSpec{Name: "navigator_mode", Type: cty.String, Required: false},
 		"execution_environment":      &hcldec.AttrSpec{Name: "execution_environment", Type: cty.String, Required: false},
 		"work_dir":                   &hcldec.AttrSpec{Name: "work_dir", Type: cty.String, Required: false},

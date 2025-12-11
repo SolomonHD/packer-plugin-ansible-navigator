@@ -1,12 +1,13 @@
 <!-- Code generated from the comments of the Config struct in provisioner/ansible-navigator-local/provisioner.go; DO NOT EDIT MANUALLY -->
 
-- `command` (string) - The command to invoke ansible. Defaults to
-   `ansible-playbook`. If you would like to provide a more complex command,
-   for example, something that sets up a virtual environment before calling
-   ansible, take a look at the ansible wrapper guide [here](/packer/integrations/hashicorp/ansible/latest/components/provisioner/ansible#using-a-wrapping-script-for-your-ansible-call) for inspiration.
-   Please note that Packer expects Command to be a path to an executable.
-   Arbitrary bash scripting will not work and needs to go inside an
-   executable script.
+- `command` (string) - The command to invoke ansible-navigator. Defaults to `ansible-navigator`.
+  This must be the executable name or path only, without additional arguments.
+  Use extra_arguments or play-level options for additional flags.
+  Examples: "ansible-navigator", "/usr/local/bin/ansible-navigator", "~/bin/ansible-navigator"
+
+- `ansible_navigator_path` ([]string) - Additional directories to prepend to PATH when locating and running ansible-navigator on the target.
+  Entries are HOME-expanded locally and prepended to PATH in the remote shell command.
+  Example: ["~/bin", "/opt/ansible/bin"]
 
 - `extra_arguments` ([]string) - Extra arguments to pass to Ansible.
   These arguments _will not_ be passed through a shell and arguments should
