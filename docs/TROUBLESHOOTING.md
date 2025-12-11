@@ -594,6 +594,40 @@ provisioner "ansible-navigator" {
 }
 ```
 
+## WSL2 and Containers
+
+### Connection Hangs in WSL2
+
+**Symptoms:**
+
+- Packer hangs indefinitely during the Ansible run
+- No output is shown after "Executing Ansible Navigator..."
+- Debug logs show SSH connection timeouts
+
+**Cause:**
+
+When running in WSL2 or other containerized environments, the default SSH proxy binds to `127.0.0.1`. This makes it unreachable from the execution environment container because `127.0.0.1` inside the container refers to the container itself, not the host where Packer is running.
+
+**Solution:**
+
+Configure the proxy to bind to all interfaces and tell the container how to reach the host:
+
+```hcl
+provisioner "ansible-navigator" {
+  # Allow connections from outside localhost
+  ansible_proxy_bind_address = "0.0.0.0"
+  
+  # Tell the container to connect to the host
+  # For WSL2/Docker Desktop:
+  ansible_proxy_host = "host.docker.internal"
+  
+  # For Podman:
+  # ansible_proxy_host = "host.containers.internal"
+}
+```
+
+**Note:** Ensure your firewall allows connections on the random ports used by the SSH proxy.
+
 ## Connection Problems
 
 ### SSH Connection Failed

@@ -238,6 +238,14 @@ type Config struct {
 	// NOTE: using RSA may cause problems if the key is used to authenticate with rsa-sha1
 	// as modern OpenSSH versions reject this by default as it is unsafe.
 	AdapterKeyType string `mapstructure:"ansible_proxy_key_type"`
+	// The IP address the SSH proxy should bind to.
+	// Defaults to "127.0.0.1". Set to "0.0.0.0" to allow external connections
+	// (e.g. from a container).
+	AnsibleProxyBindAddress string `mapstructure:"ansible_proxy_bind_address"`
+	// The host address the container should use to connect back to the proxy.
+	// Defaults to "127.0.0.1". For WSL2/containers, this might be "host.docker.internal"
+	// or "host.containers.internal".
+	AnsibleProxyHost string `mapstructure:"ansible_proxy_host"`
 	// The command to run on the machine being
 	//  provisioned by Packer to handle the SFTP protocol that Ansible will use to
 	//  transfer files. The command should read and write on stdin and stdout,
@@ -611,6 +619,9 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 		p.config.AnsibleEnvVars = append(p.config.AnsibleEnvVars, "ANSIBLE_SCP_IF_SSH=True")
 	}
 
+	// Force unbuffered Python output to ensure logs stream immediately
+	p.config.AnsibleEnvVars = append(p.config.AnsibleEnvVars, "PYTHONUNBUFFERED=1")
+
 	if !p.config.SkipVersionCheck {
 		err = p.getVersion()
 		if err != nil {
@@ -645,6 +656,13 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 		p.config.AdapterKeyType = "ECDSA"
 	}
 	p.config.AdapterKeyType = strings.ToUpper(p.config.AdapterKeyType)
+
+	if p.config.AnsibleProxyBindAddress == "" {
+		p.config.AnsibleProxyBindAddress = "127.0.0.1"
+	}
+	if p.config.AnsibleProxyHost == "" {
+		p.config.AnsibleProxyHost = "127.0.0.1"
+	}
 
 	if p.config.WinRMUseHTTP {
 		addWinRMScheme := true
@@ -777,7 +795,7 @@ func (p *Provisioner) setupAdapter(ui packersdk.Ui, comm packersdk.Communicator)
 			tries = 10
 		}
 		for i := 0; i < tries; i++ {
-			l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+			l, err := net.Listen("tcp", fmt.Sprintf("%s:%d", p.config.AnsibleProxyBindAddress, port))
 			port++
 			if err != nil {
 				ui.Say(err.Error())
@@ -840,7 +858,7 @@ func (p *Provisioner) createInventoryFile() error {
 	ctxData["HostAlias"] = p.config.HostAlias
 	ctxData["User"] = p.config.User
 	if !p.config.UseProxy.False() {
-		ctxData["Host"] = "127.0.0.1"
+		ctxData["Host"] = p.config.AnsibleProxyHost
 		ctxData["Port"] = p.config.LocalPort
 	}
 	p.config.ctx.Data = ctxData

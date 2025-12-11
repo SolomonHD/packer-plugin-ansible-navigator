@@ -157,6 +157,14 @@
   NOTE: using RSA may cause problems if the key is used to authenticate with rsa-sha1
   as modern OpenSSH versions reject this by default as it is unsafe.
 
+- `ansible_proxy_bind_address` (string) - The IP address the SSH proxy should bind to.
+  Defaults to "127.0.0.1". Set to "0.0.0.0" to allow external connections
+  (e.g. from a container).
+
+- `ansible_proxy_host` (string) - The host address the container should use to connect back to the proxy.
+  Defaults to "127.0.0.1". For WSL2/containers, this might be "host.docker.internal"
+  or "host.containers.internal".
+
 - `sftp_command` (string) - The command to run on the machine being
    provisioned by Packer to handle the SFTP protocol that Ansible will use to
    transfer files. The command should read and write on stdin and stdout,

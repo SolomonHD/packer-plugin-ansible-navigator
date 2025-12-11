@@ -44,6 +44,8 @@ type FlatConfig struct {
 	SSHHostKeyFile          *string           `mapstructure:"ssh_host_key_file" cty:"ssh_host_key_file" hcl:"ssh_host_key_file"`
 	SSHAuthorizedKeyFile    *string           `mapstructure:"ssh_authorized_key_file" cty:"ssh_authorized_key_file" hcl:"ssh_authorized_key_file"`
 	AdapterKeyType          *string           `mapstructure:"ansible_proxy_key_type" cty:"ansible_proxy_key_type" hcl:"ansible_proxy_key_type"`
+	AnsibleProxyBindAddress *string           `mapstructure:"ansible_proxy_bind_address" cty:"ansible_proxy_bind_address" hcl:"ansible_proxy_bind_address"`
+	AnsibleProxyHost        *string           `mapstructure:"ansible_proxy_host" cty:"ansible_proxy_host" hcl:"ansible_proxy_host"`
 	SFTPCmd                 *string           `mapstructure:"sftp_command" cty:"sftp_command" hcl:"sftp_command"`
 	SkipVersionCheck        *bool             `mapstructure:"skip_version_check" cty:"skip_version_check" hcl:"skip_version_check"`
 	VersionCheckTimeout     *string           `mapstructure:"version_check_timeout" cty:"version_check_timeout" hcl:"version_check_timeout"`
@@ -114,6 +116,8 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"ssh_host_key_file":          &hcldec.AttrSpec{Name: "ssh_host_key_file", Type: cty.String, Required: false},
 		"ssh_authorized_key_file":    &hcldec.AttrSpec{Name: "ssh_authorized_key_file", Type: cty.String, Required: false},
 		"ansible_proxy_key_type":     &hcldec.AttrSpec{Name: "ansible_proxy_key_type", Type: cty.String, Required: false},
+		"ansible_proxy_bind_address": &hcldec.AttrSpec{Name: "ansible_proxy_bind_address", Type: cty.String, Required: false},
+		"ansible_proxy_host":         &hcldec.AttrSpec{Name: "ansible_proxy_host", Type: cty.String, Required: false},
 		"sftp_command":               &hcldec.AttrSpec{Name: "sftp_command", Type: cty.String, Required: false},
 		"skip_version_check":         &hcldec.AttrSpec{Name: "skip_version_check", Type: cty.Bool, Required: false},
 		"version_check_timeout":      &hcldec.AttrSpec{Name: "version_check_timeout", Type: cty.String, Required: false},
