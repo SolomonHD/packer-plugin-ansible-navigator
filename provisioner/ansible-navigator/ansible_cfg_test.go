@@ -85,8 +85,8 @@ func TestConfigValidate_AnsibleCfgEmptyMapErrors(t *testing.T) {
 	defer os.Remove(playbookFile.Name())
 
 	cfg := &Config{
-		PlaybookFile: playbookFile.Name(),
-		AnsibleCfg:   map[string]map[string]string{},
+		Plays:      []Play{{Target: playbookFile.Name()}},
+		AnsibleCfg: map[string]map[string]string{},
 	}
 
 	err = cfg.Validate()
@@ -103,7 +103,7 @@ func TestProvisionerPrepare_AppliesAnsibleCfgDefaultsWhenExecutionEnvironmentSet
 	require.NoError(t, err)
 	defer os.Remove(playbookFile.Name())
 
-	config["playbook_file"] = playbookFile.Name()
+	config["play"] = []map[string]interface{}{{"target": playbookFile.Name()}}
 	config["execution_environment"] = "quay.io/ansible/creator-ee:latest"
 
 	err = p.Prepare(config)
@@ -123,7 +123,7 @@ func TestProvisionerPrepare_DoesNotOverrideExplicitAnsibleCfgWhenExecutionEnviro
 	require.NoError(t, err)
 	defer os.Remove(playbookFile.Name())
 
-	config["playbook_file"] = playbookFile.Name()
+	config["play"] = []map[string]interface{}{{"target": playbookFile.Name()}}
 	config["execution_environment"] = "quay.io/ansible/creator-ee:latest"
 	config["ansible_cfg"] = map[string]interface{}{
 		"defaults": map[string]interface{}{
@@ -148,7 +148,7 @@ func TestExecutionEnvironmentDefaults_GenerateAndCreateTempFile(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(playbookFile.Name())
 
-	config["playbook_file"] = playbookFile.Name()
+	config["play"] = []map[string]interface{}{{"target": playbookFile.Name()}}
 	config["execution_environment"] = "quay.io/ansible/creator-ee:latest"
 
 	err = p.Prepare(config)
@@ -167,7 +167,7 @@ func TestExecutionEnvironmentDefaults_GenerateAndCreateTempFile(t *testing.T) {
 	require.Contains(t, string(data), "local_tmp = /tmp/.ansible-local")
 }
 
-func TestExecuteSinglePlaybook_SetsANSIBLE_CONFIGWhenProvided(t *testing.T) {
+func TestExecutePlays_SetsANSIBLE_CONFIGWhenProvided(t *testing.T) {
 	// Build a stub "ansible-navigator" that records ANSIBLE_CONFIG into OUTPUT_FILE.
 	stubDir := t.TempDir()
 	stubPath := filepath.Join(stubDir, "ansible-navigator-stub.sh")
@@ -202,7 +202,7 @@ exit 0
 	var p Provisioner
 	p.config.Command = stubPath
 	p.config.NavigatorMode = "stdout"
-	p.config.PlaybookFile = playbookFile.Name()
+	p.config.Plays = []Play{{Target: playbookFile.Name()}}
 	p.config.InventoryFile = inventoryFile.Name()
 	p.config.PackerBuilderType = "fakebuilder"
 	p.config.UseProxy = confighelper.TriTrue
@@ -211,7 +211,7 @@ exit 0
 	ui := &packersdk.BasicUi{Reader: new(bytes.Buffer), Writer: new(bytes.Buffer)}
 
 	const cfgPath = "/tmp/packer-ansible-cfg-test.ini"
-	require.NoError(t, p.executeSinglePlaybook(ui, "", commonsteps.HttpAddrNotImplemented, cfgPath))
+	require.NoError(t, p.executePlays(ui, nil, "", commonsteps.HttpAddrNotImplemented, cfgPath, ""))
 
 	got, err := os.ReadFile(outputFile)
 	require.NoError(t, err)

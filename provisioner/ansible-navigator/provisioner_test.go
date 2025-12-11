@@ -80,7 +80,7 @@ func TestProvisionerPrepare_Defaults(t *testing.T) {
 
 	config["ssh_host_key_file"] = hostkey_file.Name()
 	config["ssh_authorized_key_file"] = publickey_file.Name()
-	config["playbook_file"] = playbook_file.Name()
+	config["play"] = []map[string]interface{}{{"target": playbook_file.Name()}}
 	err = p.Prepare(config)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -128,7 +128,7 @@ func TestProvisionerPrepare_PlaybookFile(t *testing.T) {
 	}
 	defer os.Remove(playbook_file.Name())
 
-	config["playbook_file"] = playbook_file.Name()
+	config["play"] = []map[string]interface{}{{"target": playbook_file.Name()}}
 	err = p.Prepare(config)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -160,7 +160,7 @@ func TestProvisionerPrepare_HostKeyFile(t *testing.T) {
 
 	config["ssh_host_key_file"] = fmt.Sprintf("%x", filename)
 	config["ssh_authorized_key_file"] = publickey_file.Name()
-	config["playbook_file"] = playbook_file.Name()
+	config["play"] = []map[string]interface{}{{"target": playbook_file.Name()}}
 
 	err = p.Prepare(config)
 	if err == nil {
@@ -204,7 +204,7 @@ func TestProvisionerPrepare_AuthorizedKeyFile(t *testing.T) {
 	}
 
 	config["ssh_host_key_file"] = hostkey_file.Name()
-	config["playbook_file"] = playbook_file.Name()
+	config["play"] = []map[string]interface{}{{"target": playbook_file.Name()}}
 	config["ssh_authorized_key_file"] = fmt.Sprintf("%x", filename)
 
 	err = p.Prepare(config)
@@ -250,7 +250,7 @@ func TestProvisionerPrepare_LocalPort(t *testing.T) {
 
 	config["ssh_host_key_file"] = hostkey_file.Name()
 	config["ssh_authorized_key_file"] = publickey_file.Name()
-	config["playbook_file"] = playbook_file.Name()
+	config["play"] = []map[string]interface{}{{"target": playbook_file.Name()}}
 
 	config["local_port"] = 65537
 	err = p.Prepare(config)
@@ -290,7 +290,7 @@ func TestProvisionerPrepare_InventoryDirectory(t *testing.T) {
 
 	config["ssh_host_key_file"] = hostkey_file.Name()
 	config["ssh_authorized_key_file"] = publickey_file.Name()
-	config["playbook_file"] = playbook_file.Name()
+	config["play"] = []map[string]interface{}{{"target": playbook_file.Name()}}
 
 	config["inventory_directory"] = "doesnotexist"
 	err = p.Prepare(config)
@@ -820,7 +820,7 @@ func TestProvisionerPrepare_WinRMSSL(t *testing.T) {
 			config := testConfig(t)
 			defer os.Remove(config["command"].(string))
 
-			config["playbook_file"] = "test-fixtures/long-debug-message.yml"
+			config["play"] = []map[string]interface{}{{"target": "test-fixtures/long-debug-message.yml"}}
 			config["extra_arguments"] = tc.extraArgs
 
 			switch tc.winRMUseHTTP {
@@ -866,7 +866,7 @@ func TestProvisionerPrepare_ExecutionEnvironment(t *testing.T) {
 	}
 	defer os.Remove(playbook_file.Name())
 
-	config["playbook_file"] = playbook_file.Name()
+	config["play"] = []map[string]interface{}{{"target": playbook_file.Name()}}
 	config["execution_environment"] = "quay.io/ansible/creator-ee:latest"
 
 	err = p.Prepare(config)
@@ -914,7 +914,7 @@ func TestExecutionEnvironmentInArgs(t *testing.T) {
 			}
 			defer os.Remove(playbook_file.Name())
 
-			config["playbook_file"] = playbook_file.Name()
+			config["play"] = []map[string]interface{}{{"target": playbook_file.Name()}}
 			if tc.executionEnvironment != "" {
 				config["execution_environment"] = tc.executionEnvironment
 			}

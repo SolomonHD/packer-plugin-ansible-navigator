@@ -97,9 +97,6 @@
     "ansible_env_vars": [ "WINRM_PASSWORD={{.WinRMPassword}}" ],
     ```
 
-- `playbook_file` (string) - The playbook to be run by Ansible.
-  DEPRECATED: Use `play` blocks instead. Maintained for backward compatibility.
-
 - `play` ([]Play) - Repeated play blocks supporting both playbooks and role FQDNs
 
 - `requirements_file` (string) - Path to a unified requirements.yml file containing both roles and collections
@@ -170,9 +167,8 @@
    transfer files. The command should read and write on stdin and stdout,
    respectively. Defaults to `/usr/lib/sftp-server -e`.
 
-- `skip_version_check` (bool) - Check if ansible is installed prior to
-   running. Set this to `true`, for example, if you're going to install
-   ansible during the packer run.
+- `skip_version_check` (bool) - Check if ansible-navigator is installed prior to running.
+  Set this to `true`, for example, if you're going to install it during the packer run.
 
 - `version_check_timeout` (string) - Maximum time to wait for ansible-navigator version check to complete.
   Defaults to "60s". This prevents indefinite hangs when ansible-navigator
@@ -213,11 +209,6 @@
    and using "--on-error=ask" in order to leave your instance running while you
    test your playbook. this option is not used if you set an `inventory_file`.
 
-- `galaxy_file` (string) - A requirements file which provides a way to
-   install roles or collections with the [ansible-galaxy
-   cli](https://docs.ansible.com/ansible/latest/galaxy/user_guide.html#the-ansible-galaxy-command-line-tool)
-   on the local machine before executing `ansible-playbook`. By default, this is empty.
-
 - `galaxy_command` (string) - The command to invoke ansible-galaxy. By default, this is
   `ansible-galaxy`.
 
@@ -239,20 +230,8 @@
     `ansible-galaxy` command. By default, this is empty, and thus `--collections-path`
     option is not added to the command.
 
-- `collections` ([]string) - List of Ansible collections to install automatically.
-  Each entry can be a collection name with optional version (e.g., "community.general:5.11.0")
-  or a local path (e.g., "myorg.mycollection@/path/to/collection").
-
 - `collections_cache_dir` (string) - Directory to cache downloaded collections.
   Defaults to ~/.packer.d/ansible_collections_cache if not specified.
-
-- `collections_offline` (bool) - When true, skip network operations and only use locally cached collections.
-  Fails if a required collection is not present in the cache.
-
-- `collections_force_update` (bool) - When true, always reinstall collections even if they are already cached.
-
-- `collections_requirements` (string) - Path to a requirements.yml file for installing collections.
-  This is an alternative to specifying collections inline.
 
 - `use_proxy` (boolean) - When `true`, set up a localhost proxy adapter
   so that Ansible has an IP address to connect to, even if your guest does not
@@ -311,5 +290,19 @@
         pipelining = "True"
       }
     }
+
+- `navigator_config` (map[string]interface{}) - Modern declarative ansible-navigator configuration via YAML file generation.
+  Maps directly to ansible-navigator.yml schema structure.
+  Supports full ansible-navigator.yml structure including:
+    - ansible section (config overrides, playbook settings)
+    - execution-environment object (enabled, image, pull-policy, environment-variables)
+    - mode (stdout, json, yaml, interactive)
+    - All other ansible-navigator.yml options
+  When provided:
+    - Plugin generates temporary ansible-navigator.yml file
+    - Sets ANSIBLE_NAVIGATOR_CONFIG environment variable
+    - Automatically sets EE temp dir defaults when execution-environment.enabled = true
+    - Cleans up config file after execution
+  When both navigator_config and legacy options present, navigator_config takes precedence.
 
 <!-- End of code generated from the comments of the Config struct in provisioner/ansible-navigator/provisioner.go; -->

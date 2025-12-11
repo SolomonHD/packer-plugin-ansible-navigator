@@ -23,7 +23,7 @@ This plugin extends HashiCorp Packer to leverage **Ansible Navigator's** contain
 - **Packer Plugin SDK:** v0.6.4+ (automatically managed via Go modules)
 - **Ansible Navigator:** Latest version recommended (runtime dependency)
 
-## � Quick Start
+## Quick Start
 
 ### Installation
 
@@ -44,28 +44,29 @@ Run `packer init` to install the plugin automatically.
 
 ### Basic Usage
 
-#### Example 1: Simple Playbook
+#### Example 1: Simple Playbook (via `play` block)
 
 ```hcl
 provisioner "ansible-navigator" {
-  playbook_file = "site.yml"
+  play {
+    target = "site.yml"
+  }
 }
 ```
 
-#### Example 2: Using Collection Plays
+#### Example 2: Using role FQDNs + `requirements_file`
 
 ```hcl
 provisioner "ansible-navigator" {
+  # Unified requirements file for both roles + collections
+  requirements_file = "./requirements.yml"
+
   play {
     target = "community.general.docker_container"
   }
   play {
     target = "ansible.posix.firewalld"
   }
-  collections = [
-    "community.general:>=5.0.0",
-    "ansible.posix:1.5.4"
-  ]
 }
 ```
 
@@ -89,12 +90,12 @@ provisioner "ansible-navigator" {
   }
   
   # Enable structured logging for CI/CD
-  navigator_mode = "json"
+  navigator_config = {
+    mode = "json"
+  }
   structured_logging = true
   log_output_path = "./logs/deployment.json"
-  
-  # Global arguments applied to all plays
-  extra_arguments = ["--verbose"]
+  verbose_task_output = true
 }
 ```
 
@@ -112,6 +113,8 @@ build {
   sources = ["source.docker.app"]
   
   provisioner "ansible-navigator" {
+    requirements_file = "./requirements.yml"
+
     play {
       name   = "Build Container App"
       target = "containers.docker.build_app"
@@ -120,7 +123,6 @@ build {
         build_version = "${var.build_number}"
       }
     }
-    collections = ["community.docker:3.4.0"]
   }
 }
 ```
@@ -129,13 +131,20 @@ build {
 
 ```hcl
 provisioner "ansible-navigator" {
-  playbook_file = "cloud-init.yml"
-  
   # Use specific execution environment
-  execution_environment = "quay.io/ansible/creator-ee:latest"
+  navigator_config = {
+    execution-environment = {
+      enabled = true
+      image = "quay.io/ansible/creator-ee:latest"
+    }
+  }
   
   groups = ["webservers", "database"]
   inventory_file = "inventory/cloud.ini"
+
+  play {
+    target = "cloud-init.yml"
+  }
 }
 ```
 
@@ -183,25 +192,47 @@ provisioner "ansible-navigator" {
 | [📦 Installation Guide](docs/INSTALLATION.md) | All installation methods and requirements |
 | [⚙️ Configuration Reference](docs/CONFIGURATION.md) | Complete list of options and parameters |
 | [🎨 Examples Gallery](docs/EXAMPLES.md) | Real-world examples and use cases |
+| [🔄 Migration Guide](docs/MIGRATION.md) | **⚠️ Migrate from deprecated options** |
 | [🐛 Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues and solutions |
 | [📊 JSON Logging](docs/JSON_LOGGING.md) | Structured logging for automation |
 | [🎭 Collection Plays](docs/UNIFIED_PLAYS.md) | Using Ansible Collection plays |
 
 ## 🛠️ Key Features
 
-### Dual Invocation Mode
-
-Choose between traditional playbooks or modern collection plays:
+### Canonical Configuration (ordered plays + optional dependencies + optional ansible.cfg)
 
 ```hcl
-# Option A: Traditional playbook
-playbook_file = "site.yml"
+provisioner "ansible-navigator" {
+  # Optional: install roles + collections before running any plays
+  requirements_file = "./requirements.yml"
 
-# Option B: Collection plays (mutually exclusive)
-play {
-  name       = "Play Name"
-  target     = "namespace.collection.play_name"
-  extra_vars = {}  # Optional per-play variables
+  # Recommended: use navigator_config for execution environments and ansible.cfg
+  navigator_config = {
+    execution-environment = {
+      enabled = true
+      image = "quay.io/ansible/creator-ee:latest"
+    }
+    ansible = {
+      config = {
+        defaults = {
+          remote_tmp = "/tmp/.ansible/tmp"
+          local_tmp  = "/tmp/.ansible-local"
+        }
+      }
+    }
+  }
+
+  # Required: one or more ordered play blocks
+  play {
+    name   = "Base configuration"
+    target = "site.yml" # playbook path (.yml/.yaml)
+  }
+
+  play {
+    name   = "Install Docker"
+    target = "geerlingguy.docker" # role FQDN
+    become = true
+  }
 }
 ```
 
@@ -218,31 +249,87 @@ play {
 ### Execution Environments
 
 ```hcl
-# Use certified execution environments
-execution_environment = "quay.io/ansible/creator-ee:latest"
+# Recommended: Use navigator_config for execution environments
+navigator_config = {
+  execution-environment = {
+    enabled = true
+    image = "quay.io/ansible/creator-ee:latest"
+  }
+}
 
 # Or custom environments
-execution_environment = "myregistry.io/ansible-ee:custom"
+navigator_config = {
+  execution-environment = {
+    enabled = true
+    image = "myregistry.io/ansible-ee:custom"
+  }
+}
 ```
 
 ### Automatic ansible.cfg generation (execution environments)
 
 When using execution environments, Ansible inside the container can fail if it tries to write temp files under `/.ansible/tmp` as a non-root user.
 
-This plugin supports an `ansible_cfg` option to generate a temporary `ansible.cfg` and set `ANSIBLE_CONFIG` automatically:
+**Recommended approach using navigator_config:**
 
 ```hcl
 provisioner "ansible-navigator" {
-  execution_environment = "quay.io/ansible/creator-ee:latest"
-
-  ansible_cfg = {
-    defaults = {
-      remote_tmp = "/tmp/.ansible/tmp"
-      local_tmp  = "/tmp/.ansible-local"
+  navigator_config = {
+    execution-environment = {
+      enabled = true
+      image = "quay.io/ansible/creator-ee:latest"
+    }
+    ansible = {
+      config = {
+        defaults = {
+          remote_tmp = "/tmp/.ansible/tmp"
+          local_tmp  = "/tmp/.ansible-local"
+        }
+      }
     }
   }
 }
 ```
+
+> **⚠️ Deprecation Notice:** The `execution_environment` and `ansible_cfg` top-level options are deprecated. Use `navigator_config` instead. See [Migration Guide](docs/MIGRATION.md) for details.
+
+### Modern Navigator Configuration (navigator_config)
+
+For advanced users, the `navigator_config` option provides direct control over ansible-navigator settings via a generated `ansible-navigator.yml` file. This is the recommended approach for ansible-navigator v3+ and provides the most reliable configuration experience:
+
+```hcl
+provisioner "ansible-navigator" {
+  navigator_config = {
+    mode = "stdout"
+    execution-environment = {
+      enabled = true
+      image = "quay.io/ansible/creator-ee:latest"
+      pull-policy = "missing"
+    }
+    ansible = {
+      config = {
+        defaults = {
+          remote_tmp = "/tmp/.ansible/tmp"
+          host_key_checking = "False"
+        }
+      }
+    }
+  }
+  
+  play {
+    target = "site.yml"
+  }
+}
+```
+
+**Key benefits of navigator_config:**
+
+- Aligns with ansible-navigator v3+ best practices
+- Reliably controls execution environment behavior  
+- Automatically sets safe defaults for EE temp directories when `execution-environment.enabled = true`
+- Single source of truth for ansible-navigator settings
+
+**Precedence:** When both `navigator_config` and legacy options (like `execution_environment`, `navigator_mode`) are present, `navigator_config` takes precedence.
 
 ## 🚦 Quick Reference
 
@@ -250,9 +337,9 @@ provisioner "ansible-navigator" {
 
 | Option | Description | Example |
 |--------|-------------|---------|
-| `playbook_file` | Path to Ansible playbook | `"site.yml"` |
 | `play` | Play block configuration (repeatable) | See [Collection Plays](docs/UNIFIED_PLAYS.md) |
-| `collections` | Collections to install | `["community.general:5.0.0"]` |
+| `requirements_file` | Install roles + collections from a unified requirements file | `"./requirements.yml"` |
+| `navigator_config` | Modern declarative ansible-navigator.yml configuration (recommended for v3+) | See example above |
 | `execution_environment` | Container image for ansible-navigator | `"quay.io/ansible/creator-ee"` |
 | `ansible_cfg` | Generate ansible.cfg and set `ANSIBLE_CONFIG` | `{ defaults = { remote_tmp = "/tmp/.ansible/tmp" } }` |
 | `inventory_file` | Ansible inventory | `"./inventory/hosts"` |

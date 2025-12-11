@@ -10,53 +10,35 @@ import (
 // FlatConfig is an auto-generated flat version of Config.
 // Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
 type FlatConfig struct {
-	PackerBuildName        *string                      `mapstructure:"packer_build_name" cty:"packer_build_name" hcl:"packer_build_name"`
-	PackerBuilderType      *string                      `mapstructure:"packer_builder_type" cty:"packer_builder_type" hcl:"packer_builder_type"`
-	PackerCoreVersion      *string                      `mapstructure:"packer_core_version" cty:"packer_core_version" hcl:"packer_core_version"`
-	PackerDebug            *bool                        `mapstructure:"packer_debug" cty:"packer_debug" hcl:"packer_debug"`
-	PackerForce            *bool                        `mapstructure:"packer_force" cty:"packer_force" hcl:"packer_force"`
-	PackerOnError          *string                      `mapstructure:"packer_on_error" cty:"packer_on_error" hcl:"packer_on_error"`
-	PackerUserVars         map[string]string            `mapstructure:"packer_user_variables" cty:"packer_user_variables" hcl:"packer_user_variables"`
-	PackerSensitiveVars    []string                     `mapstructure:"packer_sensitive_variables" cty:"packer_sensitive_variables" hcl:"packer_sensitive_variables"`
-	Command                *string                      `mapstructure:"command" cty:"command" hcl:"command"`
-	AnsibleNavigatorPath   []string                     `mapstructure:"ansible_navigator_path" cty:"ansible_navigator_path" hcl:"ansible_navigator_path"`
-	ExtraArguments         []string                     `mapstructure:"extra_arguments" cty:"extra_arguments" hcl:"extra_arguments"`
-	GroupVars              *string                      `mapstructure:"group_vars" cty:"group_vars" hcl:"group_vars"`
-	HostVars               *string                      `mapstructure:"host_vars" cty:"host_vars" hcl:"host_vars"`
-	PlaybookDir            *string                      `mapstructure:"playbook_dir" cty:"playbook_dir" hcl:"playbook_dir"`
-	PlaybookFile           *string                      `mapstructure:"playbook_file" cty:"playbook_file" hcl:"playbook_file"`
-	PlaybookFiles          []string                     `mapstructure:"playbook_files" cty:"playbook_files" hcl:"playbook_files"`
-	PlaybookPaths          []string                     `mapstructure:"playbook_paths" cty:"playbook_paths" hcl:"playbook_paths"`
-	RolePaths              []string                     `mapstructure:"role_paths" cty:"role_paths" hcl:"role_paths"`
-	CollectionPaths        []string                     `mapstructure:"collection_paths" cty:"collection_paths" hcl:"collection_paths"`
-	StagingDir             *string                      `mapstructure:"staging_directory" cty:"staging_directory" hcl:"staging_directory"`
-	CleanStagingDir        *bool                        `mapstructure:"clean_staging_directory" cty:"clean_staging_directory" hcl:"clean_staging_directory"`
-	InventoryFile          *string                      `mapstructure:"inventory_file" cty:"inventory_file" hcl:"inventory_file"`
-	InventoryGroups        []string                     `mapstructure:"inventory_groups" cty:"inventory_groups" hcl:"inventory_groups"`
-	GalaxyFile             *string                      `mapstructure:"galaxy_file" cty:"galaxy_file" hcl:"galaxy_file"`
-	GalaxyCommand          *string                      `mapstructure:"galaxy_command" cty:"galaxy_command" hcl:"galaxy_command"`
-	VersionCheckTimeout    *string                      `mapstructure:"version_check_timeout" cty:"version_check_timeout" hcl:"version_check_timeout"`
-	GalaxyForceInstall     *bool                        `mapstructure:"galaxy_force_install" cty:"galaxy_force_install" hcl:"galaxy_force_install"`
-	GalaxyRolesPath        *string                      `mapstructure:"galaxy_roles_path" cty:"galaxy_roles_path" hcl:"galaxy_roles_path"`
-	GalaxyCollectionsPath  *string                      `mapstructure:"galaxy_collections_path" cty:"galaxy_collections_path" hcl:"galaxy_collections_path"`
-	NavigatorMode          *string                      `mapstructure:"navigator_mode" cty:"navigator_mode" hcl:"navigator_mode"`
-	ExecutionEnvironment   *string                      `mapstructure:"execution_environment" cty:"execution_environment" hcl:"execution_environment"`
-	WorkDir                *string                      `mapstructure:"work_dir" cty:"work_dir" hcl:"work_dir"`
-	KeepGoing              *bool                        `mapstructure:"keep_going" cty:"keep_going" hcl:"keep_going"`
-	StructuredLogging      *bool                        `mapstructure:"structured_logging" cty:"structured_logging" hcl:"structured_logging"`
-	LogOutputPath          *string                      `mapstructure:"log_output_path" cty:"log_output_path" hcl:"log_output_path"`
-	VerboseTaskOutput      *bool                        `mapstructure:"verbose_task_output" cty:"verbose_task_output" hcl:"verbose_task_output"`
-	Plays                  []FlatPlay                   `mapstructure:"play" cty:"play" hcl:"play"`
-	RequirementsFile       *string                      `mapstructure:"requirements_file" cty:"requirements_file" hcl:"requirements_file"`
-	Collections            []string                     `mapstructure:"collections" cty:"collections" hcl:"collections"`
-	CollectionsCacheDir    *string                      `mapstructure:"collections_cache_dir" cty:"collections_cache_dir" hcl:"collections_cache_dir"`
-	CollectionsOffline     *bool                        `mapstructure:"collections_offline" cty:"collections_offline" hcl:"collections_offline"`
-	CollectionsForceUpdate *bool                        `mapstructure:"collections_force_update" cty:"collections_force_update" hcl:"collections_force_update"`
-	Groups                 []string                     `mapstructure:"groups" cty:"groups" hcl:"groups"`
-	RolesCacheDir          *string                      `mapstructure:"roles_cache_dir" cty:"roles_cache_dir" hcl:"roles_cache_dir"`
-	OfflineMode            *bool                        `mapstructure:"offline_mode" cty:"offline_mode" hcl:"offline_mode"`
-	ForceUpdate            *bool                        `mapstructure:"force_update" cty:"force_update" hcl:"force_update"`
-	AnsibleCfg             map[string]map[string]string `mapstructure:"ansible_cfg" cty:"ansible_cfg" hcl:"ansible_cfg"`
+	PackerBuildName      *string                      `mapstructure:"packer_build_name" cty:"packer_build_name" hcl:"packer_build_name"`
+	PackerBuilderType    *string                      `mapstructure:"packer_builder_type" cty:"packer_builder_type" hcl:"packer_builder_type"`
+	PackerCoreVersion    *string                      `mapstructure:"packer_core_version" cty:"packer_core_version" hcl:"packer_core_version"`
+	PackerDebug          *bool                        `mapstructure:"packer_debug" cty:"packer_debug" hcl:"packer_debug"`
+	PackerForce          *bool                        `mapstructure:"packer_force" cty:"packer_force" hcl:"packer_force"`
+	PackerOnError        *string                      `mapstructure:"packer_on_error" cty:"packer_on_error" hcl:"packer_on_error"`
+	PackerUserVars       map[string]string            `mapstructure:"packer_user_variables" cty:"packer_user_variables" hcl:"packer_user_variables"`
+	PackerSensitiveVars  []string                     `mapstructure:"packer_sensitive_variables" cty:"packer_sensitive_variables" hcl:"packer_sensitive_variables"`
+	Command              *string                      `mapstructure:"command" cty:"command" hcl:"command"`
+	AnsibleNavigatorPath []string                     `mapstructure:"ansible_navigator_path" cty:"ansible_navigator_path" hcl:"ansible_navigator_path"`
+	ExtraArguments       []string                     `mapstructure:"extra_arguments" cty:"extra_arguments" hcl:"extra_arguments"`
+	GalaxyCommand        *string                      `mapstructure:"galaxy_command" cty:"galaxy_command" hcl:"galaxy_command"`
+	VersionCheckTimeout  *string                      `mapstructure:"version_check_timeout" cty:"version_check_timeout" hcl:"version_check_timeout"`
+	GalaxyForceInstall   *bool                        `mapstructure:"galaxy_force_install" cty:"galaxy_force_install" hcl:"galaxy_force_install"`
+	NavigatorMode        *string                      `mapstructure:"navigator_mode" cty:"navigator_mode" hcl:"navigator_mode"`
+	ExecutionEnvironment *string                      `mapstructure:"execution_environment" cty:"execution_environment" hcl:"execution_environment"`
+	WorkDir              *string                      `mapstructure:"work_dir" cty:"work_dir" hcl:"work_dir"`
+	KeepGoing            *bool                        `mapstructure:"keep_going" cty:"keep_going" hcl:"keep_going"`
+	StructuredLogging    *bool                        `mapstructure:"structured_logging" cty:"structured_logging" hcl:"structured_logging"`
+	LogOutputPath        *string                      `mapstructure:"log_output_path" cty:"log_output_path" hcl:"log_output_path"`
+	VerboseTaskOutput    *bool                        `mapstructure:"verbose_task_output" cty:"verbose_task_output" hcl:"verbose_task_output"`
+	Plays                []FlatPlay                   `mapstructure:"play" cty:"play" hcl:"play"`
+	RequirementsFile     *string                      `mapstructure:"requirements_file" cty:"requirements_file" hcl:"requirements_file"`
+	CollectionsCacheDir  *string                      `mapstructure:"collections_cache_dir" cty:"collections_cache_dir" hcl:"collections_cache_dir"`
+	RolesCacheDir        *string                      `mapstructure:"roles_cache_dir" cty:"roles_cache_dir" hcl:"roles_cache_dir"`
+	OfflineMode          *bool                        `mapstructure:"offline_mode" cty:"offline_mode" hcl:"offline_mode"`
+	ForceUpdate          *bool                        `mapstructure:"force_update" cty:"force_update" hcl:"force_update"`
+	AnsibleCfg           map[string]map[string]string `mapstructure:"ansible_cfg" cty:"ansible_cfg" hcl:"ansible_cfg"`
+	NavigatorConfig      map[string]interface{}       `mapstructure:"navigator_config" cty:"navigator_config" hcl:"navigator_config"`
 }
 
 // FlatMapstructure returns a new FlatConfig.
@@ -82,24 +64,9 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"command":                    &hcldec.AttrSpec{Name: "command", Type: cty.String, Required: false},
 		"ansible_navigator_path":     &hcldec.AttrSpec{Name: "ansible_navigator_path", Type: cty.List(cty.String), Required: false},
 		"extra_arguments":            &hcldec.AttrSpec{Name: "extra_arguments", Type: cty.List(cty.String), Required: false},
-		"group_vars":                 &hcldec.AttrSpec{Name: "group_vars", Type: cty.String, Required: false},
-		"host_vars":                  &hcldec.AttrSpec{Name: "host_vars", Type: cty.String, Required: false},
-		"playbook_dir":               &hcldec.AttrSpec{Name: "playbook_dir", Type: cty.String, Required: false},
-		"playbook_file":              &hcldec.AttrSpec{Name: "playbook_file", Type: cty.String, Required: false},
-		"playbook_files":             &hcldec.AttrSpec{Name: "playbook_files", Type: cty.List(cty.String), Required: false},
-		"playbook_paths":             &hcldec.AttrSpec{Name: "playbook_paths", Type: cty.List(cty.String), Required: false},
-		"role_paths":                 &hcldec.AttrSpec{Name: "role_paths", Type: cty.List(cty.String), Required: false},
-		"collection_paths":           &hcldec.AttrSpec{Name: "collection_paths", Type: cty.List(cty.String), Required: false},
-		"staging_directory":          &hcldec.AttrSpec{Name: "staging_directory", Type: cty.String, Required: false},
-		"clean_staging_directory":    &hcldec.AttrSpec{Name: "clean_staging_directory", Type: cty.Bool, Required: false},
-		"inventory_file":             &hcldec.AttrSpec{Name: "inventory_file", Type: cty.String, Required: false},
-		"inventory_groups":           &hcldec.AttrSpec{Name: "inventory_groups", Type: cty.List(cty.String), Required: false},
-		"galaxy_file":                &hcldec.AttrSpec{Name: "galaxy_file", Type: cty.String, Required: false},
 		"galaxy_command":             &hcldec.AttrSpec{Name: "galaxy_command", Type: cty.String, Required: false},
 		"version_check_timeout":      &hcldec.AttrSpec{Name: "version_check_timeout", Type: cty.String, Required: false},
 		"galaxy_force_install":       &hcldec.AttrSpec{Name: "galaxy_force_install", Type: cty.Bool, Required: false},
-		"galaxy_roles_path":          &hcldec.AttrSpec{Name: "galaxy_roles_path", Type: cty.String, Required: false},
-		"galaxy_collections_path":    &hcldec.AttrSpec{Name: "galaxy_collections_path", Type: cty.String, Required: false},
 		"navigator_mode":             &hcldec.AttrSpec{Name: "navigator_mode", Type: cty.String, Required: false},
 		"execution_environment":      &hcldec.AttrSpec{Name: "execution_environment", Type: cty.String, Required: false},
 		"work_dir":                   &hcldec.AttrSpec{Name: "work_dir", Type: cty.String, Required: false},
@@ -109,15 +76,12 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"verbose_task_output":        &hcldec.AttrSpec{Name: "verbose_task_output", Type: cty.Bool, Required: false},
 		"play":                       &hcldec.BlockListSpec{TypeName: "play", Nested: hcldec.ObjectSpec((*FlatPlay)(nil).HCL2Spec())},
 		"requirements_file":          &hcldec.AttrSpec{Name: "requirements_file", Type: cty.String, Required: false},
-		"collections":                &hcldec.AttrSpec{Name: "collections", Type: cty.List(cty.String), Required: false},
 		"collections_cache_dir":      &hcldec.AttrSpec{Name: "collections_cache_dir", Type: cty.String, Required: false},
-		"collections_offline":        &hcldec.AttrSpec{Name: "collections_offline", Type: cty.Bool, Required: false},
-		"collections_force_update":   &hcldec.AttrSpec{Name: "collections_force_update", Type: cty.Bool, Required: false},
-		"groups":                     &hcldec.AttrSpec{Name: "groups", Type: cty.List(cty.String), Required: false},
 		"roles_cache_dir":            &hcldec.AttrSpec{Name: "roles_cache_dir", Type: cty.String, Required: false},
 		"offline_mode":               &hcldec.AttrSpec{Name: "offline_mode", Type: cty.Bool, Required: false},
 		"force_update":               &hcldec.AttrSpec{Name: "force_update", Type: cty.Bool, Required: false},
 		"ansible_cfg":                &hcldec.AttrSpec{Name: "ansible_cfg", Type: cty.Map(cty.String), Required: false},
+		"navigator_config":           &hcldec.AttrSpec{Name: "navigator_config", Type: cty.Map(cty.String), Required: false},
 	}
 	return s
 }
