@@ -3,7 +3,7 @@
 // You may obtain a copy of the License at
 // http://www.apache.org/licenses/LICENSE-2.0
 
-//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play
+//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play,PathEntry
 //go:generate packer-sdc struct-markdown
 
 package ansiblenavigator
@@ -80,14 +80,15 @@ type Play struct {
 type Config struct {
 	common.PackerConfig `mapstructure:",squash"`
 	ctx                 interpolate.Context
-	// The command to invoke ansible. Defaults to
-	//  `ansible-navigator run`. If you would like to provide a more complex command,
-	//  for example, something that sets up a virtual environment before calling
-	//  ansible, take a look at the ansible wrapper guide [here](#using-a-wrapping-script-for-your-ansible-call) for inspiration.
-	//  Please note that Packer expects Command to be a path to an executable.
-	//  Arbitrary bash scripting will not work and needs to go inside an
-	//  executable script.
+	// The command to invoke ansible-navigator. Defaults to `ansible-navigator`.
+	// This must be the executable name or path only, without additional arguments.
+	// Use extra_arguments or play-level options for additional flags.
+	// Examples: "ansible-navigator", "/usr/local/bin/ansible-navigator", "~/bin/ansible-navigator"
 	Command string `mapstructure:"command"`
+	// Additional directories to prepend to PATH when locating and running ansible-navigator.
+	// Entries are HOME-expanded and prepended to PATH during version checks and execution.
+	// Example: ["~/bin", "/opt/ansible/bin"]
+	AnsibleNavigatorPath []string `mapstructure:"ansible_navigator_path"`
 	// Execution mode for ansible-navigator. Valid values: stdout, json, yaml, interactive.
 	// Defaults to "stdout" for non-interactive environments (Packer-safe).
 	// When set to "interactive" without a TTY, it automatically switches to "stdout".
@@ -359,6 +360,13 @@ type Config struct {
 func (c *Config) Validate() error {
 	var errs *packersdk.MultiError
 
+	// Validate command contains no whitespace (must be executable only)
+	if c.Command != "" && strings.ContainsAny(c.Command, " \t\n\r") {
+		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+			"command must be only the executable name or path (no arguments). "+
+				"Found whitespace in: %q. Use extra_arguments or play-level options for additional flags", c.Command))
+	}
+
 	// Validate navigator mode
 	validModes := map[string]bool{
 		"stdout":      true,
@@ -497,7 +505,37 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 
 	// Defaults
 	if p.config.Command == "" {
-		p.config.Command = "ansible-navigator run"
+		p.config.Command = "ansible-navigator"
+	}
+
+	// Apply HOME expansion to command if it looks like a path
+	p.config.Command = expandUserPath(p.config.Command)
+
+	// Apply HOME expansion to ansible_navigator_path entries
+	for i, path := range p.config.AnsibleNavigatorPath {
+		p.config.AnsibleNavigatorPath[i] = expandUserPath(path)
+	}
+
+	// Apply HOME expansion to path-like configuration fields
+	p.config.PlaybookFile = expandUserPath(p.config.PlaybookFile)
+	p.config.InventoryFile = expandUserPath(p.config.InventoryFile)
+	p.config.InventoryDirectory = expandUserPath(p.config.InventoryDirectory)
+	p.config.GalaxyFile = expandUserPath(p.config.GalaxyFile)
+	p.config.RequirementsFile = expandUserPath(p.config.RequirementsFile)
+	p.config.SSHHostKeyFile = expandUserPath(p.config.SSHHostKeyFile)
+	p.config.SSHAuthorizedKeyFile = expandUserPath(p.config.SSHAuthorizedKeyFile)
+	p.config.RolesPath = expandUserPath(p.config.RolesPath)
+	p.config.CollectionsPath = expandUserPath(p.config.CollectionsPath)
+	p.config.CollectionsCacheDir = expandUserPath(p.config.CollectionsCacheDir)
+	p.config.RolesCacheDir = expandUserPath(p.config.RolesCacheDir)
+	p.config.WorkDir = expandUserPath(p.config.WorkDir)
+
+	// Apply HOME expansion to plays
+	for i := range p.config.Plays {
+		p.config.Plays[i].Target = expandUserPath(p.config.Plays[i].Target)
+		for j := range p.config.Plays[i].VarsFiles {
+			p.config.Plays[i].VarsFiles[j] = expandUserPath(p.config.Plays[i].VarsFiles[j])
+		}
 	}
 
 	if p.config.GalaxyCommand == "" {
@@ -610,18 +648,20 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 }
 
 func (p *Provisioner) getVersion() error {
-	// Check if ansible-navigator is available
-	command := "ansible-navigator"
-	if strings.Contains(p.config.Command, "ansible-navigator") {
-		command = "ansible-navigator"
-	} else {
-		command = p.config.Command
+	// Use the configured command (defaults to "ansible-navigator")
+	command := p.config.Command
+
+	// Create command with modified PATH if ansible_navigator_path is set
+	cmd := exec.Command(command, "--version")
+	if len(p.config.AnsibleNavigatorPath) > 0 {
+		cmd.Env = buildEnvWithPath(p.config.AnsibleNavigatorPath)
 	}
 
-	out, err := exec.Command(command, "--version").Output()
+	out, err := cmd.Output()
 	if err != nil {
 		return fmt.Errorf(
-			"Error: ansible-navigator not found in PATH. Please install it before running this provisioner: %s", err.Error())
+			"Error: ansible-navigator not found in PATH. Please install it before running this provisioner. "+
+				"You can use ansible_navigator_path to specify additional directories: %s", err.Error())
 	}
 
 	versionRe := regexp.MustCompile(`\w (\d+\.\d+[.\d+]*)`)
@@ -1136,9 +1176,16 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 			args = append([]string{"--execution-environment", p.config.ExecutionEnvironment}, args...)
 		}
 
-		// Execute the play
-		cmd := exec.Command(p.config.Command, args...)
-		cmd.Env = os.Environ()
+		// Execute the play - prepend "run" as first argument
+		cmdArgs := append([]string{"run"}, args...)
+		cmd := exec.Command(p.config.Command, cmdArgs...)
+
+		// Set environment with modified PATH if needed
+		if len(p.config.AnsibleNavigatorPath) > 0 {
+			cmd.Env = buildEnvWithPath(p.config.AnsibleNavigatorPath)
+		} else {
+			cmd.Env = os.Environ()
+		}
 		if len(envvars) > 0 {
 			cmd.Env = append(cmd.Env, envvars...)
 		}
@@ -1190,9 +1237,16 @@ func (p *Provisioner) executeSinglePlaybook(ui packersdk.Ui, privKeyFile string,
 		args = append([]string{"--execution-environment", p.config.ExecutionEnvironment}, args...)
 	}
 
-	cmd := exec.Command(p.config.Command, args...)
+	// Prepend "run" as first argument
+	cmdArgs := append([]string{"run"}, args...)
+	cmd := exec.Command(p.config.Command, cmdArgs...)
 
-	cmd.Env = os.Environ()
+	// Set environment with modified PATH if needed
+	if len(p.config.AnsibleNavigatorPath) > 0 {
+		cmd.Env = buildEnvWithPath(p.config.AnsibleNavigatorPath)
+	} else {
+		cmd.Env = os.Environ()
+	}
 	if len(envvars) > 0 {
 		cmd.Env = append(cmd.Env, envvars...)
 	}
@@ -1533,6 +1587,86 @@ func newSigner(privKeyFile string, keyType string) (*signer, error) {
 	}
 
 	return signer, nil
+}
+
+// expandUserPath expands HOME-relative paths on the local side.
+// It handles:
+// - "~" -> $HOME
+// - "~/subdir" -> $HOME/subdir
+// - "~user/..." -> unchanged (no multi-user home resolution)
+// - Other paths -> unchanged
+func expandUserPath(path string) string {
+	if path == "" {
+		return path
+	}
+
+	// Only expand if it starts with ~
+	if !strings.HasPrefix(path, "~") {
+		return path
+	}
+
+	// Don't expand ~user/ patterns (multi-user home directories)
+	if len(path) > 1 && path[1] != '/' && path[1] != filepath.Separator {
+		return path
+	}
+
+	// Get HOME directory
+	home, err := os.UserHomeDir()
+	if err != nil {
+		// If we can't get HOME, return the path unchanged
+		return path
+	}
+
+	// Handle bare "~"
+	if path == "~" {
+		return home
+	}
+
+	// Handle "~/..." pattern
+	if strings.HasPrefix(path, "~/") || strings.HasPrefix(path, "~"+string(filepath.Separator)) {
+		return filepath.Join(home, path[2:])
+	}
+
+	// Shouldn't reach here, but return unchanged if we do
+	return path
+}
+
+// buildEnvWithPath constructs an environment with modified PATH prepending ansible_navigator_path entries
+func buildEnvWithPath(ansibleNavigatorPath []string) []string {
+	env := os.Environ()
+	if len(ansibleNavigatorPath) == 0 {
+		return env
+	}
+
+	// Get current PATH
+	currentPath := os.Getenv("PATH")
+
+	// Build new PATH with ansible_navigator_path entries prepended
+	pathEntries := make([]string, 0, len(ansibleNavigatorPath)+1)
+	for _, entry := range ansibleNavigatorPath {
+		// Each entry is already HOME-expanded in Prepare()
+		pathEntries = append(pathEntries, entry)
+	}
+	if currentPath != "" {
+		pathEntries = append(pathEntries, currentPath)
+	}
+
+	newPath := strings.Join(pathEntries, string(os.PathListSeparator))
+
+	// Replace or add PATH in environment
+	pathSet := false
+	for i, envVar := range env {
+		if strings.HasPrefix(envVar, "PATH=") {
+			env[i] = "PATH=" + newPath
+			pathSet = true
+			break
+		}
+	}
+	if !pathSet {
+		env = append(env, "PATH="+newPath)
+	}
+
+	return env
 }
 
 // checkArg Evaluates if argname is in args

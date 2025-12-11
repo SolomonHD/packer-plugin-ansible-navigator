@@ -241,7 +241,7 @@ func TestPlaybookVsRoleDetection(t *testing.T) {
 
 func TestDefaultCacheDirectories(t *testing.T) {
 	p := &Provisioner{}
-	p.config.Command = "ansible-navigator run"
+	p.config.Command = "ansible-navigator"
 	p.config.GalaxyCommand = "ansible-galaxy"
 	p.config.HostAlias = "default"
 	p.config.User = "testuser"

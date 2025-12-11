@@ -385,8 +385,8 @@ func TestPrepare_Defaults(t *testing.T) {
 	}
 
 	// Check defaults
-	if p.config.Command != "ansible-navigator run" {
-		t.Errorf("Command = %v, want %v", p.config.Command, "ansible-navigator run")
+	if p.config.Command != "ansible-navigator" {
+		t.Errorf("Command = %v, want %v", p.config.Command, "ansible-navigator")
 	}
 
 	if p.config.GalaxyCommand != "ansible-galaxy" {

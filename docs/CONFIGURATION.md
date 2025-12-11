@@ -440,16 +440,78 @@ provisioner "ansible-navigator" {
 
 ### command
 
-**Type:** `string`  
-**Default:** `ansible-navigator run`
+**Type:** `string`
+**Default:** `ansible-navigator`
 
-Override the ansible-navigator command.
+Override the ansible-navigator executable path or name.
+
+**Important:** This field accepts only the executable name or path, without additional arguments. The `run` subcommand is automatically added. Use `extra_arguments` for additional flags.
 
 ```hcl
 provisioner "ansible-navigator" {
-  command = "/custom/path/ansible-navigator run"
+  # Use custom executable path
+  command = "/custom/path/ansible-navigator"
+  
+  # Or use HOME-relative path
+  command = "~/bin/ansible-navigator"
 }
 ```
+
+**Invalid (will cause validation error):**
+
+```hcl
+provisioner "ansible-navigator" {
+  command = "ansible-navigator run"  # ❌ Arguments not allowed
+  command = "ansible-navigator --mode json"  # ❌ Flags not allowed
+}
+```
+
+**Migration from older versions:** If you previously had `command = "ansible-navigator run"`, change it to:
+
+```hcl
+command = "ansible-navigator"  # run is now added automatically
+```
+
+### ansible_navigator_path
+
+**Type:** `[]string`
+**Default:** `[]` (uses system PATH)
+
+Additional directories to prepend to PATH when locating and running ansible-navigator. Useful when ansible-navigator is installed in a non-standard location.
+
+All paths support HOME expansion (`~` becomes your home directory).
+
+```hcl
+provisioner "ansible-navigator" {
+  ansible_navigator_path = [
+    "~/bin",                    # Expands to /home/user/bin
+    "/opt/ansible/bin",         # Absolute path
+    "~/.local/bin"              # Expands to /home/user/.local/bin
+  ]
+}
+```
+
+**Use Cases:**
+
+- **Custom installation locations:**
+
+  ```hcl
+  ansible_navigator_path = ["/opt/custom-ansible/bin"]
+  ```
+
+- **Virtual environments:**
+
+  ```hcl
+  ansible_navigator_path = ["~/venvs/ansible/bin"]
+  ```
+
+- **Multiple possible locations:**
+
+  ```hcl
+  ansible_navigator_path = ["~/bin", "/usr/local/bin", "/opt/ansible/bin"]
+  ```
+
+**Note:** Directories are searched in the order specified, before the system PATH.
 
 ### skip_version_check
 
@@ -578,6 +640,62 @@ provisioner "ansible-navigator" {
 }
 ```
 
+## HOME Path Expansion
+
+Many configuration fields support HOME path expansion using the `~` prefix:
+
+**Supported fields:**
+
+- `command` (when it looks like a path)
+- `playbook_file`
+- `inventory_file`
+- `inventory_directory`
+- `galaxy_file`
+- `requirements_file`
+- `ssh_host_key_file`
+- `ssh_authorized_key_file`
+- `roles_path`
+- `collections_path`
+- `collections_cache_dir`
+- `roles_cache_dir`
+- `work_dir`
+- `ansible_navigator_path` entries
+- Play `target` fields (when pointing to playbook files)
+- Play `vars_files` entries
+
+**Examples:**
+
+```hcl
+provisioner "ansible-navigator" {
+  # Playbook in HOME
+  playbook_file = "~/ansible/site.yml"
+  
+  # Inventory in HOME
+  inventory_file = "~/ansible/inventory/hosts"
+  
+  # Custom cache directories
+  collections_cache_dir = "~/.ansible/collections"
+  roles_cache_dir = "~/.ansible/roles"
+  
+  # Working directory
+  work_dir = "~/ansible-work"
+  
+  # Play with HOME-relative playbook
+  play {
+    target = "~/playbooks/deploy.yml"
+    vars_files = ["~/vars/production.yml"]
+  }
+}
+```
+
+**Expansion Rules:**
+
+- `~` → Your home directory (e.g., `/home/user`)
+- `~/subdir` → Home with subdirectory (e.g., `/home/user/subdir`)
+- `~otheruser/` → Preserved unchanged (multi-user homes not supported)
+- Absolute paths (`/path`) → Unchanged
+- Relative paths (`./path`) → Unchanged
+
 ## Configuration Examples
 
 ### Minimal Configuration
@@ -588,10 +706,14 @@ provisioner "ansible-navigator" {
 }
 ```
 
-### Production Configuration
+### Production Configuration with Custom Paths
 
 ```hcl
 provisioner "ansible-navigator" {
+  # Use ansible-navigator from custom location
+  command = "~/custom-ansible/bin/ansible-navigator"
+  ansible_navigator_path = ["~/custom-ansible/bin", "/opt/ansible/bin"]
+  
   play {
     name   = "Security Hardening"
     target = "baseline.security.harden"
@@ -606,7 +728,7 @@ provisioner "ansible-navigator" {
     }
   }
   
-  requirements_file = "./requirements.yml"
+  requirements_file = "~/ansible/requirements.yml"
   
   execution_environment = "registry.company.com/ansible-ee:production"
   
@@ -628,7 +750,7 @@ provisioner "ansible-navigator" {
   
   navigator_mode = "json"
   structured_logging = true
-  log_output_path = "./logs/deployment.json"
+  log_output_path = "~/logs/deployment.json"
   
   timeout = "1h"
   max_retries = 2
