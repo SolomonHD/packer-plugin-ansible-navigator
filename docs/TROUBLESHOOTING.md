@@ -40,6 +40,161 @@ packer validate your-template.pkr.hcl
 # Should show: The configuration is valid.
 ```
 
+## Version Check Issues
+
+### Version Check Hangs or Times Out
+
+**Symptoms:**
+
+- Packer hangs during ansible-navigator version check
+- Error: "ansible-navigator version check timed out after 60s"
+- Build stalls at the beginning with no visible progress
+
+**Common Causes:**
+
+- ansible-navigator not installed or not in PATH
+- ansible-navigator installed via asdf with shim issues
+- Container runtime (Docker/Podman) not running or slow
+- Network delays downloading execution environment images
+
+**Solutions:**
+
+1. **Verify ansible-navigator is installed and accessible:**
+
+```bash
+# Check if ansible-navigator is in PATH
+which ansible-navigator
+
+# Test version check manually
+ansible-navigator --version
+
+# Check execution time
+time ansible-navigator --version
+```
+
+2. **For asdf users - specify full path to shim:**
+
+```hcl
+provisioner "ansible-navigator" {
+  playbook_file = "site.yml"
+  command = "~/.asdf/shims/ansible-navigator run"
+  
+  # or add to PATH
+  ansible_navigator_path = ["~/.asdf/shims"]
+}
+```
+
+3. **Increase timeout for slow environments:**
+
+```hcl
+provisioner "ansible-navigator" {
+  playbook_file = "site.yml"
+  version_check_timeout = "120s"  # 2 minutes instead of default 60s
+}
+```
+
+4. **Skip version check if you're sure it's installed:**
+
+```hcl
+provisioner "ansible-navigator" {
+  playbook_file = "site.yml"
+  skip_version_check = true
+}
+```
+
+5. **Pre-pull execution environment image:**
+
+```bash
+# Pull the default or specified execution environment ahead of time
+docker pull quay.io/ansible/creator-ee:latest
+
+# Or for custom image
+docker pull myregistry.io/my-ee:v1.0
+```
+
+### asdf-Specific Issues
+
+**Problem:** ansible-navigator installed via asdf doesn't work in Packer subprocess.
+
+**Why:** asdf uses shim scripts that may not have the correct environment when called from Packer's subprocess context.
+
+**Solutions:**
+
+**Option 1: Use full path to asdf shim**
+
+```hcl
+provisioner "ansible-navigator" {
+  playbook_file = "site.yml"
+  command = "/home/user/.asdf/shims/ansible-navigator run"
+  version_check_timeout = "90s"  # asdf may be slower
+}
+```
+
+**Option 2: Add asdf shims to PATH**
+
+```hcl
+provisioner "ansible-navigator" {
+  playbook_file = "site.yml"
+  ansible_navigator_path = ["~/.asdf/shims"]
+}
+```
+
+**Option 3: Use pip/pipx instead of asdf**
+
+```bash
+# Install via pipx (recommended for CLI tools)
+pipx install ansible-navigator
+
+# Or via pip
+pip install --user ansible-navigator
+```
+
+**Verify asdf setup:**
+
+```bash
+# Check asdf version
+asdf current ansible-navigator
+
+# Test shim directly
+~/.asdf/shims/ansible-navigator --version
+
+# Check shim path
+ls -l ~/.asdf/shims/ansible-navigator
+```
+
+### Interaction with skip_version_check
+
+The `version_check_timeout` option is only used when `skip_version_check` is `false` (the default). If you set `skip_version_check = true`, the timeout is ignored and no version check is performed.
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator" {
+  playbook_file = "site.yml"
+  
+  # These work together
+  skip_version_check = false  # default - perform version check
+  version_check_timeout = "90s"  # timeout for the check
+}
+
+# OR skip version check entirely
+# provisioner "ansible-navigator" {
+#   playbook_file = "site.yml"
+#   skip_version_check = true  # no version check, timeout ignored
+# }
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator",
+  "playbook_file": "site.yml",
+  "skip_version_check": false,
+  "version_check_timeout": "90s"
+}
+```
+
 ## Common Error Messages
 
 ### Error: "You may specify only one of `playbook_file` or `play` blocks"

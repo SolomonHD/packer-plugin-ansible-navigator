@@ -129,6 +129,12 @@
 - `galaxy_command` (string) - The command to invoke ansible-galaxy. By default, this is
   `ansible-galaxy`.
 
+- `version_check_timeout` (string) - Maximum time to wait for ansible-navigator version check to complete.
+  Defaults to "60s". This prevents indefinite hangs when ansible-navigator
+  is not properly configured or cannot be found.
+  Format: duration string (e.g., "30s", "1m", "90s").
+  Set to "0" to disable timeout (not recommended).
+
 - `galaxy_force_install` (bool) - Force overwriting an existing role.
    Adds `--force` option to `ansible-galaxy` command. By default, this is
    `false`.

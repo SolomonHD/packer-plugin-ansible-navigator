@@ -165,6 +165,12 @@
    running. Set this to `true`, for example, if you're going to install
    ansible during the packer run.
 
+- `version_check_timeout` (string) - Maximum time to wait for ansible-navigator version check to complete.
+  Defaults to "60s". This prevents indefinite hangs when ansible-navigator
+  is not properly configured or cannot be found.
+  Format: duration string (e.g., "30s", "1m", "90s").
+  Set to "0" to disable timeout (not recommended).
+
 - `use_sftp` (bool) - Use SFTP
 
 - `inventory_directory` (string) - The directory in which to place the

@@ -1672,6 +1672,157 @@ build {
 
 ## Troubleshooting
 
+### Version Check Hangs or Times Out
+
+**Problem:** Packer hangs during the ansible-navigator version check or times out after 60 seconds.
+
+**Common Causes:**
+- ansible-navigator is not installed or not in PATH
+- ansible-navigator is installed via asdf but the shim is not working correctly in subprocess contexts
+- Network or container runtime delays
+
+**Solutions:**
+
+1. **Specify the full path to ansible-navigator:**
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator" {
+  playbook_file = "site.yml"
+  command = "/usr/local/bin/ansible-navigator run"
+  # or for asdf users:
+  # command = "/home/user/.asdf/shims/ansible-navigator run"
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator",
+  "playbook_file": "site.yml",
+  "command": "/usr/local/bin/ansible-navigator run"
+}
+```
+
+2. **Add ansible-navigator to PATH:**
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator" {
+  playbook_file = "site.yml"
+  ansible_navigator_path = ["~/.asdf/shims", "~/.local/bin"]
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator",
+  "playbook_file": "site.yml",
+  "ansible_navigator_path": ["~/.asdf/shims", "~/.local/bin"]
+}
+```
+
+3. **Increase the timeout for slow environments:**
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator" {
+  playbook_file = "site.yml"
+  version_check_timeout = "120s"  # 2 minutes
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator",
+  "playbook_file": "site.yml",
+  "version_check_timeout": "120s"
+}
+```
+
+4. **Skip the version check entirely:**
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator" {
+  playbook_file = "site.yml"
+  skip_version_check = true
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator",
+  "playbook_file": "site.yml",
+  "skip_version_check": true
+}
+```
+
+### asdf Installation Configuration
+
+When ansible-navigator is installed via [asdf](https://asdf-vm.com/), additional configuration may be needed because asdf shims may not work correctly in subprocess contexts.
+
+**Recommended Configuration for asdf Users:**
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator" {
+  playbook_file = "site.yml"
+  
+  # Option 1: Use full path to shim
+  command = "~/.asdf/shims/ansible-navigator run"
+  
+  # Option 2: Add shims directory to PATH
+  # ansible_navigator_path = ["~/.asdf/shims"]
+  
+  # Increase timeout if needed for first-time execution environment pulls
+  version_check_timeout = "90s"
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator",
+  "playbook_file": "site.yml",
+  "command": "~/.asdf/shims/ansible-navigator run",
+  "version_check_timeout": "90s"
+}
+```
+
+**Why asdf requires special handling:**
+- asdf shims are wrapper scripts that determine the correct version to use
+- These shims may not inherit the full environment when called from Packer
+- The version check subprocess may not have access to asdf's environment setup
+
+**Verifying your asdf setup:**
+
+```bash
+# Check that ansible-navigator is available
+asdf current ansible-navigator
+
+# Test the shim directly
+~/.asdf/shims/ansible-navigator --version
+
+# If using asdf and encountering issues, you can also install via pip/pipx
+pipx install ansible-navigator
+```
+
+### Packer Hangs During Gathering Facts
+
 If you are using an Ansible version >= 2.8 and Packer hangs in the
 "Gathering Facts" stage, this could be the result of a pipelineing issue with
 the proxy adapter that Packer uses. Setting `use_proxy` to `false` in the ansible

@@ -46,6 +46,7 @@ type FlatConfig struct {
 	AdapterKeyType          *string           `mapstructure:"ansible_proxy_key_type" cty:"ansible_proxy_key_type" hcl:"ansible_proxy_key_type"`
 	SFTPCmd                 *string           `mapstructure:"sftp_command" cty:"sftp_command" hcl:"sftp_command"`
 	SkipVersionCheck        *bool             `mapstructure:"skip_version_check" cty:"skip_version_check" hcl:"skip_version_check"`
+	VersionCheckTimeout     *string           `mapstructure:"version_check_timeout" cty:"version_check_timeout" hcl:"version_check_timeout"`
 	UseSFTP                 *bool             `mapstructure:"use_sftp" cty:"use_sftp" hcl:"use_sftp"`
 	InventoryDirectory      *string           `mapstructure:"inventory_directory" cty:"inventory_directory" hcl:"inventory_directory"`
 	InventoryFileTemplate   *string           `mapstructure:"inventory_file_template" cty:"inventory_file_template" hcl:"inventory_file_template"`
@@ -115,6 +116,7 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"ansible_proxy_key_type":     &hcldec.AttrSpec{Name: "ansible_proxy_key_type", Type: cty.String, Required: false},
 		"sftp_command":               &hcldec.AttrSpec{Name: "sftp_command", Type: cty.String, Required: false},
 		"skip_version_check":         &hcldec.AttrSpec{Name: "skip_version_check", Type: cty.Bool, Required: false},
+		"version_check_timeout":      &hcldec.AttrSpec{Name: "version_check_timeout", Type: cty.String, Required: false},
 		"use_sftp":                   &hcldec.AttrSpec{Name: "use_sftp", Type: cty.Bool, Required: false},
 		"inventory_directory":        &hcldec.AttrSpec{Name: "inventory_directory", Type: cty.String, Required: false},
 		"inventory_file_template":    &hcldec.AttrSpec{Name: "inventory_file_template", Type: cty.String, Required: false},
