@@ -1013,8 +1013,9 @@ func (p *Provisioner) executeAnsiblePlaybook(
 	if p.config.NavigatorMode != "" {
 		navigatorFlags += fmt.Sprintf(" --mode %s", p.config.NavigatorMode)
 	}
+	// Add execution environment flags if set (ansible-navigator v3+ format)
 	if p.config.ExecutionEnvironment != "" {
-		navigatorFlags += fmt.Sprintf(" --execution-environment %s", p.config.ExecutionEnvironment)
+		navigatorFlags += fmt.Sprintf(" --ee true --eei %s", p.config.ExecutionEnvironment)
 	}
 
 	// Command now defaults to just "ansible-navigator", so we need to add "run" as first arg
