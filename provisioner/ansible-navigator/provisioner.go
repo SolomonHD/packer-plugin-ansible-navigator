@@ -1236,9 +1236,9 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 		// Add --mode flag at the beginning of args
 		args = append([]string{"--mode", p.config.NavigatorMode}, args...)
 
-		// Add --execution-environment flag if set
+		// Add execution environment flags if set (ansible-navigator v3+ format)
 		if p.config.ExecutionEnvironment != "" {
-			args = append([]string{"--execution-environment", p.config.ExecutionEnvironment}, args...)
+			args = append([]string{"--ee", "true", "--eei", p.config.ExecutionEnvironment}, args...)
 		}
 
 		// Execute the play - prepend "run" as first argument
@@ -1297,9 +1297,9 @@ func (p *Provisioner) executeSinglePlaybook(ui packersdk.Ui, privKeyFile string,
 	// Add --mode flag at the beginning of args
 	args = append([]string{"--mode", p.config.NavigatorMode}, args...)
 
-	// Add --execution-environment flag if set
+	// Add execution environment flags if set (ansible-navigator v3+ format)
 	if p.config.ExecutionEnvironment != "" {
-		args = append([]string{"--execution-environment", p.config.ExecutionEnvironment}, args...)
+		args = append([]string{"--ee", "true", "--eei", p.config.ExecutionEnvironment}, args...)
 	}
 
 	// Prepend "run" as first argument

@@ -310,10 +310,13 @@ The container image to use as the execution environment for ansible-navigator.
 Specifies which containerized environment runs the Ansible playbooks.
 When unset, ansible-navigator uses its default execution environment.
 
+**Under the hood:** When you specify `execution_environment = "image:tag"`, the plugin generates the CLI flags `--ee true --eei image:tag` for ansible-navigator v3+. This correctly separates the boolean "enable execution environment" flag (`--ee`) from the "execution environment image" flag (`--eei`).
+
 ```hcl
 provisioner "ansible-navigator" {
   # Use official Ansible execution environment
   execution_environment = "quay.io/ansible/creator-ee:latest"
+  # The plugin will generate: --ee true --eei quay.io/ansible/creator-ee:latest
 }
 ```
 
