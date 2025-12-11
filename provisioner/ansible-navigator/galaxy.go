@@ -32,7 +32,7 @@ func NewGalaxyManager(config *Config, ui packersdk.Ui) *GalaxyManager {
 	return &GalaxyManager{
 		config:  config,
 		ui:      ui,
-		envVars: config.AnsibleEnvVars,
+		envVars: []string{},
 	}
 }
 
@@ -101,9 +101,7 @@ func (gm *GalaxyManager) installRolesFromFile(filePath string) error {
 	args := []string{"install", "-r", filepath.ToSlash(filePath)}
 
 	// Add roles path if specified
-	if gm.config.RolesPath != "" {
-		args = append(args, "-p", filepath.ToSlash(gm.config.RolesPath))
-	} else if gm.config.RolesCacheDir != "" {
+	if gm.config.RolesCacheDir != "" {
 		args = append(args, "-p", gm.config.RolesCacheDir)
 	}
 
@@ -124,9 +122,7 @@ func (gm *GalaxyManager) installCollectionsFromFile(filePath string) error {
 	args := []string{"collection", "install", "-r", filepath.ToSlash(filePath)}
 
 	// Add collections path if specified
-	if gm.config.CollectionsPath != "" {
-		args = append(args, "-p", filepath.ToSlash(gm.config.CollectionsPath))
-	} else if gm.config.CollectionsCacheDir != "" {
+	if gm.config.CollectionsCacheDir != "" {
 		args = append(args, "-p", gm.config.CollectionsCacheDir)
 	}
 
@@ -145,7 +141,7 @@ func (gm *GalaxyManager) installCollectionsFromFile(filePath string) error {
 
 // executeGalaxyCommand executes an ansible-galaxy command with streaming output
 func (gm *GalaxyManager) executeGalaxyCommand(args []string, target string) error {
-	cmd := exec.Command(gm.config.GalaxyCommand, args...)
+	cmd := exec.Command("ansible-galaxy", args...)
 
 	// Set environment
 	cmd.Env = os.Environ()

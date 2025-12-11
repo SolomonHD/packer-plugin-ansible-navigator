@@ -9,15 +9,6 @@
   Entries are HOME-expanded and prepended to PATH during version checks and execution.
   Example: ["~/bin", "/opt/ansible/bin"]
 
-- `navigator_mode` (string) - Execution mode for ansible-navigator. Valid values: stdout, json, yaml, interactive.
-  Defaults to "stdout" for non-interactive environments (Packer-safe).
-  When set to "interactive" without a TTY, it automatically switches to "stdout".
-
-- `execution_environment` (string) - The container image to use as the execution environment for ansible-navigator.
-  Specifies which containerized environment runs the Ansible playbooks.
-  When unset, ansible-navigator uses its default execution environment.
-  Examples: "quay.io/ansible/creator-ee:latest", "my-registry.io/custom-ee:v1.0"
-
 - `work_dir` (string) - Working directory for ansible-navigator execution.
   When specified, ansible-navigator will be executed from this directory.
   Defaults to the current working directory if not set.
@@ -37,66 +28,6 @@
   Only effective when structured_logging is true.
   Default: false
 
-- `extra_arguments` ([]string) - Extra arguments to pass to Ansible. These arguments _will not_ be passed
-  through a shell and arguments should not be quoted. Usage example:
-  
-  ```json
-     "extra_arguments": [ "--extra-vars", "Region={{user `Region`}} Stage={{user `Stage`}}" ]
-  ```
-  
-  In certain scenarios where you want to pass ansible command line
-  arguments that include parameter and value (for example
-  `--vault-password-file pwfile`), from ansible documentation this is
-  correct format but that is NOT accepted here. Instead you need to do it
-  like `--vault-password-file=pwfile`.
-  
-  If you are running a Windows build on AWS, Azure, Google Compute, or
-  OpenStack and would like to access the auto-generated password that
-  Packer uses to connect to a Windows instance via WinRM, you can use the
-  template variable
-  
-  ```build.Password``` in HCL templates or ```{{ build `Password`}}``` in
-  legacy JSON templates. For example:
-  
-  in JSON templates:
-  
-  ```json
-  "extra_arguments": [
-     "--extra-vars", "winrm_password={{ build `Password`}}"
-  ]
-  ```
-  
-  in HCL templates:
-  
-  ```hcl
-  extra_arguments = [
-     "--extra-vars", "winrm_password=${build.Password}"
-  ]
-  ```
-  
-  If the lefthand side of a value contains 'secret' or 'password' (case
-  insensitive) it will be hidden from output. For example, passing
-  "my_password=secr3t" will hide "secr3t" from output.
-
-- `ansible_env_vars` ([]string) - Environment variables to set before
-    running Ansible. Usage example:
-  
-    ```json
-      "ansible_env_vars": [ "ANSIBLE_HOST_KEY_CHECKING=False", "ANSIBLE_SSH_ARGS='-o ForwardAgent=yes -o ControlMaster=auto -o ControlPersist=60s'", "ANSIBLE_NOCOLOR=True" ]
-    ```
-  
-    This is a [template engine](/packer/docs/templates/legacy_json_templates/engine). Therefore, you
-    may use user variables and template functions in this field.
-  
-    For example, if you are running a Windows build on AWS, Azure,
-    Google Compute, or OpenStack and would like to access the auto-generated
-    password that Packer uses to connect to a Windows instance via WinRM, you
-    can use the template variable `{{.WinRMPassword}}` in this option. Example:
-  
-    ```json
-    "ansible_env_vars": [ "WINRM_PASSWORD={{.WinRMPassword}}" ],
-    ```
-
 - `play` ([]Play) - Repeated play blocks supporting both playbooks and role FQDNs
 
 - `requirements_file` (string) - Path to a unified requirements.yml file containing both roles and collections
@@ -108,8 +39,6 @@
   Uses only locally cached dependencies.
 
 - `force_update` (bool) - When true, always reinstall both collections and roles even if cached.
-
-- `ansible_ssh_extra_args` ([]string) - Specifies --ssh-extra-args on command line defaults to -o IdentitiesOnly=yes
 
 - `groups` ([]string) - The groups into which the Ansible host should
    be placed. When unspecified, the host is not associated with any groups.
@@ -209,9 +138,6 @@
    and using "--on-error=ask" in order to leave your instance running while you
    test your playbook. this option is not used if you set an `inventory_file`.
 
-- `galaxy_command` (string) - The command to invoke ansible-galaxy. By default, this is
-  `ansible-galaxy`.
-
 - `galaxy_force_install` (bool) - Force overwriting an existing role.
    Adds `--force` option to `ansible-galaxy` command. By default, this is
    `false`.
@@ -219,16 +145,6 @@
 - `galaxy_force_with_deps` (bool) - Force overwriting an existing role and its dependencies.
    Adds `--force-with-deps` option to `ansible-galaxy` command. By default,
    this is `false`.
-
-- `roles_path` (string) - The path to the directory on your local system in which to
-    install the roles. Adds `--roles-path /path/to/your/roles` to
-    `ansible-galaxy` command. By default, this is empty, and thus `--roles-path`
-    option is not added to the command.
-
-- `collections_path` (string) - The path to the directory on your local system in which to
-    install the collections. Adds `--collections-path /path/to/your/collections` to
-    `ansible-galaxy` command. By default, this is empty, and thus `--collections-path`
-    option is not added to the command.
 
 - `collections_cache_dir` (string) - Directory to cache downloaded collections.
   Defaults to ~/.packer.d/ansible_collections_cache if not specified.
@@ -266,30 +182,6 @@
   `extra_arguments` section for ansible: `"-e", "ansible_winrm_scheme=http"`.
   
   Default: `false`
-
-- `ansible_cfg` (map[string]map[string]string) - A map of Ansible configuration settings organized by INI sections.
-  This automatically generates a temporary ansible.cfg file before provisioning begins.
-  The plugin passes the path via the ANSIBLE_CONFIG environment variable.
-  
-  When execution_environment is set but ansible_cfg is not explicitly configured,
-  the plugin automatically applies defaults to fix "Permission denied: /.ansible" errors:
-    ansible_cfg = {
-      defaults = {
-        remote_tmp = "/tmp/.ansible/tmp"
-        local_tmp  = "/tmp/.ansible-local"
-      }
-    }
-  
-  Example:
-    ansible_cfg = {
-      defaults = {
-        remote_tmp      = "/tmp/.ansible/tmp"
-        host_key_checking = "False"
-      }
-      ssh_connection = {
-        pipelining = "True"
-      }
-    }
 
 - `navigator_config` (map[string]interface{}) - Modern declarative ansible-navigator configuration via YAML file generation.
   Maps directly to ansible-navigator.yml schema structure.

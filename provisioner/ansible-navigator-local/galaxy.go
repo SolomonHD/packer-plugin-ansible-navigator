@@ -151,7 +151,7 @@ func (gm *GalaxyManager) installCollectionsFromFile(remoteFilePath string) error
 func (gm *GalaxyManager) executeGalaxyCommand(args []string, target string) error {
 	ctx := context.TODO()
 	command := fmt.Sprintf("cd %s && %s %s",
-		gm.stagingDir, gm.config.GalaxyCommand, strings.Join(args, " "))
+		gm.stagingDir, "ansible-galaxy", strings.Join(args, " "))
 	gm.ui.Message(fmt.Sprintf("Executing Ansible Galaxy: %s", command))
 
 	cmd := &packersdk.RemoteCmd{

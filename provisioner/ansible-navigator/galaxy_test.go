@@ -102,8 +102,13 @@ exit 0
 	ui := newMockUi()
 	cfg := &Config{
 		RequirementsFile: requirementsFile,
-		GalaxyCommand:    stubPath,
 	}
+	// Override the default ansible-galaxy command with our stub
+	oldPath := os.Getenv("PATH")
+	os.Setenv("PATH", tmpDir+":"+oldPath)
+	t.Cleanup(func() { os.Setenv("PATH", oldPath) })
+	// Rename stub to ansible-galaxy so it's found on PATH
+	os.Rename(stubPath, filepath.Join(tmpDir, "ansible-galaxy"))
 	gm := NewGalaxyManager(cfg, ui)
 
 	require.NoError(t, gm.InstallRequirements())

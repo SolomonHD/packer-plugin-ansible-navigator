@@ -37,7 +37,6 @@ import (
 	"unicode"
 
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/term"
 
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/packer-plugin-sdk/adapter"
@@ -91,21 +90,7 @@ type Config struct {
 	// Entries are HOME-expanded and prepended to PATH during version checks and execution.
 	// Example: ["~/bin", "/opt/ansible/bin"]
 	AnsibleNavigatorPath []string `mapstructure:"ansible_navigator_path"`
-	// Execution mode for ansible-navigator. Valid values: stdout, json, yaml, interactive.
-	// Defaults to "stdout" for non-interactive environments (Packer-safe).
-	// When set to "interactive" without a TTY, it automatically switches to "stdout".
-	//
-	// DEPRECATED: Use navigator_config.mode instead.
-	// This field will be removed in a future version. See MIGRATION.md for migration guidance.
-	NavigatorMode string `mapstructure:"navigator_mode"`
-	// The container image to use as the execution environment for ansible-navigator.
-	// Specifies which containerized environment runs the Ansible playbooks.
-	// When unset, ansible-navigator uses its default execution environment.
-	// Examples: "quay.io/ansible/creator-ee:latest", "my-registry.io/custom-ee:v1.0"
-	//
-	// DEPRECATED: Use navigator_config.execution-environment instead.
-	// This field will be removed in a future version. See MIGRATION.md for migration guidance.
-	ExecutionEnvironment string `mapstructure:"execution_environment"`
+
 	// Working directory for ansible-navigator execution.
 	// When specified, ansible-navigator will be executed from this directory.
 	// Defaults to the current working directory if not set.
@@ -125,72 +110,7 @@ type Config struct {
 	// Only effective when structured_logging is true.
 	// Default: false
 	VerboseTaskOutput bool `mapstructure:"verbose_task_output"`
-	// Extra arguments to pass to Ansible. These arguments _will not_ be passed
-	// through a shell and arguments should not be quoted. Usage example:
-	//
-	// ```json
-	//    "extra_arguments": [ "--extra-vars", "Region={{user `Region`}} Stage={{user `Stage`}}" ]
-	// ```
-	//
-	// In certain scenarios where you want to pass ansible command line
-	// arguments that include parameter and value (for example
-	// `--vault-password-file pwfile`), from ansible documentation this is
-	// correct format but that is NOT accepted here. Instead you need to do it
-	// like `--vault-password-file=pwfile`.
-	//
-	// If you are running a Windows build on AWS, Azure, Google Compute, or
-	// OpenStack and would like to access the auto-generated password that
-	// Packer uses to connect to a Windows instance via WinRM, you can use the
-	// template variable
-	//
-	// ```build.Password``` in HCL templates or ```{{ build `Password`}}``` in
-	// legacy JSON templates. For example:
-	//
-	// in JSON templates:
-	//
-	// ```json
-	// "extra_arguments": [
-	//    "--extra-vars", "winrm_password={{ build `Password`}}"
-	// ]
-	// ```
-	//
-	// in HCL templates:
-	//
-	// ```hcl
-	// extra_arguments = [
-	//    "--extra-vars", "winrm_password=${build.Password}"
-	// ]
-	// ```
-	//
-	// If the lefthand side of a value contains 'secret' or 'password' (case
-	// insensitive) it will be hidden from output. For example, passing
-	// "my_password=secr3t" will hide "secr3t" from output.
-	//
-	// DEPRECATED: Use navigator_config options instead.
-	// This field will be removed in a future version. See MIGRATION.md for migration guidance.
-	ExtraArguments []string `mapstructure:"extra_arguments"`
-	// Environment variables to set before
-	//   running Ansible. Usage example:
-	//
-	//   ```json
-	//     "ansible_env_vars": [ "ANSIBLE_HOST_KEY_CHECKING=False", "ANSIBLE_SSH_ARGS='-o ForwardAgent=yes -o ControlMaster=auto -o ControlPersist=60s'", "ANSIBLE_NOCOLOR=True" ]
-	//   ```
-	//
-	//   This is a [template engine](/packer/docs/templates/legacy_json_templates/engine). Therefore, you
-	//   may use user variables and template functions in this field.
-	//
-	//   For example, if you are running a Windows build on AWS, Azure,
-	//   Google Compute, or OpenStack and would like to access the auto-generated
-	//   password that Packer uses to connect to a Windows instance via WinRM, you
-	//   can use the template variable `{{.WinRMPassword}}` in this option. Example:
-	//
-	//   ```json
-	//   "ansible_env_vars": [ "WINRM_PASSWORD={{.WinRMPassword}}" ],
-	//   ```
-	//
-	// DEPRECATED: Use navigator_config.execution-environment.environment-variables instead.
-	// This field will be removed in a future version. See MIGRATION.md for migration guidance.
-	AnsibleEnvVars []string `mapstructure:"ansible_env_vars"`
+
 	// Repeated play blocks supporting both playbooks and role FQDNs
 	Plays []Play `mapstructure:"play"`
 	// Path to a unified requirements.yml file containing both roles and collections
@@ -203,11 +123,7 @@ type Config struct {
 	OfflineMode bool `mapstructure:"offline_mode"`
 	// When true, always reinstall both collections and roles even if cached.
 	ForceUpdate bool `mapstructure:"force_update"`
-	// Specifies --ssh-extra-args on command line defaults to -o IdentitiesOnly=yes
-	//
-	// DEPRECATED: Use navigator_config or play-level SSH configuration instead.
-	// This field will be removed in a future version. See MIGRATION.md for migration guidance.
-	AnsibleSSHExtraArgs []string `mapstructure:"ansible_ssh_extra_args"`
+
 	// The groups into which the Ansible host should
 	//  be placed. When unspecified, the host is not associated with any groups.
 	Groups []string `mapstructure:"groups"`
@@ -305,12 +221,7 @@ type Config struct {
 	//  and using "--on-error=ask" in order to leave your instance running while you
 	//  test your playbook. this option is not used if you set an `inventory_file`.
 	KeepInventoryFile bool `mapstructure:"keep_inventory_file"`
-	// The command to invoke ansible-galaxy. By default, this is
-	// `ansible-galaxy`.
-	//
-	// DEPRECATED: Unnecessary with requirements_file. The plugin handles dependency installation automatically.
-	// This field will be removed in a future version. See MIGRATION.md for migration guidance.
-	GalaxyCommand string `mapstructure:"galaxy_command"`
+
 	// Force overwriting an existing role.
 	//  Adds `--force` option to `ansible-galaxy` command. By default, this is
 	//  `false`.
@@ -319,22 +230,7 @@ type Config struct {
 	//  Adds `--force-with-deps` option to `ansible-galaxy` command. By default,
 	//  this is `false`.
 	GalaxyForceWithDeps bool `mapstructure:"galaxy_force_with_deps"`
-	// The path to the directory on your local system in which to
-	//   install the roles. Adds `--roles-path /path/to/your/roles` to
-	//   `ansible-galaxy` command. By default, this is empty, and thus `--roles-path`
-	//   option is not added to the command.
-	//
-	// DEPRECATED: Use navigator_config or requirements_file instead.
-	// This field will be removed in a future version. See MIGRATION.md for migration guidance.
-	RolesPath string `mapstructure:"roles_path"`
-	// The path to the directory on your local system in which to
-	//   install the collections. Adds `--collections-path /path/to/your/collections` to
-	//   `ansible-galaxy` command. By default, this is empty, and thus `--collections-path`
-	//   option is not added to the command.
-	//
-	// DEPRECATED: Use navigator_config or requirements_file instead.
-	// This field will be removed in a future version. See MIGRATION.md for migration guidance.
-	CollectionsPath string `mapstructure:"collections_path"`
+
 	// Directory to cache downloaded collections.
 	// Defaults to ~/.packer.d/ansible_collections_cache if not specified.
 	CollectionsCacheDir string `mapstructure:"collections_cache_dir"`
@@ -372,33 +268,7 @@ type Config struct {
 	//
 	// Default: `false`
 	WinRMUseHTTP bool `mapstructure:"ansible_winrm_use_http"`
-	// A map of Ansible configuration settings organized by INI sections.
-	// This automatically generates a temporary ansible.cfg file before provisioning begins.
-	// The plugin passes the path via the ANSIBLE_CONFIG environment variable.
-	//
-	// When execution_environment is set but ansible_cfg is not explicitly configured,
-	// the plugin automatically applies defaults to fix "Permission denied: /.ansible" errors:
-	//   ansible_cfg = {
-	//     defaults = {
-	//       remote_tmp = "/tmp/.ansible/tmp"
-	//       local_tmp  = "/tmp/.ansible-local"
-	//     }
-	//   }
-	//
-	// Example:
-	//   ansible_cfg = {
-	//     defaults = {
-	//       remote_tmp      = "/tmp/.ansible/tmp"
-	//       host_key_checking = "False"
-	//     }
-	//     ssh_connection = {
-	//       pipelining = "True"
-	//     }
-	//   }
-	//
-	// DEPRECATED: Use navigator_config.ansible.config instead.
-	// This field will be removed in a future version. See MIGRATION.md for migration guidance.
-	AnsibleCfg map[string]map[string]string `mapstructure:"ansible_cfg"`
+
 	// Modern declarative ansible-navigator configuration via YAML file generation.
 	// Maps directly to ansible-navigator.yml schema structure.
 	// Supports full ansible-navigator.yml structure including:
@@ -425,19 +295,6 @@ func (c *Config) Validate() error {
 		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
 			"command must be only the executable name or path (no arguments). "+
 				"Found whitespace in: %q. Use extra_arguments or play-level options for additional flags", c.Command))
-	}
-
-	// Validate navigator mode
-	validModes := map[string]bool{
-		"stdout":      true,
-		"json":        true,
-		"yaml":        true,
-		"interactive": true,
-	}
-	if c.NavigatorMode != "" && !validModes[c.NavigatorMode] {
-		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-			"invalid navigator_mode: %s (must be one of stdout, json, yaml, interactive)",
-			c.NavigatorMode))
 	}
 
 	// Validate play configuration
@@ -510,12 +367,6 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	// Validate ansible_cfg
-	if c.AnsibleCfg != nil && len(c.AnsibleCfg) == 0 {
-		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-			"ansible_cfg cannot be an empty map. Either provide configuration sections or omit the field"))
-	}
-
 	// Validate navigator_config
 	if c.NavigatorConfig != nil && len(c.NavigatorConfig) == 0 {
 		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
@@ -585,8 +436,6 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	p.config.RequirementsFile = expandUserPath(p.config.RequirementsFile)
 	p.config.SSHHostKeyFile = expandUserPath(p.config.SSHHostKeyFile)
 	p.config.SSHAuthorizedKeyFile = expandUserPath(p.config.SSHAuthorizedKeyFile)
-	p.config.RolesPath = expandUserPath(p.config.RolesPath)
-	p.config.CollectionsPath = expandUserPath(p.config.CollectionsPath)
 	p.config.CollectionsCacheDir = expandUserPath(p.config.CollectionsCacheDir)
 	p.config.RolesCacheDir = expandUserPath(p.config.RolesCacheDir)
 	p.config.WorkDir = expandUserPath(p.config.WorkDir)
@@ -599,10 +448,6 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 		}
 	}
 
-	if p.config.GalaxyCommand == "" {
-		p.config.GalaxyCommand = "ansible-galaxy"
-	}
-
 	if p.config.HostAlias == "" {
 		p.config.HostAlias = "default"
 	}
@@ -610,28 +455,6 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	// Set default version check timeout
 	if p.config.VersionCheckTimeout == "" {
 		p.config.VersionCheckTimeout = "60s"
-	}
-
-	// Set default navigator_mode to stdout for non-interactive environments
-	if p.config.NavigatorMode == "" {
-		p.config.NavigatorMode = "stdout"
-	}
-
-	// Check if interactive mode is requested without TTY
-	if p.config.NavigatorMode == "interactive" && !term.IsTerminal(int(os.Stdout.Fd())) {
-		log.Printf("[Warning] No TTY detected — switching ansible-navigator mode to 'stdout'.")
-		p.config.NavigatorMode = "stdout"
-	}
-
-	// Apply default ansible.cfg when execution_environment is set but ansible_cfg is not
-	if p.config.ExecutionEnvironment != "" && p.config.AnsibleCfg == nil {
-		log.Println("[INFO] ExecutionEnvironment is set but ansible_cfg is not. Applying defaults for container compatibility.")
-		p.config.AnsibleCfg = map[string]map[string]string{
-			"defaults": {
-				"remote_tmp": "/tmp/.ansible/tmp",
-				"local_tmp":  "/tmp/.ansible-local",
-			},
-		}
 	}
 
 	// Set default cache directories if not specified
@@ -648,18 +471,6 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 			p.config.RolesCacheDir = filepath.Join(usr.HomeDir, ".packer.d", "ansible_roles_cache")
 		}
 	}
-
-	// Set environment variables
-	if p.config.SSHHostKeyFile == "" {
-		p.config.AnsibleEnvVars = append(p.config.AnsibleEnvVars, "ANSIBLE_HOST_KEY_CHECKING=False")
-	}
-
-	if !p.config.UseSFTP {
-		p.config.AnsibleEnvVars = append(p.config.AnsibleEnvVars, "ANSIBLE_SCP_IF_SSH=True")
-	}
-
-	// Force unbuffered Python output to ensure logs stream immediately
-	p.config.AnsibleEnvVars = append(p.config.AnsibleEnvVars, "PYTHONUNBUFFERED=1")
 
 	if !p.config.SkipVersionCheck {
 		err = p.getVersion()
@@ -703,61 +514,12 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 		p.config.AnsibleProxyHost = "127.0.0.1"
 	}
 
-	if p.config.WinRMUseHTTP {
-		addWinRMScheme := true
-		for _, arg := range p.config.ExtraArguments {
-			if strings.HasPrefix(arg, "ansible_winrm_scheme") {
-				addWinRMScheme = false
-				log.Printf("ansible_winrm_scheme already defined in arguments, will ignore")
-				break
-			}
-		}
-		if addWinRMScheme {
-			log.Printf("setting http as winrm scheme")
-			p.config.ExtraArguments = append(p.config.ExtraArguments, "-e", "ansible_winrm_scheme=http")
-		}
-	}
-
 	// Validate configuration
 	if err := p.config.Validate(); err != nil {
 		return err
 	}
 
-	// Emit deprecation warnings
-	p.logDeprecationWarnings()
-
 	return nil
-}
-
-// logDeprecationWarnings logs warnings for deprecated configuration fields
-func (p *Provisioner) logDeprecationWarnings() {
-	if p.config.AnsibleCfg != nil {
-		log.Printf("[WARNING] 'ansible_cfg' is deprecated and will be removed in a future version. Use 'navigator_config.ansible.config' instead. See MIGRATION.md for details.")
-	}
-	if len(p.config.AnsibleEnvVars) > 0 {
-		log.Printf("[WARNING] 'ansible_env_vars' is deprecated and will be removed in a future version. Use 'navigator_config.execution-environment.environment-variables' instead. See MIGRATION.md for details.")
-	}
-	if len(p.config.AnsibleSSHExtraArgs) > 0 {
-		log.Printf("[WARNING] 'ansible_ssh_extra_args' is deprecated and will be removed in a future version. Use navigator_config or play-level options instead. See MIGRATION.md for details.")
-	}
-	if len(p.config.ExtraArguments) > 0 {
-		log.Printf("[WARNING] 'extra_arguments' is deprecated and will be removed in a future version. Use navigator_config instead. See MIGRATION.md for details.")
-	}
-	if p.config.ExecutionEnvironment != "" {
-		log.Printf("[WARNING] 'execution_environment' is deprecated and will be removed in a future version. Use 'navigator_config.execution-environment' instead. See MIGRATION.md for details.")
-	}
-	if p.config.NavigatorMode != "" && p.config.NavigatorMode != "stdout" {
-		log.Printf("[WARNING] 'navigator_mode' is deprecated and will be removed in a future version. Use 'navigator_config.mode' instead. See MIGRATION.md for details.")
-	}
-	if p.config.RolesPath != "" {
-		log.Printf("[WARNING] 'roles_path' is deprecated and will be removed in a future version. Use navigator_config or requirements_file instead. See MIGRATION.md for details.")
-	}
-	if p.config.CollectionsPath != "" {
-		log.Printf("[WARNING] 'collections_path' is deprecated and will be removed in a future version. Use navigator_config or requirements_file instead. See MIGRATION.md for details.")
-	}
-	if p.config.GalaxyCommand != "" && p.config.GalaxyCommand != "ansible-galaxy" {
-		log.Printf("[WARNING] 'galaxy_command' is deprecated and will be removed in a future version. Unnecessary with requirements_file. See MIGRATION.md for details.")
-	}
 }
 
 func (p *Provisioner) getVersion() error {
@@ -972,30 +734,8 @@ func (p *Provisioner) createInventoryFile() error {
 func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packersdk.Communicator, generatedData map[string]interface{}) error {
 	ui.Say("Provisioning with Ansible Navigator...")
 
-	// Set ANSIBLE_NAVIGATOR_MODE environment variable
-	if existingMode := os.Getenv("ANSIBLE_NAVIGATOR_MODE"); existingMode != "" {
-		ui.Message(fmt.Sprintf("[Notice] Overriding ANSIBLE_NAVIGATOR_MODE environment variable (was: %s, now: %s)", existingMode, p.config.NavigatorMode))
-	}
-	os.Setenv("ANSIBLE_NAVIGATOR_MODE", p.config.NavigatorMode)
-
-	// Interpolate env vars to check for generated values like password and port
 	p.generatedData = generatedData
 	p.config.ctx.Data = generatedData
-	for i, envVar := range p.config.AnsibleEnvVars {
-		envVar, err := interpolate.Render(envVar, &p.config.ctx)
-		if err != nil {
-			return fmt.Errorf("could not interpolate ansible env vars: %w", err)
-		}
-		p.config.AnsibleEnvVars[i] = envVar
-	}
-	// Interpolate extra vars to check for generated values like password and port
-	for i, arg := range p.config.ExtraArguments {
-		arg, err := interpolate.Render(arg, &p.config.ctx)
-		if err != nil {
-			return fmt.Errorf("could not interpolate extra arguments: %w", err)
-		}
-		p.config.ExtraArguments[i] = arg
-	}
 
 	// Set up proxy if host IP is missing or communicator type is wrong.
 	if p.config.UseProxy.False() {
@@ -1104,11 +844,6 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 func (p *Provisioner) createCmdArgs(httpAddr, inventory, playbook, privKeyFile string) (args []string, envVars []string) {
 	args = []string{}
 
-	//Setting up AnsibleEnvVars at begining so additional checks can take them into account
-	if len(p.config.AnsibleEnvVars) > 0 {
-		envVars = append(envVars, p.config.AnsibleEnvVars...)
-	}
-
 	if p.config.PackerBuildName != "" {
 		// HCL configs don't currently have the PakcerBuildName. Don't
 		// cause weirdness with a half-set variable
@@ -1124,14 +859,8 @@ func (p *Provisioner) createCmdArgs(httpAddr, inventory, playbook, privKeyFile s
 
 	if p.generatedData["ConnType"] == "ssh" && len(privKeyFile) > 0 {
 		// Add ssh extra args to set IdentitiesOnly
-		if len(p.config.AnsibleSSHExtraArgs) > 0 {
-			args = append(args, "--ssh-extra-args", fmt.Sprintf("'%s'", strings.Join(p.config.AnsibleSSHExtraArgs, "' '")))
-		} else {
-			args = append(args, "--ssh-extra-args", "'-o IdentitiesOnly=yes'")
-		}
+		args = append(args, "--ssh-extra-args", "'-o IdentitiesOnly=yes'")
 	}
-
-	args = append(args, p.config.ExtraArguments...)
 
 	// Add limit if specified
 	if p.config.Limit != "" {
@@ -1151,7 +880,7 @@ func (p *Provisioner) createCmdArgs(httpAddr, inventory, playbook, privKeyFile s
 	}
 
 	if checkArg("ansible_password", args) && p.generatedData["ConnType"] == "ssh" {
-		if !checkArg("ansible_host_key_checking", args) && !checkArg("ANSIBLE_HOST_KEY_CHECKING", envVars) {
+		if !checkArg("ansible_host_key_checking", args) {
 			args = append(args, "-e", "ansible_host_key_checking=False")
 		}
 	}
@@ -1216,29 +945,6 @@ func createRolePlaybook(role string, play Play) (string, error) {
 func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string) error {
 	httpAddr := p.generatedData["PackerHTTPAddr"].(string)
 
-	// Generate and setup ansible.cfg if configured
-	var ansibleCfgPath string
-	if p.config.AnsibleCfg != nil {
-		content, err := generateAnsibleCfg(p.config.AnsibleCfg)
-		if err != nil {
-			return fmt.Errorf("failed to generate ansible.cfg: %w", err)
-		}
-
-		ansibleCfgPath, err = createTempAnsibleCfg(content)
-		if err != nil {
-			return fmt.Errorf("failed to create temporary ansible.cfg: %w", err)
-		}
-
-		ui.Message(fmt.Sprintf("Generated ansible.cfg at %s", ansibleCfgPath))
-
-		// Ensure cleanup on exit (success or failure)
-		defer func() {
-			if err := os.Remove(ansibleCfgPath); err != nil {
-				ui.Message(fmt.Sprintf("Warning: failed to remove temporary ansible.cfg: %v", err))
-			}
-		}()
-	}
-
 	// Generate and setup ansible-navigator.yml if configured
 	var navigatorConfigPath string
 	if p.config.NavigatorConfig != nil && len(p.config.NavigatorConfig) > 0 {
@@ -1275,13 +981,13 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 	}
 
 	// Execute plays (required by validation)
-	return p.executePlays(ui, comm, privKeyFile, httpAddr, ansibleCfgPath, navigatorConfigPath)
+	return p.executePlays(ui, comm, privKeyFile, httpAddr, navigatorConfigPath)
 }
 
 // executePlays executes multiple Ansible plays in sequence.
 // If a play fails and keep_going is false, execution stops immediately.
 // Otherwise, errors are logged and execution continues to the next play.
-func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string, httpAddr string, ansibleCfgPath string, navigatorConfigPath string) error {
+func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string, httpAddr string, navigatorConfigPath string) error {
 	inventory := p.config.InventoryFile
 
 	for i, play := range p.config.Plays {
@@ -1348,14 +1054,6 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 			args = append([]string{"-e", fmt.Sprintf("@%s", varsFile)}, args...)
 		}
 
-		// Add --mode flag at the beginning of args
-		args = append([]string{"--mode", p.config.NavigatorMode}, args...)
-
-		// Add execution environment flags if set (ansible-navigator v3+ format)
-		if p.config.ExecutionEnvironment != "" {
-			args = append([]string{"--ee", "true", "--eei", p.config.ExecutionEnvironment}, args...)
-		}
-
 		// Execute the play - prepend "run" as first argument
 		cmdArgs := append([]string{"run"}, args...)
 		cmd := exec.Command(p.config.Command, cmdArgs...)
@@ -1365,10 +1063,6 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 			cmd.Env = buildEnvWithPath(p.config.AnsibleNavigatorPath)
 		} else {
 			cmd.Env = os.Environ()
-		}
-		// Add ANSIBLE_CONFIG if ansible.cfg was generated
-		if ansibleCfgPath != "" {
-			cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_CONFIG=%s", ansibleCfgPath))
 		}
 		// Add ANSIBLE_NAVIGATOR_CONFIG if navigator_config was provided
 		if navigatorConfigPath != "" {
@@ -1422,7 +1116,7 @@ func (p *Provisioner) executeAnsibleCommand(ui packersdk.Ui, cmd *exec.Cmd, targ
 	wg := sync.WaitGroup{}
 
 	// Check if we should use structured JSON logging
-	useStructuredLogging := p.config.StructuredLogging && p.config.NavigatorMode == "json"
+	useStructuredLogging := p.config.StructuredLogging
 	var summary *Summary
 
 	if useStructuredLogging {
@@ -1501,18 +1195,6 @@ func (p *Provisioner) executeAnsibleCommand(ui packersdk.Ui, cmd *exec.Cmd, targ
 	// remove sensitive data from command for logging
 	flattenedCmd := strings.Join(cmd.Args, " ")
 	sanitized := flattenedCmd
-
-	for _, arg := range p.config.ExtraArguments {
-		args := strings.SplitN(arg, "=", 2)
-		if len(args) != 2 {
-			continue
-		}
-		if strings.Contains(strings.ToLower(args[0]), "password") ||
-			strings.Contains(strings.ToLower(args[0]), "secret") {
-			sanitized = strings.Replace(sanitized,
-				args[1], "*****", -1)
-		}
-	}
 
 	for _, key := range []string{"WinRMPassword", "Password"} {
 		secret, ok := p.generatedData[key]

@@ -291,7 +291,7 @@ provisioner "ansible-navigator" {
 }
 ```
 
-> **⚠️ Deprecation Notice:** The `execution_environment` and `ansible_cfg` top-level options are deprecated. Use `navigator_config` instead. See [Migration Guide](docs/MIGRATION.md) for details.
+> **⚠️ BREAKING CHANGE (v4.0.0):** The following options have been REMOVED: `execution_environment`, `ansible_cfg`, `ansible_env_vars`, `ansible_ssh_extra_args`, `extra_arguments`, `navigator_mode`, `roles_path`, `collections_path`, `galaxy_command`. Use `navigator_config` instead. See [Migration Guide](docs/MIGRATION.md) for upgrade instructions.
 
 ### Modern Navigator Configuration (navigator_config)
 
@@ -340,10 +340,7 @@ provisioner "ansible-navigator" {
 | `play` | Play block configuration (repeatable) | See [Collection Plays](docs/UNIFIED_PLAYS.md) |
 | `requirements_file` | Install roles + collections from a unified requirements file | `"./requirements.yml"` |
 | `navigator_config` | Modern declarative ansible-navigator.yml configuration (recommended for v3+) | See example above |
-| `execution_environment` | Container image for ansible-navigator | `"quay.io/ansible/creator-ee"` |
-| `ansible_cfg` | Generate ansible.cfg and set `ANSIBLE_CONFIG` | `{ defaults = { remote_tmp = "/tmp/.ansible/tmp" } }` |
 | `inventory_file` | Ansible inventory | `"./inventory/hosts"` |
-| `extra_arguments` | Additional ansible-navigator args | `["--extra-vars", "key=value"]` |
 
 > **📖 Complete Reference:** See [docs/CONFIGURATION.md](docs/CONFIGURATION.md)
 

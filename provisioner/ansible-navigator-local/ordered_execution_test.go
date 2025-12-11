@@ -34,7 +34,7 @@ func TestProvisioner_ExecutePlays_ExecutesInOrder(t *testing.T) {
 	p.generatedData = map[string]interface{}{"PackerHTTPAddr": "127.0.0.1"}
 
 	inventoryRemote := filepath.ToSlash(filepath.Join(p.stagingDir, "inventory.ini"))
-	require.NoError(t, p.executePlays(ui, comm, inventoryRemote, "", ""))
+	require.NoError(t, p.executePlays(ui, comm, inventoryRemote, ""))
 
 	remote1 := filepath.ToSlash(filepath.Join(p.stagingDir, filepath.Base(play1.Name())))
 	remote2 := filepath.ToSlash(filepath.Join(p.stagingDir, filepath.Base(play2.Name())))
