@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/packer-plugin-sdk/common"
@@ -182,6 +183,12 @@ type Config struct {
 	// The command to invoke ansible-galaxy. By default, this is
 	// `ansible-galaxy`.
 	GalaxyCommand string `mapstructure:"galaxy_command"`
+	// Maximum time to wait for ansible-navigator version check to complete.
+	// Defaults to "60s". This prevents indefinite hangs when ansible-navigator
+	// is not properly configured or cannot be found.
+	// Format: duration string (e.g., "30s", "1m", "90s").
+	// Set to "0" to disable timeout (not recommended).
+	VersionCheckTimeout string `mapstructure:"version_check_timeout"`
 
 	// Force overwriting an existing role.
 	//  Adds `--force` option to `ansible-galaxy` command. By default, this is
@@ -403,6 +410,15 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	// Validate version_check_timeout format
+	if c.VersionCheckTimeout != "" {
+		if _, err := time.ParseDuration(c.VersionCheckTimeout); err != nil {
+			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+				"invalid version_check_timeout: %q (must be a valid duration like '30s', '1m', '90s'): %w",
+				c.VersionCheckTimeout, err))
+		}
+	}
+
 	if errs != nil && len(errs.Errors) > 0 {
 		return errs
 	}
@@ -487,6 +503,11 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	// Set default navigator_mode to stdout for non-interactive environments
 	if p.config.NavigatorMode == "" {
 		p.config.NavigatorMode = "stdout"
+	}
+
+	// Set default version check timeout
+	if p.config.VersionCheckTimeout == "" {
+		p.config.VersionCheckTimeout = "60s"
 	}
 
 	if p.config.StagingDir == "" {

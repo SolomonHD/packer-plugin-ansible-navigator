@@ -35,6 +35,7 @@ type FlatConfig struct {
 	InventoryGroups        []string          `mapstructure:"inventory_groups" cty:"inventory_groups" hcl:"inventory_groups"`
 	GalaxyFile             *string           `mapstructure:"galaxy_file" cty:"galaxy_file" hcl:"galaxy_file"`
 	GalaxyCommand          *string           `mapstructure:"galaxy_command" cty:"galaxy_command" hcl:"galaxy_command"`
+	VersionCheckTimeout    *string           `mapstructure:"version_check_timeout" cty:"version_check_timeout" hcl:"version_check_timeout"`
 	GalaxyForceInstall     *bool             `mapstructure:"galaxy_force_install" cty:"galaxy_force_install" hcl:"galaxy_force_install"`
 	GalaxyRolesPath        *string           `mapstructure:"galaxy_roles_path" cty:"galaxy_roles_path" hcl:"galaxy_roles_path"`
 	GalaxyCollectionsPath  *string           `mapstructure:"galaxy_collections_path" cty:"galaxy_collections_path" hcl:"galaxy_collections_path"`
@@ -94,6 +95,7 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"inventory_groups":           &hcldec.AttrSpec{Name: "inventory_groups", Type: cty.List(cty.String), Required: false},
 		"galaxy_file":                &hcldec.AttrSpec{Name: "galaxy_file", Type: cty.String, Required: false},
 		"galaxy_command":             &hcldec.AttrSpec{Name: "galaxy_command", Type: cty.String, Required: false},
+		"version_check_timeout":      &hcldec.AttrSpec{Name: "version_check_timeout", Type: cty.String, Required: false},
 		"galaxy_force_install":       &hcldec.AttrSpec{Name: "galaxy_force_install", Type: cty.Bool, Required: false},
 		"galaxy_roles_path":          &hcldec.AttrSpec{Name: "galaxy_roles_path", Type: cty.String, Required: false},
 		"galaxy_collections_path":    &hcldec.AttrSpec{Name: "galaxy_collections_path", Type: cty.String, Required: false},

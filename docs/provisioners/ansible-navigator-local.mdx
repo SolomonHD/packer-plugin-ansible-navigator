@@ -470,3 +470,108 @@ commonly useful Ansible variables:
   download large files over HTTP. This may be useful if you're experiencing
   slower speeds using the default file provisioner. A file provisioner using
   the `winrm` communicator may experience these types of difficulties.
+
+## Troubleshooting
+
+### Version Check Configuration
+
+The local provisioner includes a `version_check_timeout` option that is reserved for future use. Currently, version checking is not performed on the target machine for the local provisioner, but this field maintains consistency with the remote provisioner.
+
+**Configuration:**
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator-local" {
+  playbook_file = "site.yml"
+  version_check_timeout = "60s"  # Reserved for future use
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator-local",
+  "playbook_file": "site.yml",
+  "version_check_timeout": "60s"
+}
+```
+
+**Note:** The `version_check_timeout` field is accepted in configuration but has no effect in the current version. Version checking on the target machine will be implemented in a future release.
+
+### asdf Installation on Target Machine
+
+When ansible-navigator is installed on the target machine via [asdf](https://asdf-vm.com/), you may need to ensure the shim directory is accessible:
+
+**HCL2**
+
+```hcl
+provisioner "ansible-navigator-local" {
+  playbook_file = "site.yml"
+  
+  # Add asdf shims to PATH on the target
+  ansible_navigator_path = ["~/.asdf/shims", "~/.local/bin"]
+  
+  # Or specify full path in command
+  command = "~/.asdf/shims/ansible-navigator"
+}
+```
+
+**JSON**
+
+```json
+{
+  "type": "ansible-navigator-local",
+  "playbook_file": "site.yml",
+  "ansible_navigator_path": ["~/.asdf/shims", "~/.local/bin"],
+  "command": "~/.asdf/shims/ansible-navigator"
+}
+```
+
+### Ensuring ansible-navigator is Installed
+
+Since the local provisioner requires ansible-navigator to be installed on the target machine, you typically need to install it before running the provisioner:
+
+**HCL2**
+
+```hcl
+build {
+  sources = ["source.docker.example"]
+  
+  # Install ansible-navigator first
+  provisioner "shell" {
+    inline = [
+      "pip install ansible-navigator",
+      # or for asdf:
+      # "asdf plugin add ansible-navigator",
+      # "asdf install ansible-navigator latest",
+      # "asdf global ansible-navigator latest"
+    ]
+  }
+  
+  # Then run the local provisioner
+  provisioner "ansible-navigator-local" {
+    playbook_file = "site.yml"
+  }
+}
+```
+
+**JSON**
+
+```json
+{
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+        "pip install ansible-navigator"
+      ]
+    },
+    {
+      "type": "ansible-navigator-local",
+      "playbook_file": "site.yml"
+    }
+  ]
+}
+```

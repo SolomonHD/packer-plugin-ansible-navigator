@@ -32,6 +32,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
 	"golang.org/x/crypto/ssh"
@@ -246,7 +247,13 @@ type Config struct {
 	//  running. Set this to `true`, for example, if you're going to install
 	//  ansible during the packer run.
 	SkipVersionCheck bool `mapstructure:"skip_version_check"`
-	UseSFTP          bool `mapstructure:"use_sftp"`
+	// Maximum time to wait for ansible-navigator version check to complete.
+	// Defaults to "60s". This prevents indefinite hangs when ansible-navigator
+	// is not properly configured or cannot be found.
+	// Format: duration string (e.g., "30s", "1m", "90s").
+	// Set to "0" to disable timeout (not recommended).
+	VersionCheckTimeout string `mapstructure:"version_check_timeout"`
+	UseSFTP             bool   `mapstructure:"use_sftp"`
 	// The directory in which to place the
 	//  temporary generated Ansible inventory file. By default, this is the
 	//  system-specific temporary file location. The fully-qualified name of this
@@ -459,6 +466,15 @@ func (c *Config) Validate() error {
 			c.AdapterKeyType))
 	}
 
+	// Validate version_check_timeout format
+	if c.VersionCheckTimeout != "" {
+		if _, err := time.ParseDuration(c.VersionCheckTimeout); err != nil {
+			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+				"invalid version_check_timeout: %q (must be a valid duration like '30s', '1m', '90s'): %w",
+				c.VersionCheckTimeout, err))
+		}
+	}
+
 	if errs != nil && len(errs.Errors) > 0 {
 		return errs
 	}
@@ -544,6 +560,11 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 
 	if p.config.HostAlias == "" {
 		p.config.HostAlias = "default"
+	}
+
+	// Set default version check timeout
+	if p.config.VersionCheckTimeout == "" {
+		p.config.VersionCheckTimeout = "60s"
 	}
 
 	// Set default navigator_mode to stdout for non-interactive environments
@@ -651,17 +672,43 @@ func (p *Provisioner) getVersion() error {
 	// Use the configured command (defaults to "ansible-navigator")
 	command := p.config.Command
 
-	// Create command with modified PATH if ansible_navigator_path is set
-	cmd := exec.Command(command, "--version")
+	// Parse timeout duration
+	timeout, err := time.ParseDuration(p.config.VersionCheckTimeout)
+	if err != nil {
+		// This should never happen as we validate in Prepare(), but handle gracefully
+		timeout = 60 * time.Second
+	}
+
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	// Create command with context and modified PATH if ansible_navigator_path is set
+	cmd := exec.CommandContext(ctx, command, "--version")
 	if len(p.config.AnsibleNavigatorPath) > 0 {
 		cmd.Env = buildEnvWithPath(p.config.AnsibleNavigatorPath)
 	}
 
 	out, err := cmd.Output()
 	if err != nil {
+		// Check if it was a timeout
+		if ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf(
+				"ansible-navigator version check timed out after %s. "+
+					"This may indicate ansible-navigator is not properly installed or configured. "+
+					"Solutions:\n"+
+					"  1. Ensure ansible-navigator is installed and in PATH\n"+
+					"  2. Use 'ansible_navigator_path' to specify additional directories\n"+
+					"  3. Use 'skip_version_check = true' to bypass the check\n"+
+					"  4. Increase 'version_check_timeout' (current: %s)",
+				p.config.VersionCheckTimeout, p.config.VersionCheckTimeout)
+		}
+		// Not a timeout - likely not found or other error
 		return fmt.Errorf(
-			"Error: ansible-navigator not found in PATH. Please install it before running this provisioner. "+
-				"You can use ansible_navigator_path to specify additional directories: %s", err.Error())
+			"ansible-navigator not found in PATH or failed to execute. "+
+				"Please install it before running this provisioner. "+
+				"You can use 'ansible_navigator_path' to specify additional directories, "+
+				"or 'skip_version_check = true' to bypass this check. Error: %s", err.Error())
 	}
 
 	versionRe := regexp.MustCompile(`\w (\d+\.\d+[.\d+]*)`)
