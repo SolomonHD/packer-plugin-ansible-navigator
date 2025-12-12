@@ -10,9 +10,10 @@ import (
 // FlatAnsibleConfig is an auto-generated flat version of AnsibleConfig.
 // Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
 type FlatAnsibleConfig struct {
-	Config        *string                      `mapstructure:"config" cty:"config" hcl:"config"`
-	Defaults      *FlatAnsibleConfigDefaults   `mapstructure:"defaults" cty:"defaults" hcl:"defaults"`
-	SSHConnection *FlatAnsibleConfigConnection `mapstructure:"ssh_connection" cty:"ssh_connection" hcl:"ssh_connection"`
+	Config  *string `mapstructure:"config" cty:"config" hcl:"config"`
+	Path    *string `mapstructure:"path" cty:"path" hcl:"path"`
+	Help    *bool   `mapstructure:"help" cty:"help" hcl:"help"`
+	Cmdline *string `mapstructure:"cmdline" cty:"cmdline" hcl:"cmdline"`
 }
 
 // FlatMapstructure returns a new FlatAnsibleConfig.
@@ -27,59 +28,10 @@ func (*AnsibleConfig) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec
 // The decoded values from this spec will then be applied to a FlatAnsibleConfig.
 func (*FlatAnsibleConfig) HCL2Spec() map[string]hcldec.Spec {
 	s := map[string]hcldec.Spec{
-		"config":         &hcldec.AttrSpec{Name: "config", Type: cty.String, Required: false},
-		"defaults":       &hcldec.BlockSpec{TypeName: "defaults", Nested: hcldec.ObjectSpec((*FlatAnsibleConfigDefaults)(nil).HCL2Spec())},
-		"ssh_connection": &hcldec.BlockSpec{TypeName: "ssh_connection", Nested: hcldec.ObjectSpec((*FlatAnsibleConfigConnection)(nil).HCL2Spec())},
-	}
-	return s
-}
-
-// FlatAnsibleConfigConnection is an auto-generated flat version of AnsibleConfigConnection.
-// Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
-type FlatAnsibleConfigConnection struct {
-	SSHTimeout *int  `mapstructure:"ssh_timeout" cty:"ssh_timeout" hcl:"ssh_timeout"`
-	Pipelining *bool `mapstructure:"pipelining" cty:"pipelining" hcl:"pipelining"`
-}
-
-// FlatMapstructure returns a new FlatAnsibleConfigConnection.
-// FlatAnsibleConfigConnection is an auto-generated flat version of AnsibleConfigConnection.
-// Where the contents a fields with a `mapstructure:,squash` tag are bubbled up.
-func (*AnsibleConfigConnection) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec.Spec } {
-	return new(FlatAnsibleConfigConnection)
-}
-
-// HCL2Spec returns the hcl spec of a AnsibleConfigConnection.
-// This spec is used by HCL to read the fields of AnsibleConfigConnection.
-// The decoded values from this spec will then be applied to a FlatAnsibleConfigConnection.
-func (*FlatAnsibleConfigConnection) HCL2Spec() map[string]hcldec.Spec {
-	s := map[string]hcldec.Spec{
-		"ssh_timeout": &hcldec.AttrSpec{Name: "ssh_timeout", Type: cty.Number, Required: false},
-		"pipelining":  &hcldec.AttrSpec{Name: "pipelining", Type: cty.Bool, Required: false},
-	}
-	return s
-}
-
-// FlatAnsibleConfigDefaults is an auto-generated flat version of AnsibleConfigDefaults.
-// Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
-type FlatAnsibleConfigDefaults struct {
-	RemoteTmp       *string `mapstructure:"remote_tmp" cty:"remote_tmp" hcl:"remote_tmp"`
-	HostKeyChecking *bool   `mapstructure:"host_key_checking" cty:"host_key_checking" hcl:"host_key_checking"`
-}
-
-// FlatMapstructure returns a new FlatAnsibleConfigDefaults.
-// FlatAnsibleConfigDefaults is an auto-generated flat version of AnsibleConfigDefaults.
-// Where the contents a fields with a `mapstructure:,squash` tag are bubbled up.
-func (*AnsibleConfigDefaults) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec.Spec } {
-	return new(FlatAnsibleConfigDefaults)
-}
-
-// HCL2Spec returns the hcl spec of a AnsibleConfigDefaults.
-// This spec is used by HCL to read the fields of AnsibleConfigDefaults.
-// The decoded values from this spec will then be applied to a FlatAnsibleConfigDefaults.
-func (*FlatAnsibleConfigDefaults) HCL2Spec() map[string]hcldec.Spec {
-	s := map[string]hcldec.Spec{
-		"remote_tmp":        &hcldec.AttrSpec{Name: "remote_tmp", Type: cty.String, Required: false},
-		"host_key_checking": &hcldec.AttrSpec{Name: "host_key_checking", Type: cty.Bool, Required: false},
+		"config":  &hcldec.AttrSpec{Name: "config", Type: cty.String, Required: false},
+		"path":    &hcldec.AttrSpec{Name: "path", Type: cty.String, Required: false},
+		"help":    &hcldec.AttrSpec{Name: "help", Type: cty.Bool, Required: false},
+		"cmdline": &hcldec.AttrSpec{Name: "cmdline", Type: cty.String, Required: false},
 	}
 	return s
 }

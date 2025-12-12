@@ -3,7 +3,7 @@
 // You may obtain a copy of the License at
 // http://www.apache.org/licenses/LICENSE-2.0
 
-//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play,PathEntry,NavigatorConfig,ExecutionEnvironment,EnvironmentVariablesConfig,AnsibleConfig,AnsibleConfigDefaults,AnsibleConfigConnection,LoggingConfig,PlaybookArtifact,CollectionDocCache
+//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play,PathEntry,NavigatorConfig,ExecutionEnvironment,EnvironmentVariablesConfig,AnsibleConfig,LoggingConfig,PlaybookArtifact,CollectionDocCache
 //go:generate packer-sdc struct-markdown
 
 package ansiblenavigatorlocal
@@ -68,29 +68,17 @@ type EnvironmentVariablesConfig struct {
 }
 
 // AnsibleConfig represents ansible-specific configuration
+// AnsibleConfig represents ansible-specific configuration
+// Compatible with ansible-navigator settings schema v25.x+
 type AnsibleConfig struct {
 	// Path to ansible.cfg file
 	Config string `mapstructure:"config"`
-	// Defaults section
-	Defaults *AnsibleConfigDefaults `mapstructure:"defaults"`
-	// SSH connection section
-	SSHConnection *AnsibleConfigConnection `mapstructure:"ssh_connection"`
-}
-
-// AnsibleConfigDefaults represents ansible defaults configuration
-type AnsibleConfigDefaults struct {
-	// Remote temp directory
-	RemoteTmp string `mapstructure:"remote_tmp"`
-	// Host key checking
-	HostKeyChecking bool `mapstructure:"host_key_checking"`
-}
-
-// AnsibleConfigConnection represents ansible SSH connection settings
-type AnsibleConfigConnection struct {
-	// SSH timeout
-	SSHTimeout int `mapstructure:"ssh_timeout"`
-	// Pipelining
-	Pipelining bool `mapstructure:"pipelining"`
+	// Path to ansible.cfg file (for navigator_config use)
+	Path string `mapstructure:"path"`
+	// Show help for ansible-config subcommand
+	Help bool `mapstructure:"help"`
+	// Additional command-line arguments for ansible-config
+	Cmdline string `mapstructure:"cmdline"`
 }
 
 // LoggingConfig represents logging configuration
@@ -451,23 +439,39 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 	// Generate and upload ansible-navigator.yml if configured
 	var navigatorConfigRemotePath string
 	if p.config.NavigatorConfig != nil {
-		yamlContent, err := generateNavigatorConfigYAML(p.config.NavigatorConfig)
+		yamlContent, ansibleCfgPath, err := generateNavigatorConfigYAML(p.config.NavigatorConfig)
 		if err != nil {
 			return fmt.Errorf("Error generating navigator_config YAML: %s", err)
 		}
 
-		// Create temporary local file
+		// Create temporary local file for navigator config
 		tmpPath, err := createNavigatorConfigFile(yamlContent)
 		if err != nil {
+			// Clean up ansible.cfg if it was created
+			if ansibleCfgPath != "" {
+				os.Remove(ansibleCfgPath)
+			}
 			return fmt.Errorf("Error creating temporary ansible-navigator.yml: %s", err)
 		}
 		defer os.Remove(tmpPath)
+		if ansibleCfgPath != "" {
+			defer os.Remove(ansibleCfgPath)
+		}
 
 		ui.Message("Uploading generated ansible-navigator.yml...")
-		// Upload to remote staging directory
+		// Upload navigator config to remote staging directory
 		navigatorConfigRemotePath = filepath.ToSlash(filepath.Join(p.stagingDir, "ansible-navigator.yml"))
 		if err := p.uploadFile(ui, comm, navigatorConfigRemotePath, tmpPath); err != nil {
 			return fmt.Errorf("Error uploading ansible-navigator.yml: %s", err)
+		}
+
+		// Upload ansible.cfg if it was generated
+		if ansibleCfgPath != "" {
+			ui.Message("Uploading generated ansible.cfg...")
+			ansibleCfgRemotePath := filepath.ToSlash(filepath.Join(p.stagingDir, "ansible.cfg"))
+			if err := p.uploadFile(ui, comm, ansibleCfgRemotePath, ansibleCfgPath); err != nil {
+				return fmt.Errorf("Error uploading ansible.cfg: %s", err)
+			}
 		}
 	}
 

@@ -2,63 +2,63 @@
 
 ## 1. Update Config Structs
 
-- [ ] 1.1 Modify `AnsibleConfig` struct in `provisioner/ansible-navigator/provisioner.go`:
+- [x] 1.1 Modify `AnsibleConfig` struct in `provisioner/ansible-navigator/provisioner.go`:
   - Remove `Defaults *AnsibleConfigDefaults` field (or mark deprecated)
   - Remove `SSHConnection *AnsibleConfigConnection` field (or mark deprecated)
   - Add `Path string` field (path to ansible.cfg)
   - Add `Help bool` field (show help flag)
   - Add `Cmdline string` field (additional command-line arguments)
-- [ ] 1.2 Modify `AnsibleConfig` struct in `provisioner/ansible-navigator-local/provisioner.go` (same changes as 1.1)
-- [ ] 1.3 Remove or deprecate `AnsibleConfigDefaults` and `AnsibleConfigConnection` struct definitions if no longer used
-- [ ] 1.4 Update `//go:generate` directive to remove deleted struct types
+- [x] 1.2 Modify `AnsibleConfig` struct in `provisioner/ansible-navigator-local/provisioner.go` (same changes as 1.1)
+- [x] 1.3 Remove or deprecate `AnsibleConfigDefaults` and `AnsibleConfigConnection` struct definitions if no longer used
+- [x] 1.4 Update `//go:generate` directive to remove deleted struct types
 
 ## 2. Implement ansible.cfg Generation
 
-- [ ] 2.1 Create `generateAnsibleCfg()` function in `provisioner/ansible-navigator/navigator_config.go`:
+- [x] 2.1 Create `generateAnsibleCfg()` function in `provisioner/ansible-navigator/navigator_config.go`:
   - Accept Ansible configuration settings (remote_tmp, host_key_checking, ssh_timeout, pipelining, etc.)
   - Generate INI-formatted ansible.cfg content
   - Return string with INI content
-- [ ] 2.2 Create `createAnsibleCfgFile()` function in `provisioner/ansible-navigator/navigator_config.go`:
+- [x] 2.2 Create `createAnsibleCfgFile()` function in `provisioner/ansible-navigator/navigator_config.go`:
   - Accept INI content string
   - Create temporary file with pattern `packer-ansible-cfg-*.cfg`
   - Write content to file
   - Return absolute path
-- [ ] 2.3 Duplicate functions in `provisioner/ansible-navigator-local/navigator_config.go`
+- [x] 2.3 Duplicate functions in `provisioner/ansible-navigator-local/navigator_config.go`
 
 ## 3. Update YAML Generation Logic
 
-- [ ] 3.1 Modify `convertToYAMLStructure()` in `provisioner/ansible-navigator/navigator_config.go`:
+- [x] 3.1 Modify `convertToYAMLStructure()` in `provisioner/ansible-navigator/navigator_config.go`:
   - Remove lines 108-129 that generate `config.defaults` and `config.ssh_connection`
   - Add logic to generate valid `ansible.config` structure:
     - `help` (if set)
     - `path` (if temp ansible.cfg is generated)
     - `cmdline` (if set)
   - Keep the `config.Config` string field handling (line 105-107) for user-provided ansible.cfg path
-- [ ] 3.2 Modify `convertToYAMLStructure()` in `provisioner/ansible-navigator-local/navigator_config.go` (same changes as 3.1)
+- [x] 3.2 Modify `convertToYAMLStructure()` in `provisioner/ansible-navigator-local/navigator_config.go` (same changes as 3.1)
 
 ## 4. Update EE Defaults Logic
 
-- [ ] 4.1 Modify `generateNavigatorConfigYAML()` in `provisioner/ansible-navigator/navigator_config.go`:
+- [x] 4.1 Modify `generateNavigatorConfigYAML()` in `provisioner/ansible-navigator/navigator_config.go`:
   - When EE is enabled, generate ansible.cfg content instead of setting struct fields
   - Call `generateAnsibleCfg()` with default values
   - Call `createAnsibleCfgFile()` to write temp file
   - Store the temp file path in `AnsibleConfig.Path`
   - Return both nav config YAML and ansible.cfg path (modify signature)
-- [ ] 4.2 Modify `generateNavigatorConfigYAML()` in `provisioner/ansible-navigator-local/navigator_config.go` (same changes as 4.1)
+- [x] 4.2 Modify `generateNavigatorConfigYAML()` in `provisioner/ansible-navigator-local/navigator_config.go` (same changes as 4.1)
 
 ## 5. Update Provisioner Integration
 
-- [ ] 5.1 Modify `executeAnsible()` in `provisioner/ansible-navigator/provisioner.go`:
+- [x] 5.1 Modify `executeAnsible()` in `provisioner/ansible-navigator/provisioner.go`:
   - Capture ansible.cfg path from `generateNavigatorConfigYAML()` (now returns multiple values)
-  - Add ansible.cfg cleanup to deferred cleanup function
+  - Add ansible.cfg cleanup to deferred  cleanup function
   - Track ansible.cfg path for cleanup on error
-- [ ] 5.2 Modify local provisioner's ansible execution (similar logic in `provisioner/ansible-navigator-local/provisioner.go`)
-- [ ] 5.3 For local provisioner: Upload generated ansible.cfg to staging directory if needed
+- [x] 5.2 Modify local provisioner's ansible execution (similar logic in `provisioner/ansible-navigator-local/provisioner.go`)
+- [x] 5.3 For local provisioner: Upload generated ansible.cfg to staging directory if needed
 
 ## 6. Regenerate HCL2 Specs
 
-- [ ] 6.1 Run `make generate` from project root to regenerate `.hcl2spec.go` files
-- [ ] 6.2 Verify generated files reflect struct changes
+- [x] 6.1 Run `make generate` from project root to regenerate `.hcl2spec.go` files
+- [x] 6.2 Verify generated files reflect struct changes
 
 ## 7. Update Tests
 
@@ -81,8 +81,8 @@
 
 ## 9. Validation
 
-- [ ] 9.1 Run `go build ./...` - must succeed
-- [ ] 9.2 Run `go test ./...` - all tests must pass
-- [ ] 9.3 Run `make plugin-check` - must pass
-- [ ] 9.4 Manual test: Run plugin with EE enabled, verify generated ansible-navigator.yml passes schema validation
-- [ ] 9.5 Manual test: Verify generated ansible.cfg contains expected settings
+- [x] 9.1 Run `go build ./...` - must succeed ✓ PASSED
+- [ ] 9.2 Run `go test ./...` - all tests must pass (FAILED - tests need updates for new struct, see section 7)
+- [ ] 9.3 Run `make plugin-check` - must pass (pending)
+- [ ] 9.4 Manual test: Run plugin with EE enabled, verify generated ansible-navigator.yml passes schema validation (pending)
+- [ ] 9.5 Manual test: Verify generated ansible.cfg contains expected settings (pending)

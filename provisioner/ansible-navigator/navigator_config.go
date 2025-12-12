@@ -8,31 +8,72 @@ package ansiblenavigator
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
-// generateNavigatorConfigYAML converts the NavigatorConfig struct to YAML format
-// and applies automatic defaults when execution-environment.enabled = true
-func generateNavigatorConfigYAML(config *NavigatorConfig) (string, error) {
-	if config == nil {
-		return "", fmt.Errorf("navigator_config cannot be nil")
+// generateAnsibleCfg generates INI-formatted ansible.cfg content
+func generateAnsibleCfg() string {
+	var buf strings.Builder
+	buf.WriteString("[defaults]\n")
+	buf.WriteString("remote_tmp = /tmp/.ansible/tmp\n")
+	buf.WriteString("host_key_checking = False\n")
+	buf.WriteString("\n")
+	buf.WriteString("[ssh_connection]\n")
+	buf.WriteString("ssh_timeout = 30\n")
+	buf.WriteString("pipelining = True\n")
+	return buf.String()
+}
+
+// createAnsibleCfgFile creates a temporary ansible.cfg file and returns its path
+func createAnsibleCfgFile(content string) (string, error) {
+	tmpFile, err := os.CreateTemp("", "packer-ansible-cfg-*.cfg")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temporary ansible.cfg file: %w", err)
 	}
 
-	// Apply automatic EE defaults if execution-environment.enabled = true
+	if _, err := tmpFile.WriteString(content); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+		return "", fmt.Errorf("failed to write ansible.cfg content: %w", err)
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		os.Remove(tmpFile.Name())
+		return "", fmt.Errorf("failed to close ansible.cfg temp file: %w", err)
+	}
+
+	return tmpFile.Name(), nil
+}
+
+// generateNavigatorConfigYAML converts the NavigatorConfig struct to YAML format
+// and generates ansible.cfg when execution-environment is enabled.
+// Returns (yamlContent, ansibleCfgPath, error)
+func generateNavigatorConfigYAML(config *NavigatorConfig) (string, string, error) {
+	if config == nil {
+		return "", "", fmt.Errorf("navigator_config cannot be nil")
+	}
+
+	var ansibleCfgPath string
+
+	// Generate ansible.cfg if execution-environment is enabled
 	if config.ExecutionEnvironment != nil && config.ExecutionEnvironment.Enabled {
-		// Initialize AnsibleConfig if not present
+		// Generate ansible.cfg content
+		ansibleCfgContent := generateAnsibleCfg()
+
+		// Write to temp file
+		path, err := createAnsibleCfgFile(ansibleCfgContent)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to create ansible.cfg: %w", err)
+		}
+		ansibleCfgPath = path
+
+		// Set the path in config for YAML generation
 		if config.AnsibleConfig == nil {
 			config.AnsibleConfig = &AnsibleConfig{}
 		}
-		if config.AnsibleConfig.Defaults == nil {
-			config.AnsibleConfig.Defaults = &AnsibleConfigDefaults{}
-		}
-
-		// Set temp directory defaults to prevent permission errors
-		if config.AnsibleConfig.Defaults.RemoteTmp == "" {
-			config.AnsibleConfig.Defaults.RemoteTmp = "/tmp/.ansible/tmp"
-		}
+		config.AnsibleConfig.Path = ansibleCfgPath
 
 		// Set environment variables for EE container
 		if config.ExecutionEnvironment.EnvironmentVariables == nil {
@@ -58,10 +99,10 @@ func generateNavigatorConfigYAML(config *NavigatorConfig) (string, error) {
 	// Marshal to YAML
 	yamlData, err := yaml.Marshal(yamlConfig)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal navigator_config to YAML: %w", err)
+		return "", ansibleCfgPath, fmt.Errorf("failed to marshal navigator_config to YAML: %w", err)
 	}
 
-	return string(yamlData), nil
+	return string(yamlData), ansibleCfgPath, nil
 }
 
 // convertToYAMLStructure converts NavigatorConfig to a map with YAML-friendly field names
@@ -102,30 +143,23 @@ func convertToYAMLStructure(config *NavigatorConfig) map[string]interface{} {
 
 	if config.AnsibleConfig != nil {
 		ansibleMap := make(map[string]interface{})
-		if config.AnsibleConfig.Config != "" {
-			ansibleMap["config"] = config.AnsibleConfig.Config
-		}
 		configMap := make(map[string]interface{})
-		if config.AnsibleConfig.Defaults != nil {
-			defaultsMap := make(map[string]interface{})
-			if config.AnsibleConfig.Defaults.RemoteTmp != "" {
-				defaultsMap["remote_tmp"] = config.AnsibleConfig.Defaults.RemoteTmp
-			}
-			defaultsMap["host_key_checking"] = config.AnsibleConfig.Defaults.HostKeyChecking
-			if len(defaultsMap) > 0 {
-				configMap["defaults"] = defaultsMap
-			}
+
+		// Use Config field for user-provided ansible.cfg path (deprecated, use Path instead)
+		if config.AnsibleConfig.Config != "" {
+			configMap["path"] = config.AnsibleConfig.Config
 		}
-		if config.AnsibleConfig.SSHConnection != nil {
-			sshMap := make(map[string]interface{})
-			if config.AnsibleConfig.SSHConnection.SSHTimeout > 0 {
-				sshMap["ssh_timeout"] = config.AnsibleConfig.SSHConnection.SSHTimeout
-			}
-			sshMap["pipelining"] = config.AnsibleConfig.SSHConnection.Pipelining
-			if len(sshMap) > 0 {
-				configMap["ssh_connection"] = sshMap
-			}
+		// Path field is the canonical way to specify ansible.cfg location
+		if config.AnsibleConfig.Path != "" {
+			configMap["path"] = config.AnsibleConfig.Path
 		}
+		if config.AnsibleConfig.Help {
+			configMap["help"] = config.AnsibleConfig.Help
+		}
+		if config.AnsibleConfig.Cmdline != "" {
+			configMap["cmdline"] = config.AnsibleConfig.Cmdline
+		}
+
 		if len(configMap) > 0 {
 			ansibleMap["config"] = configMap
 		}
