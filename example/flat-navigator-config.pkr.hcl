@@ -1,5 +1,5 @@
-# Example demonstrating flat (string-value) navigator_config
-# This tests backward compatibility after the fix for HCL2 type specification
+# Example demonstrating flat (simple) navigator_config
+# This uses typed structs with block syntax (replace-navigator-config-with-typed-structs)
 
 packer {
   required_plugins {
@@ -28,8 +28,9 @@ build {
       target = "./playbook.yml"
     }
 
-    # Flat navigator_config - simple string values (backward compatibility)
-    navigator_config = {
+    # Simple navigator_config with just mode setting
+    # Uses block syntax (no `=`)
+    navigator_config {
       mode = "stdout"
     }
   }

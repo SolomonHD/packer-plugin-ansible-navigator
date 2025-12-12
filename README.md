@@ -90,7 +90,7 @@ provisioner "ansible-navigator" {
   }
   
   # Enable structured logging for CI/CD
-  navigator_config = {
+  navigator_config {
     mode = "json"
   }
   structured_logging = true
@@ -132,8 +132,8 @@ build {
 ```hcl
 provisioner "ansible-navigator" {
   # Use specific execution environment
-  navigator_config = {
-    execution-environment = {
+  navigator_config {
+    execution_environment {
       enabled = true
       image = "quay.io/ansible/creator-ee:latest"
     }
@@ -207,17 +207,14 @@ provisioner "ansible-navigator" {
   requirements_file = "./requirements.yml"
 
   # Recommended: use navigator_config for execution environments and ansible.cfg
-  navigator_config = {
-    execution-environment = {
+  navigator_config {
+    execution_environment {
       enabled = true
       image = "quay.io/ansible/creator-ee:latest"
     }
-    ansible = {
-      config = {
-        defaults = {
-          remote_tmp = "/tmp/.ansible/tmp"
-          local_tmp  = "/tmp/.ansible-local"
-        }
+    ansible_config {
+      defaults {
+        remote_tmp = "/tmp/.ansible/tmp"
       }
     }
   }
@@ -250,16 +247,16 @@ provisioner "ansible-navigator" {
 
 ```hcl
 # Recommended: Use navigator_config for execution environments
-navigator_config = {
-  execution-environment = {
+navigator_config {
+  execution_environment {
     enabled = true
     image = "quay.io/ansible/creator-ee:latest"
   }
 }
 
 # Or custom environments
-navigator_config = {
-  execution-environment = {
+navigator_config {
+  execution_environment {
     enabled = true
     image = "myregistry.io/ansible-ee:custom"
   }
@@ -274,17 +271,18 @@ When using execution environments, Ansible inside the container can fail if it t
 
 ```hcl
 provisioner "ansible-navigator" {
-  navigator_config = {
-    execution-environment = {
+  navigator_config {
+    execution_environment {
       enabled = true
       image = "quay.io/ansible/creator-ee:latest"
+      environment_variables {
+        ANSIBLE_REMOTE_TMP = "/tmp/.ansible/tmp"
+        ANSIBLE_LOCAL_TMP  = "/tmp/.ansible-local"
+      }
     }
-    ansible = {
-      config = {
-        defaults = {
-          remote_tmp = "/tmp/.ansible/tmp"
-          local_tmp  = "/tmp/.ansible-local"
-        }
+    ansible_config {
+      defaults {
+        remote_tmp = "/tmp/.ansible/tmp"
       }
     }
   }
@@ -299,19 +297,17 @@ For advanced users, the `navigator_config` option provides direct control over a
 
 ```hcl
 provisioner "ansible-navigator" {
-  navigator_config = {
+  navigator_config {
     mode = "stdout"
-    execution-environment = {
+    execution_environment {
       enabled = true
       image = "quay.io/ansible/creator-ee:latest"
-      pull-policy = "missing"
+      pull_policy = "missing"
     }
-    ansible = {
-      config = {
-        defaults = {
-          remote_tmp = "/tmp/.ansible/tmp"
-          host_key_checking = "False"
-        }
+    ansible_config {
+      defaults {
+        remote_tmp = "/tmp/.ansible/tmp"
+        host_key_checking = false
       }
     }
   }
@@ -375,7 +371,7 @@ This project is licensed under the [Apache License 2.0](LICENSE).
 
 ## 🏗️ Project Status
 
-**Current Version:** 3.1.0
+**Current Version:** 4.1.0
 **Status:** Production Ready
 **Maintained by:** SolomonHD
 

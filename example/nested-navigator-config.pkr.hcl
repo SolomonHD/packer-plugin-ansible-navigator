@@ -1,5 +1,5 @@
 # Example demonstrating nested navigator_config with execution-environment support
-# This tests the fix for HCL2 type specification (fix-navigator-config-hcl2-type)
+# This uses typed structs with block syntax (replace-navigator-config-with-typed-structs)
 
 packer {
   required_plugins {
@@ -29,40 +29,41 @@ build {
       target = "./playbook.yml"
     }
 
-    # Nested navigator_config - this is what the fix enables
-    # Previously this would fail with: "element 'execution-environment': string required"
-    navigator_config = {
-      # Execution environment settings (nested object)
-      execution-environment = {
+    # Nested navigator_config using typed structs with block syntax
+    # Note: Uses underscores instead of hyphens for field names
+    navigator_config {
+      # Mode setting
+      mode = "stdout"
+
+      # Execution environment settings (nested block)
+      execution_environment {
         enabled      = true
         image        = "quay.io/ansible/ansible-navigator:latest"
-        pull-policy  = "missing"
-        environment-variables = {
+        pull_policy  = "missing"
+        
+        environment_variables {
           pass = ["SSH_AUTH_SOCK", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
         }
       }
 
-      # Mode setting
-      mode = "stdout"
-
-      # Logging settings (nested object)
-      logging = {
+      # Logging settings (nested block)
+      logging {
         level = "debug"
         file  = "/tmp/ansible-navigator.log"
       }
 
-      # Ansible settings (nested object)
-      ansible = {
-        config = {
+      # Ansible settings (nested block)
+      ansible_config {
+        config {
           path = "/etc/ansible/ansible.cfg"
         }
         cmdline = "--forks 10"
       }
 
-      # Playbook artifact settings (nested object)
-      playbook-artifact = {
+      # Playbook artifact settings (nested block)
+      playbook_artifact {
         enable   = false
-        save-as  = "/tmp/artifact.json"
+        save_as  = "/tmp/artifact.json"
         replay   = "/tmp/artifact.json"
       }
     }
