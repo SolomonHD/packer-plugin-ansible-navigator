@@ -71,7 +71,9 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"roles_cache_dir":            &hcldec.AttrSpec{Name: "roles_cache_dir", Type: cty.String, Required: false},
 		"offline_mode":               &hcldec.AttrSpec{Name: "offline_mode", Type: cty.Bool, Required: false},
 		"force_update":               &hcldec.AttrSpec{Name: "force_update", Type: cty.Bool, Required: false},
-		"navigator_config":           &hcldec.AttrSpec{Name: "navigator_config", Type: cty.Map(cty.String), Required: false},
+		// NOTE: Type manually changed from cty.Map(cty.String) to cty.DynamicPseudoType
+		// to support nested map structures in navigator_config (see fix-navigator-config-hcl2-type)
+		"navigator_config": &hcldec.AttrSpec{Name: "navigator_config", Type: cty.DynamicPseudoType, Required: false},
 	}
 	return s
 }

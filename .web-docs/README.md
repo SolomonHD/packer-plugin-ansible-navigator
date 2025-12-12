@@ -104,7 +104,9 @@ execution_environment = "quay.io/ansible/creator-ee:latest"
 Enable JSON event streaming for detailed feedback:
 
 ```hcl
-navigator_mode = "json"
+navigator_config = {
+  mode = "json"
+}
 structured_logging = true
 log_output_path = "./logs/build.json"
 ```
