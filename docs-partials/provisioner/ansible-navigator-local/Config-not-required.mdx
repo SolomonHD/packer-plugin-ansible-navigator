@@ -9,44 +9,6 @@
   Entries are HOME-expanded locally and prepended to PATH in the remote shell command.
   Example: ["~/bin", "/opt/ansible/bin"]
 
-- `extra_arguments` ([]string) - Extra arguments to pass to Ansible.
-  These arguments _will not_ be passed through a shell and arguments should
-  not be quoted. Usage example:
-  
-  ```json
-     "extra_arguments": [ "--extra-vars", "Region={{user `Region`}} Stage={{user `Stage`}}" ]
-  ```
-  
-  In certain scenarios where you want to pass ansible command line arguments
-  that include parameter and value (for example `--vault-password-file pwfile`),
-  from ansible documentation this is correct format but that is NOT accepted here.
-  Instead you need to do it like `--vault-password-file=pwfile`.
-  
-  If you are running a Windows build on AWS, Azure, Google Compute, or OpenStack
-  and would like to access the auto-generated password that Packer uses to
-  connect to a Windows instance via WinRM, you can use the template variable
-  
-  ```build.Password``` in HCL templates or ```{{ build `Password`}}``` in
-  legacy JSON templates. For example:
-  
-  in JSON templates:
-  
-  ```json
-  "extra_arguments": [
-     "--extra-vars", "winrm_password={{ build `Password`}}"
-  ]
-  ```
-  
-  in HCL templates:
-  ```hcl
-  extra_arguments = [
-     "--extra-vars", "winrm_password=${build.Password}"
-  ]
-  ```
-
-- `galaxy_command` (string) - The command to invoke ansible-galaxy. By default, this is
-  `ansible-galaxy`.
-
 - `version_check_timeout` (string) - Maximum time to wait for ansible-navigator version check to complete.
   Defaults to "60s". This prevents indefinite hangs when ansible-navigator
   is not properly configured or cannot be found.
@@ -56,15 +18,6 @@
 - `galaxy_force_install` (bool) - Force overwriting an existing role.
    Adds `--force` option to `ansible-galaxy` command. By default, this is
    `false`.
-
-- `navigator_mode` (string) - Execution mode for ansible-navigator. Valid values: stdout, json, yaml, interactive.
-  Defaults to "stdout" for non-interactive environments (Packer-safe).
-  When set to "interactive" without a TTY, it automatically switches to "stdout".
-
-- `execution_environment` (string) - The container image to use as the execution environment for ansible-navigator.
-  Specifies which containerized environment runs the Ansible playbooks.
-  When unset, ansible-navigator uses its default execution environment.
-  Examples: "quay.io/ansible/creator-ee:latest", "my-registry.io/custom-ee:v1.0"
 
 - `work_dir` (string) - Working directory for ansible-navigator execution.
   When specified, ansible-navigator will be executed from this directory.
@@ -101,30 +54,6 @@
   Uses only locally cached dependencies.
 
 - `force_update` (bool) - When true, always reinstall both collections and roles even if cached.
-
-- `ansible_cfg` (map[string]map[string]string) - A map of Ansible configuration settings organized by INI sections.
-  This automatically generates a temporary ansible.cfg file before provisioning begins.
-  The file is uploaded to the remote machine and its path is passed via ANSIBLE_CONFIG.
-  
-  When execution_environment is set but ansible_cfg is not explicitly configured,
-  the plugin automatically applies defaults to fix "Permission denied: /.ansible" errors:
-    ansible_cfg = {
-      defaults = {
-        remote_tmp = "/tmp/.ansible/tmp"
-        local_tmp  = "/tmp/.ansible-local"
-      }
-    }
-  
-  Example:
-    ansible_cfg = {
-      defaults = {
-        remote_tmp      = "/tmp/.ansible/tmp"
-        host_key_checking = "False"
-      }
-      ssh_connection = {
-        pipelining = "True"
-      }
-    }
 
 - `navigator_config` (map[string]interface{}) - Modern declarative ansible-navigator configuration via YAML file generation.
   Maps directly to ansible-navigator.yml schema structure.

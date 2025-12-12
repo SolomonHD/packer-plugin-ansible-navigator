@@ -1,6 +1,6 @@
 # Examples
 
-> **⚠️ Deprecation Notice:** Several configuration options shown in older examples are deprecated. See [Migration Guide](MIGRATION.md) for migration paths to `navigator_config`.
+> **⚠️ BREAKING CHANGE (v4.0.0):** The following options have been REMOVED: `execution_environment`, `ansible_cfg`, `ansible_env_vars`, `ansible_ssh_extra_args`, `extra_arguments`, `navigator_mode`, `roles_path`, `collections_path`, `galaxy_command`. All examples below use the current supported configuration. See [Migration Guide](MIGRATION.md) for upgrade instructions.
 
 ## 1) Minimal playbook run
 
@@ -31,42 +31,7 @@ provisioner "ansible-navigator" {
 }
 ```
 
-## 3) Execution environment + ansible.cfg defaults
-
-> **⚠️ Deprecated:** This example uses deprecated options. See example 5 for the recommended `navigator_config` approach.
-
-```hcl
-provisioner "ansible-navigator" {
-  # DEPRECATED: Use navigator_config instead (see example 5)
-  execution_environment = "quay.io/ansible/creator-ee:latest"
-  ansible_cfg = {
-    defaults = {
-      remote_tmp = "/tmp/.ansible/tmp"
-      local_tmp  = "/tmp/.ansible-local"
-    }
-  }
-
-  play { target = "site.yml" }
-}
-```
-
-## 4) JSON logging
-
-> **⚠️ Deprecated:** `navigator_mode` is deprecated. Use `navigator_config.mode` instead (see example 6).
-
-```hcl
-provisioner "ansible-navigator" {
-  # DEPRECATED: Use navigator_config.mode instead
-  navigator_mode      = "json"
-  structured_logging  = true
-  log_output_path     = "./logs/ansible-summary.json"
-  verbose_task_output = true
-
-  play { target = "site.yml" }
-}
-```
-
-## 5) Modern configuration with navigator_config (recommended for ansible-navigator v3+)
+## 3) Modern configuration with navigator_config (recommended for ansible-navigator v3+)
 
 ```hcl
 provisioner "ansible-navigator" {
@@ -91,7 +56,7 @@ provisioner "ansible-navigator" {
 }
 ```
 
-## 6) Advanced navigator_config with custom environment variables
+## 4) Advanced navigator_config with custom environment variables
 
 ```hcl
 provisioner "ansible-navigator" {
@@ -135,32 +100,6 @@ provisioner "ansible-navigator" {
   }
 }
 ```
-
-## 7) Migration example: both legacy and navigator_config (navigator_config takes precedence)
-
-```hcl
-provisioner "ansible-navigator" {
-  # Legacy options (will be overridden by navigator_config)
-  execution_environment = "old-image:latest"
-  navigator_mode = "json"
-  
-  # Modern configuration (takes precedence)
-  navigator_config = {
-    mode = "stdout"
-    execution-environment = {
-      enabled = true
-      image = "quay.io/ansible/creator-ee:latest"
-    }
-  }
-  
-  play { target = "site.yml" }
-}
-```
-
-In this example, the final execution will use:
-
-- Mode: `stdout` (from navigator_config, not `json` from navigator_mode)
-- Image: `quay.io/ansible/creator-ee:latest` (from navigator_config, not `old-image:latest`)
 
 ---
 

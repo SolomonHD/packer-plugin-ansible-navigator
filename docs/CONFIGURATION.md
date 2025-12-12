@@ -1,8 +1,8 @@
 # Configuration Reference
 
-> **⚠️ Deprecation Notice:** Several configuration options are deprecated and will be removed in 1-2 releases. See [Migration Guide](MIGRATION.md) for migration paths.
+> **⚠️ BREAKING CHANGE (v4.0.0):** The following configuration options have been REMOVED: `execution_environment`, `ansible_cfg`, `ansible_env_vars`, `ansible_ssh_extra_args`, `extra_arguments`, `navigator_mode`, `roles_path`, `collections_path`, `galaxy_command`. Use `navigator_config` instead. See [Migration Guide](MIGRATION.md) for upgrade instructions.
 
-This document describes the supported configuration surface after the removal of legacy options.
+This document describes the supported configuration surface.
 
 ## Core concept: ordered `play {}` blocks (required)
 
@@ -72,29 +72,14 @@ Related options:
 - `force_update` (bool)
 - `galaxy_force_install` (bool)
 
-**Deprecated:**
-
-- `galaxy_command` (string; **deprecated** - generally unnecessary with `requirements_file`)
-- `roles_path` (string; **deprecated** - use `requirements_file` or `navigator_config.ansible.config.defaults.roles_path`)
-- `collections_path` (string; **deprecated** - use `requirements_file` or `navigator_config.ansible.config.defaults.collections_path`)
-
 ## Execution environment options
 
 - `work_dir` (string; sets working directory for execution)
 - `keep_going` (bool; continue running remaining plays after failures)
 
-### Deprecated Options (⚠️)
-
-The following options are **deprecated** and will be removed in a future version:
-
-- `navigator_mode` (string; **deprecated** - use `navigator_config.mode` instead)
-- `execution_environment` (string; **deprecated** - use `navigator_config.execution-environment` instead)
-
-See [Migration Guide](MIGRATION.md) for details.
-
 ## Logging
 
-- `structured_logging` (bool; effective when `navigator_mode = "json"`)
+- `structured_logging` (bool; effective when `navigator_config.mode = "json"`)
 - `log_output_path` (string; write a summary JSON file)
 - `verbose_task_output` (bool)
 
@@ -141,48 +126,6 @@ provisioner "ansible-navigator" {
 - `execution-environment.environment-variables.ANSIBLE_LOCAL_TMP`
 
 This prevents "Permission denied: /.ansible/tmp" errors in EE containers.
-
-**Precedence:** When both `navigator_config` and legacy options (`execution_environment`, `navigator_mode`) are present, `navigator_config` takes precedence.
-
-## Ansible configuration: `ansible_cfg` (optional, deprecated)
-
-> **⚠️ Deprecated:** The `ansible_cfg` option is deprecated. Use `navigator_config.ansible.config` instead. See [Migration Guide](MIGRATION.md#3-migrating-ansible_cfg).
-
-`ansible_cfg` is a map of INI sections (maps of key/value strings). When set, the provisioner generates a temporary `ansible.cfg` and sets `ANSIBLE_CONFIG=...` for execution.
-
-**Legacy example (deprecated):**
-
-```hcl
-provisioner "ansible-navigator" {
-  ansible_cfg = {
-    defaults = {
-      remote_tmp = "/tmp/.ansible/tmp"
-      local_tmp  = "/tmp/.ansible-local"
-    }
-  }
-
-  play { target = "site.yml" }
-}
-```
-
-**Recommended approach:**
-
-```hcl
-provisioner "ansible-navigator" {
-  navigator_config = {
-    ansible = {
-      config = {
-        defaults = {
-          remote_tmp = "/tmp/.ansible/tmp"
-          local_tmp  = "/tmp/.ansible-local"
-        }
-      }
-    }
-  }
-
-  play { target = "site.yml" }
-}
-```
 
 ## Command and PATH handling
 

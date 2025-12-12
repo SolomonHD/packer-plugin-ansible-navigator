@@ -57,7 +57,6 @@ exit 0
 				PackerBuilderType: "test-builder",
 			},
 			Command:       stubPath,
-			NavigatorMode: "stdout",
 			InventoryFile: invFile,
 			Plays: []Play{
 				{Target: play1},
@@ -67,7 +66,7 @@ exit 0
 		generatedData: basicGenData(map[string]interface{}{"ConnType": "docker"}),
 	}
 
-	require.NoError(t, p.executePlays(ui, nil, "", commonsteps.HttpAddrNotImplemented, "", ""))
+	require.NoError(t, p.executePlays(ui, nil, "", commonsteps.HttpAddrNotImplemented, ""))
 
 	data, err := os.ReadFile(outputFile)
 	require.NoError(t, err)

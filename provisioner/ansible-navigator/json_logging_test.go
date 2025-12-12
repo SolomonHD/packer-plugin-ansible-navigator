@@ -281,31 +281,16 @@ func TestWriteSummaryJSON(t *testing.T) {
 func TestStructuredLoggingConfiguration(t *testing.T) {
 	tests := []struct {
 		name              string
-		navigatorMode     string
 		structuredLogging bool
 		shouldUseJSON     bool
 	}{
 		{
-			name:              "JSON mode with structured logging enabled",
-			navigatorMode:     "json",
+			name:              "Structured logging enabled",
 			structuredLogging: true,
 			shouldUseJSON:     true,
 		},
 		{
-			name:              "JSON mode with structured logging disabled",
-			navigatorMode:     "json",
-			structuredLogging: false,
-			shouldUseJSON:     false,
-		},
-		{
-			name:              "Stdout mode with structured logging enabled",
-			navigatorMode:     "stdout",
-			structuredLogging: true,
-			shouldUseJSON:     false,
-		},
-		{
-			name:              "Stdout mode with structured logging disabled",
-			navigatorMode:     "stdout",
+			name:              "Structured logging disabled",
 			structuredLogging: false,
 			shouldUseJSON:     false,
 		},
@@ -314,12 +299,11 @@ func TestStructuredLoggingConfiguration(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			config := Config{
-				NavigatorMode:     tt.navigatorMode,
 				StructuredLogging: tt.structuredLogging,
 			}
 
-			// Logic: structured logging only works when both are set correctly
-			useStructuredLogging := config.StructuredLogging && config.NavigatorMode == "json"
+			// Structured logging is controlled solely by the StructuredLogging flag now
+			useStructuredLogging := config.StructuredLogging
 			assert.Equal(t, tt.shouldUseJSON, useStructuredLogging)
 		})
 	}

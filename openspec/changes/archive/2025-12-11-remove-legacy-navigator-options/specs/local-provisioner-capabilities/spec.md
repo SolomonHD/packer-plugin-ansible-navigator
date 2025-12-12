@@ -2,7 +2,7 @@
 
 ## REMOVED Requirements
 
-### Requirement: Execution Environment Support (via string field)
+### Requirement: Execution Environment Support
 
 **Reason**: Configuration via string `execution_environment` field is completely removed. Use `navigator_config.execution-environment` object instead.
 
@@ -10,7 +10,7 @@
 
 **Now**: Must use `navigator_config = { execution-environment = { enabled = true, image = "image:tag" } }`
 
-### Requirement: Navigator Mode Support (via string field)
+### Requirement: Navigator Mode
 
 **Reason**: Configuration via `navigator_mode` field is completely removed. Use `navigator_config.mode` instead.
 
@@ -18,41 +18,13 @@
 
 **Now**: Must use `navigator_config = { mode = "stdout" }`
 
-### Requirement: Ansible Configuration File Generation and Upload (via ansible_cfg)
+### Requirement: Ansible Configuration File Generation and Upload
 
 **Reason**: Configuration via `ansible_cfg` map is completely removed. Use `navigator_config.ansible.config` instead.
 
 **Was**: Users could specify `ansible_cfg = { defaults = { ... } }` to control ansible.cfg.
 
 **Now**: Must use `navigator_config = { ansible = { config = { defaults = { ... } } } }`
-
-### Requirement: Ansible Environment Variables (via ansible_env_vars)
-
-**Reason**: Configuration via `ansible_env_vars` map is completely removed. Use `navigator_config.execution-environment.environment-variables` instead.
-
-**Was**: Users could specify `ansible_env_vars = { VAR = "value" }`.
-
-**Now**: Must use `navigator_config = { execution-environment = { environment-variables = { VAR = "value" } } }`
-
-### Requirement: Ansible SSH Extra Args Support
-
-**Reason**: `ansible_ssh_extra_args` field is completely removed. Configure via navigator_config or play-level settings.
-
-### Requirement: Extra Arguments Support
-
-**Reason**: `extra_arguments` field is completely removed. Use navigator_config to control all ansible-navigator settings.
-
-### Requirement: Roles Path Configuration
-
-**Reason**: `roles_path` field is completely removed. Use navigator_config or requirements_file for dependency management.
-
-### Requirement: Collections Path Configuration
-
-**Reason**: `collections_path` field is completely removed. Use navigator_config or requirements_file for dependency management.
-
-### Requirement: Galaxy Command Customization
-
-**Reason**: `galaxy_command` field is completely removed. Use requirements_file workflow instead.
 
 ## MODIFIED Requirements
 

@@ -7,10 +7,11 @@ The `ansible-navigator` Packer provisioner runs Ansible playbooks using [Ansible
 Ansible Navigator is a command-line tool that provides a consistent interface for running Ansible content in execution environments. Unlike traditional `ansible-playbook`, ansible-navigator runs playbooks inside container-based execution environments, providing better isolation and reproducibility.
 
 **Requirements:**
+
 - **ansible-navigator** must be installed on your local machine (the one running Packer)
 - **Docker or Podman** must be installed and running on your local machine
-  - Docker: https://docs.docker.com/get-docker/
-  - Podman: https://podman.io/getting-started/installation
+  - Docker: <https://docs.docker.com/get-docker/>
+  - Podman: <https://podman.io/getting-started/installation>
 
 The provisioner uses ansible-navigator to execute playbooks within execution environment containers, ensuring consistent Ansible versions and dependencies across different build environments.
 
@@ -74,7 +75,6 @@ build {
 }
 ```
 
-
 Example playbook:
 
 ```yaml
@@ -93,7 +93,7 @@ Example playbook:
 
 ## Execution Environments
 
-Ansible Navigator runs playbooks inside containerized execution environments, providing isolated and reproducible Ansible execution. You can specify which container image to use with the `execution_environment` option.
+Ansible Navigator runs playbooks inside containerized execution environments, providing isolated and reproducible Ansible execution. You can specify which container image to use with the `navigator_config` option.
 
 ### Configuration
 
@@ -104,7 +104,12 @@ provisioner "ansible-navigator" {
   playbook_file = "site.yml"
   
   # Use official Ansible execution environment
-  execution_environment = "quay.io/ansible/creator-ee:latest"
+  navigator_config = {
+    execution-environment = {
+      enabled = true
+      image = "quay.io/ansible/creator-ee:latest"
+    }
+  }
 }
 ```
 
@@ -114,7 +119,12 @@ provisioner "ansible-navigator" {
 {
   "type": "ansible-navigator",
   "playbook_file": "site.yml",
-  "execution_environment": "quay.io/ansible/creator-ee:latest"
+  "navigator_config": {
+    "execution-environment": {
+      "enabled": true,
+      "image": "quay.io/ansible/creator-ee:latest"
+    }
+  }
 }
 ```
 
@@ -133,7 +143,7 @@ provisioner "ansible-navigator" {
 - Support air-gapped/offline environments
 - Meet compliance or security requirements
 
-When `execution_environment` is not specified, ansible-navigator uses its default execution environment selection.
+When `navigator_config.execution-environment` is not specified, ansible-navigator uses its default execution environment selection.
 
 ## Configuration Reference
 
@@ -144,7 +154,6 @@ Required Parameters:
 - `playbook_file` (string) - The playbook to be run by Ansible.
 
 <!-- End of code generated from the comments of the Config struct in provisioner/ansible/provisioner.go; -->
-
 
 Optional Parameters:
 
@@ -257,8 +266,8 @@ Optional Parameters:
   
   Supported values:
   
-  * ECDSA (default)
-  * RSA
+  - ECDSA (default)
+  - RSA
   
   NOTE: using RSA may cause problems if the key is used to authenticate with rsa-sha1
   as modern OpenSSH versions reject this by default as it is unsafe.
@@ -362,7 +371,6 @@ Optional Parameters:
   Default: `false`
 
 <!-- End of code generated from the comments of the Config struct in provisioner/ansible/provisioner.go; -->
-
 
 ## Managed Ansible Collections
 
@@ -1207,7 +1215,6 @@ Parameters common to all provisioners:
 - `timeout` (duration) - If the provisioner takes more than for example
   `1h10m1s` or `10m` to finish, the provisioner will timeout and fail.
 
-
 ## Default Extra Variables
 
 In addition to being able to specify extra arguments using the
@@ -1246,7 +1253,6 @@ to enable verbose logging.
 ```json
   "extra_arguments": [ "-vvvv" ]
 ```
-
 
 ## Limitations
 
@@ -1315,7 +1321,6 @@ build {
 }
 ```
 
-
 ### WinRM Communicator
 
 There are two possible methods for using Ansible with the WinRM communicator.
@@ -1323,7 +1328,7 @@ There are two possible methods for using Ansible with the WinRM communicator.
 Please note that if you're having trouble getting Ansible to connect, you may
 want to take a look at the script that the Ansible project provides to help
 configure remoting for Ansible:
-https://github.com/ansible/ansible-documentation/blob/devel/examples/scripts/ConfigureRemotingForAnsible.ps1
+<https://github.com/ansible/ansible-documentation/blob/devel/examples/scripts/ConfigureRemotingForAnsible.ps1>
 
 #### Method 1 (recommended)
 
@@ -1400,7 +1405,7 @@ build {
 
 Below is a fully functioning Ansible example for azure-arm using WinRM.
 Note: pywinrm needs to be installed into the python environment on your local build machine if it's not already installed.
-Note: The ConfigureRemotingForAnsible.ps1 script can be found here https://github.com/ansible/ansible/blob/devel/examples/scripts/ConfigureRemotingForAnsible.ps1.
+Note: The ConfigureRemotingForAnsible.ps1 script can be found here <https://github.com/ansible/ansible/blob/devel/examples/scripts/ConfigureRemotingForAnsible.ps1>.
 
 **HCL2**
 
@@ -1506,7 +1511,6 @@ build {
 }
 ```
 
-
 Note that you do have to set the "Administrator" user, because otherwise Ansible
 will default to using the user that is calling Packer, rather than the user
 configured inside of the Packer communicator. For the contents of
@@ -1534,7 +1538,6 @@ ansible_env_vars = ["no_proxy=\"*\""]
 ```json
 "ansible_env_vars": ["no_proxy=\"*\""],
 ```
-
 
 in the above Ansible template.
 
@@ -1647,7 +1650,7 @@ Platform:
 ```
 
 -> **Warning:** Please note that if you're setting up WinRM for provisioning, you'll probably want to turn it off or restrict its permissions as part of a shutdown script at the end of Packer's provisioning process. For more details on the why/how, check out this useful blog post and the associated code:
-https://missionimpossiblecode.io/post/winrm-for-provisioning-close-the-door-on-the-way-out-eh/
+<https://missionimpossiblecode.io/post/winrm-for-provisioning-close-the-door-on-the-way-out-eh/>
 
 ### Post i/o timeout errors
 
@@ -1671,7 +1674,7 @@ provisioner may fail authentication with a message similar to this:
 To unload all keys from your `ssh-agent`, run:
 
 ```shell-session
-$ ssh-add -D
+ssh-add -D
 ```
 
 ### Become: yes
@@ -1712,7 +1715,6 @@ provisioner "ansible-navigator" {
   "playbook_file": "./playbook.yml"
 }
 ```
-
 
 Note that we're calling ansible-playbook at the end of this command and passing
 all command line arguments through into this call; this is necessary for
@@ -1803,7 +1805,6 @@ build {
 }
 ```
 
-
 Example playbook:
 
 ```yaml
@@ -1861,7 +1862,6 @@ their configured region.
     }
   ]
 ```
-
 
 Full Packer template example:
 
@@ -1946,7 +1946,6 @@ build {
 }
 ```
 
-
 ## Troubleshooting
 
 ### Version Check Hangs or Times Out
@@ -1954,6 +1953,7 @@ build {
 **Problem:** Packer hangs during the ansible-navigator version check or times out after 60 seconds.
 
 **Common Causes:**
+
 - ansible-navigator is not installed or not in PATH
 - ansible-navigator is installed via asdf but the shim is not working correctly in subprocess contexts
 - Network or container runtime delays
@@ -2081,6 +2081,7 @@ provisioner "ansible-navigator" {
 ```
 
 **Why asdf requires special handling:**
+
 - asdf shims are wrapper scripts that determine the correct version to use
 - These shims may not inherit the full environment when called from Packer
 - The version check subprocess may not have access to asdf's environment setup

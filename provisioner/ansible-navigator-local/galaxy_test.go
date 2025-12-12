@@ -18,7 +18,6 @@ func TestGalaxyManager_InstallRequirements_RunsRolesAndCollectionsInstalls(t *te
 
 	cfg := &Config{
 		RequirementsFile: reqFile,
-		GalaxyCommand:    "ansible-galaxy",
 	}
 
 	comm := &communicatorMock{}
