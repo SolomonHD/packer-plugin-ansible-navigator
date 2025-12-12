@@ -80,7 +80,9 @@ func convertToYAMLStructure(config *NavigatorConfig) map[string]interface{} {
 			eeMap["image"] = config.ExecutionEnvironment.Image
 		}
 		if config.ExecutionEnvironment.PullPolicy != "" {
-			eeMap["pull-policy"] = config.ExecutionEnvironment.PullPolicy
+			eeMap["pull"] = map[string]interface{}{
+				"policy": config.ExecutionEnvironment.PullPolicy,
+			}
 		}
 		if config.ExecutionEnvironment.EnvironmentVariables != nil {
 			envVarsMap := make(map[string]interface{})
