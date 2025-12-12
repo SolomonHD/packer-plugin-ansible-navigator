@@ -158,9 +158,13 @@ func TestGenerateNavigatorConfigYAML_ValidYAML(t *testing.T) {
 		t.Fatalf("Generated YAML is not valid: %v\nYAML:\n%s", err, yamlStr)
 	}
 
-	// Verify key fields exist in parsed output
-	if parsed["mode"] != "json" {
-		t.Errorf("Expected mode=json in parsed YAML, got: %v", parsed["mode"])
+	// Verify key fields exist in parsed output under ansible-navigator root key
+	ansibleNavigator, ok := parsed["ansible-navigator"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected ansible-navigator root key in parsed YAML, got: %v", parsed)
+	}
+	if ansibleNavigator["mode"] != "json" {
+		t.Errorf("Expected mode=json in parsed YAML under ansible-navigator key, got: %v", ansibleNavigator["mode"])
 	}
 }
 

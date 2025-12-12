@@ -162,69 +162,33 @@ The SSH-based ansible-navigator provisioner SHALL support an `ansible_navigator_
 
 ### Requirement: Version Check Timeout Configuration
 
-The SSH-based ansible-navigator provisioner SHALL support a configurable timeout for the version check operation to prevent indefinite hangs when ansible-navigator cannot be located or is slow to respond.
+The SSH-based provisioner SHALL support a configurable timeout for the version check operation to prevent indefinite hangs when ansible-navigator cannot be located or is slow to respond, with enhanced error messages for version manager shim troubleshooting.
 
-#### Scenario: Default timeout value
+#### Scenario: Default timeout with shim detection
 
-- **GIVEN** a configuration for `provisioner "ansible-navigator"` that does not specify `version_check_timeout`
-- **WHEN** the provisioner prepares for execution
-- **THEN** it SHALL use a default timeout of 60 seconds for the version check
-- **AND** the version check SHALL fail with a timeout error if it exceeds 60 seconds
+- **GIVEN** a configuration for `provisioner "ansible-navigator"` without `version_check_timeout` specified
+- **AND** `skip_version_check` is not set or is `false`
+- **WHEN** the provisioner performs version check
+- **THEN** it SHALL first attempt shim detection and resolution
+- **AND** if a shim is detected, it SHALL use the resolved path
+- **AND** it SHALL apply a default timeout of 60 seconds to the version check
+- **AND** if the timeout expires, the error message SHALL include shim troubleshooting guidance
 
-#### Scenario: Custom timeout value
+#### Scenario: Shim resolution bypasses timeout issues
 
-- **GIVEN** a configuration with `version_check_timeout = "30s"`
-- **WHEN** the version check is performed
-- **THEN** it SHALL use a 30-second timeout
-- **AND** the timeout SHALL be enforced using `context.WithTimeout` and `exec.CommandContext`
+- **GIVEN** ansible-navigator is installed via asdf and would normally cause timeout
+- **WHEN** the provisioner detects the asdf shim and successfully resolves to the real binary
+- **THEN** the version check SHALL use the real binary path
+- **AND** the version check SHALL complete within normal timeframes (< 5 seconds)
+- **AND** no timeout error SHALL occur
 
-#### Scenario: Timeout uses duration format
+#### Scenario: Manual command configuration bypasses shim detection
 
-- **GIVEN** a configuration with `version_check_timeout` set to a value
-- **WHEN** the configuration is prepared
-- **THEN** the value SHALL be parsed using `time.ParseDuration`
-- **AND** valid duration formats SHALL include "60s", "2m", "1m30s", etc.
-- **AND** invalid duration formats SHALL cause configuration validation to fail
-
-#### Scenario: Timeout error message
-
-- **GIVEN** the version check command times out after the configured duration
-- **WHEN** the timeout occurs
-- **THEN** the error message SHALL indicate:
-  - The version check timed out
-  - The configured timeout value (e.g., "60s")
-  - Suggestions including: use `ansible_navigator_path`, use `command` to specify full path, set `skip_version_check = true`, or increase `version_check_timeout`
-
-#### Scenario: Not-found error remains distinct
-
-- **GIVEN** ansible-navigator cannot be found in PATH before the timeout expires
-- **WHEN** the command execution fails with a not-found error
-- **THEN** the error message SHALL indicate ansible-navigator was not found
-- **AND** the error SHALL not be reported as a timeout
-- **AND** the error message SHALL mention both PATH and `ansible_navigator_path` as resolution mechanisms
-
-#### Scenario: Skip version check bypasses timeout
-
-- **GIVEN** a configuration with `skip_version_check = true`
-- **WHEN** the provisioner prepares for execution
-- **THEN** no version check SHALL be performed
-- **AND** the `version_check_timeout` configuration SHALL be ignored
-
-#### Scenario: Version check respects modified PATH
-
-- **GIVEN** a configuration with both `ansible_navigator_path` and `version_check_timeout`
-- **WHEN** the version check executes
-- **THEN** it SHALL use the modified PATH from `ansible_navigator_path`
-- **AND** it SHALL enforce the configured timeout
-- **AND** both mechanisms SHALL work together correctly
-
-#### Scenario: asdf installation compatibility
-
-- **GIVEN** ansible-navigator is installed via asdf
-- **AND** the configuration uses `command = "~/.asdf/shims/ansible-navigator"` or `ansible_navigator_path = ["~/.asdf/shims"]`
-- **WHEN** the version check executes
-- **THEN** it SHALL succeed within the timeout period if the shim responds correctly
-- **OR** it SHALL timeout with a clear error message if the shim hangs or doesn't respond
+- **GIVEN** a configuration with `command = "/absolute/path/to/ansible-navigator"`
+- **WHEN** the provisioner performs version check
+- **THEN** shim detection MAY be skipped if the path is absolute and points to a real binary
+- **OR** shim detection MAY still run but resolution SHALL use the configured absolute path
+- **AND** existing manual configurations SHALL continue to work without changes
 
 ### Requirement: Configurable SSH Proxy Bind Address
 
@@ -599,4 +563,251 @@ The remote provisioner's `navigator_config` field SHALL use explicit Go struct t
 - **THEN** it SHALL include all navigator config struct types needed for HCL2 spec generation
 - **AND** `make generate` SHALL successfully generate specs for all types
 - **AND** the directive SHALL NOT include removed types like `AnsibleConfigInner`
+
+### Requirement: Mode CLI Flag Support for Remote Provisioner
+
+The SSH-based provisioner SHALL pass the `--mode` CLI flag to ansible-navigator when `navigator_config.mode` is configured, ensuring ansible-navigator runs in the specified mode and does not hang waiting for interactive input.
+
+#### Scenario: Mode flag added when navigator_config.mode is set
+
+- **GIVEN** a configuration with `provisioner "ansible-navigator"`
+- **AND** `navigator_config.mode = "stdout"` is specified
+- **WHEN** the provisioner constructs the ansible-navigator command
+- **THEN** it SHALL include `--mode stdout` flag in the command arguments
+- **AND** the flag SHALL be inserted after the `run` subcommand
+- **AND** the flag SHALL appear before playbook-specific arguments (inventory, extra vars, etc.)
+
+#### Scenario: Mode flag not added when mode not configured
+
+- **GIVEN** a configuration with `provisioner "ansible-navigator"`
+- **AND** NO `navigator_config` block is specified
+- **OR** `navigator_config` is specified but does NOT include `mode` field
+- **WHEN** the provisioner constructs the ansible-navigator command
+- **THEN** it SHALL NOT include a `--mode` flag
+- **AND** ansible-navigator SHALL use its default behavior (config file or built-in defaults)
+
+#### Scenario: Mode flag prevents interactive hang
+
+- **GIVEN** a configuration with `navigator_config.mode = "stdout"`
+- **AND** ansible-navigator is run in a non-interactive environment (Packer build)
+- **WHEN** the provisioner executes ansible-navigator
+- **THEN** ansible-navigator SHALL execute in stdout mode
+- **AND** it SHALL NOT wait for terminal input
+- **AND** it SHALL output playbook execution results to stdout
+- **AND** the provisioning SHALL complete without hanging
+
+### Requirement: YAML Root Structure for Remote Provisioner
+
+The remote provisioner SHALL generate ansible-navigator.yml configuration files with a top-level `ansible-navigator:` root key wrapping all settings to conform to ansible-navigator v25.x schema requirements and prevent validation errors.
+
+#### Scenario: Generated YAML wraps all settings under ansible-navigator key
+
+- **GIVEN** a configuration with `navigator_config` block containing any settings
+- **WHEN** the provisioner generates the `ansible-navigator.yml` file
+- **THEN** the YAML SHALL have a top-level `ansible-navigator:` key
+- **AND** ALL configuration settings SHALL be nested under this key
+- **AND** the structure SHALL conform to ansible-navigator v25.x schema
+
+#### Scenario: Mode setting nested under root key
+
+- **GIVEN** a configuration with `navigator_config.mode = "stdout"`
+- **WHEN** the YAML is generated
+- **THEN** the output SHALL be:
+
+  ```yaml
+  ansible-navigator:
+    mode: stdout
+  ```
+
+- **AND** NOT the flat structure:
+
+  ```yaml
+  mode: stdout
+  ```
+
+#### Scenario: Multiple configuration sections nested correctly
+
+- **GIVEN** a configuration with multiple navigator_config sections (mode, execution_environment, ansible_config, logging)
+- **WHEN** the YAML is generated
+- **THEN** ALL sections SHALL be nested under `ansible-navigator:` root key
+- **AND** nested structure SHALL be preserved for execution-environment, ansible, and other complex settings
+
+#### Scenario: Schema validation passes with root key
+
+- **GIVEN** a generated ansible-navigator.yml file with `ansible-navigator:` root key
+- **WHEN** ansible-navigator processes the configuration file
+- **THEN** it SHALL pass schema validation
+- **AND** it SHALL NOT report "Additional properties are not allowed" errors
+- **AND** all configuration settings SHALL be recognized and applied
+
+#### Scenario: Execution environment pull policy with root key
+
+- **GIVEN** a configuration with `execution_environment.pull_policy = "missing"`
+- **WHEN** the ansible-navigator.yml YAML is generated
+- **THEN** the YAML SHALL contain:
+
+  ```yaml
+  ansible-navigator:
+    execution-environment:
+      pull:
+        policy: missing
+  ```
+
+- **AND** the generated YAML SHALL pass ansible-navigator's built-in schema validation
+- **AND** ansible-navigator SHALL accept the config file without "Additional properties" errors
+
+#### Scenario: ConvertToYAMLStructure wraps in root key
+
+- **GIVEN** the `convertToYAMLStructure()` function implementation
+- **WHEN** it converts NavigatorConfig to YAML-compatible structure
+- **THEN** it SHALL create a top-level map with key `"ansible-navigator"`
+- **AND** the value SHALL be a map containing all navigator settings
+- **AND** nested structures SHALL be preserved within this wrapped structure
+- **AND** field name conversions (underscores to hyphens) SHALL occur correctly
+
+#### Scenario: Empty navigator_config produces minimal YAML
+
+- **GIVEN** a `navigator_config {}` block with no fields set
+- **WHEN** the YAML is generated
+- **THEN** it SHALL produce:
+
+  ```yaml
+  ansible-navigator: {}
+  ```
+
+- **OR** an equivalent minimal structure
+- **AND** ansible-navigator SHALL accept this as valid configuration
+
+#### Scenario: Backward compatibility maintained
+
+- **GIVEN** an existing Packer configuration using `navigator_config` block
+- **AND** the configuration was written before this change
+- **WHEN** the configuration is used with the updated plugin
+- **THEN** it SHALL continue to work without modification
+- **AND** the YAML SHALL be generated with proper root structure automatically
+- **AND** no user action SHALL be required to adopt the new structure
+
+### Requirement: Version Manager Shim Detection
+
+The SSH-based provisioner SHALL detect when `ansible-navigator` resolves to a version manager shim (asdf, rbenv, pyenv) and attempt automatic resolution to prevent silent hangs caused by shim recursion loops.
+
+#### Scenario: asdf shim detected and resolved successfully
+
+- **GIVEN** ansible-navigator is installed via asdf
+- **AND** the command resolves to `~/.asdf/shims/ansible-navigator`
+- **WHEN** the provisioner performs version check in `getVersion()`
+- **THEN** it SHALL detect the file is an asdf shim by reading the file header
+- **AND** it SHALL execute `asdf which ansible-navigator` to resolve the real binary path
+- **AND** it SHALL use the resolved path for the version check
+- **AND** the version check SHALL succeed without hanging
+
+#### Scenario: rbenv shim detected and resolved
+
+- **GIVEN** ansible-navigator is installed via rbenv
+- **AND** the command resolves to a rbenv shim file
+- **WHEN** the provisioner performs version check
+- **THEN** it SHALL detect the rbenv shim pattern in the file header
+- **AND** it SHALL execute `rbenv which ansible-navigator` to resolve the real binary
+- **AND** it SHALL use the resolved binary path for version check
+- **AND** the version check SHALL complete successfully
+
+#### Scenario: pyenv shim detected and resolved
+
+- **GIVEN** ansible-navigator is installed via pyenv
+- **AND** the command resolves to a pyenv shim file
+- **WHEN** the provisioner performs version check
+- **THEN** it SHALL detect the pyenv shim pattern in the file header
+- **AND** it SHALL execute `pyenv which ansible-navigator` to resolve the real binary
+- **AND** it SHALL use the resolved binary path for version check
+- **AND** the version check SHALL complete successfully
+
+#### Scenario: Shim detected but resolution fails
+
+- **GIVEN** ansible-navigator command resolves to an asdf shim
+- **AND** `asdf which ansible-navigator` returns an error or empty result
+- **WHEN** the provisioner attempts version check
+- **THEN** it SHALL fail immediately with error message:
+
+  ```
+  Error: ansible-navigator appears to be an asdf shim, but the real binary could not be resolved.
+  
+  SOLUTIONS:
+  1. Verify ansible-navigator is installed:
+     $ asdf list ansible
+  
+  2. Find the actual binary path:
+     $ asdf which ansible-navigator
+  
+  3. Configure the plugin to use the actual binary:
+     provisioner "ansible-navigator" {
+       command = "/path/to/actual/ansible-navigator"
+       # OR
+       ansible_navigator_path = ["/path/to/bin/directory"]
+     }
+  
+  4. Alternatively, skip the version check (not recommended):
+     provisioner "ansible-navigator" {
+       skip_version_check = true
+     }
+  ```
+
+- **AND** the error message SHALL include the detected version manager name (asdf/rbenv/pyenv)
+
+#### Scenario: Non-shim file detected correctly
+
+- **GIVEN** ansible-navigator is a regular binary (not a shim)
+- **WHEN** the provisioner performs shim detection
+- **THEN** it SHALL correctly identify the file as NOT a shim
+- **AND** it SHALL proceed with normal version check using the binary directly
+- **AND** no resolution attempt SHALL be made
+
+#### Scenario: Shim detection is fast
+
+- **GIVEN** any ansible-navigator executable
+- **WHEN** the provisioner performs shim detection
+- **THEN** the detection overhead SHALL be less than 100 milliseconds
+- **AND** it SHALL not significantly impact plugin initialization time
+
+### Requirement: Enhanced Timeout Error Messages
+
+The SSH-based provisioner SHALL provide enhanced error messages when version check times out, including guidance for troubleshooting version manager shim issues.
+
+#### Scenario: Timeout error includes shim troubleshooting
+
+- **WHEN** ansible-navigator version check times out after the configured duration
+- **THEN** it SHALL return an error message that includes:
+
+  ```
+  ansible-navigator version check timed out after 60s.
+  
+  COMMON CAUSES:
+  1. Version manager shim (asdf/rbenv/pyenv) causing infinite recursion
+  2. ansible-navigator not properly installed or not in PATH
+  3. ansible-navigator requires additional configuration
+  
+  TROUBLESHOOTING:
+  1. Check if you're using a version manager:
+     $ which ansible-navigator
+     $ head -1 $(which ansible-navigator)  # Should show shebang
+  
+  2. If using asdf, find the real binary:
+     $ asdf which ansible-navigator
+  
+  3. Configure the plugin with the actual binary:
+     provisioner "ansible-navigator" {
+       command = "/home/user/.asdf/installs/ansible/2.9.0/bin/ansible-navigator"
+       # OR
+       ansible_navigator_path = ["/home/user/.asdf/installs/ansible/2.9.0/bin"]
+     }
+  
+  4. Verify ansible-navigator works independently:
+     $ ansible-navigator --version
+  
+  5. Skip version check if needed (not recommended):
+     provisioner "ansible-navigator" {
+       skip_version_check = true
+     }
+  ```
+
+- **AND** it SHALL mention version manager shims as the first common cause
 

@@ -660,8 +660,13 @@ func (p *Provisioner) executeAnsiblePlaybook(
 	}
 
 	// Command now defaults to just "ansible-navigator", so we need to add "run" as first arg
-	command := fmt.Sprintf("cd %s && %s%s %s run %s%s -c local -i %s",
-		p.stagingDir, pathPrefix, env_vars, p.config.Command, playbookFile, extraArgs, inventory,
+	// Add --mode flag if navigator_config.mode is set to prevent hanging in interactive mode
+	runCommand := "run"
+	if p.config.NavigatorConfig != nil && p.config.NavigatorConfig.Mode != "" {
+		runCommand = fmt.Sprintf("run --mode %s", p.config.NavigatorConfig.Mode)
+	}
+	command := fmt.Sprintf("cd %s && %s%s %s %s %s%s -c local -i %s",
+		p.stagingDir, pathPrefix, env_vars, p.config.Command, runCommand, playbookFile, extraArgs, inventory,
 	)
 	ui.Message(fmt.Sprintf("Executing Ansible Navigator: %s", command))
 	cmd := &packersdk.RemoteCmd{

@@ -34,17 +34,56 @@ If you need to pass flags, use provisioner fields or the `navigator_config` bloc
 
 ## Version check hangs / timeouts
 
-If `ansible-navigator --version` is slow or hangs on your system:
+### Automatic shim resolution (v0.4.0+)
 
-- Prefer adding the directory to `ansible_navigator_path` (or setting `command` to an explicit path)
-- Increase `version_check_timeout`
-- Or set `skip_version_check = true` (not recommended unless you control the environment)
+The plugin automatically detects and resolves version manager shims (asdf, rbenv, pyenv). In most cases, no manual configuration is needed.
+
+**When automatic resolution works:**
+
+```bash
+# Your version manager is configured
+which ansible-navigator
+# → ~/.asdf/shims/ansible-navigator (a shim)
+
+asdf which ansible-navigator  # or rbenv/pyenv which
+# → /home/user/.asdf/installs/ansible-navigator/2.3.0/bin/ansible-navigator
+```
+
+The plugin detects the shim and automatically uses the real binary path.
+
+**When manual configuration is needed:**
+
+If automatic resolution fails (version manager not in PATH, or `which` command fails), you'll see a clear error message with solutions:
 
 ```hcl
 provisioner "ansible-navigator" {
-  ansible_navigator_path  = ["~/.asdf/shims"]
-  version_check_timeout   = "120s"
-  # skip_version_check = true
+  # Option 1: Specify the full path directly
+  command = "/home/user/.asdf/installs/ansible-navigator/2.3.0/bin/ansible-navigator"
+  # Find your path with: asdf which ansible-navigator
+
+  play { target = "site.yml" }
+}
+```
+
+**Or add the directory to PATH:**
+
+```hcl
+provisioner "ansible-navigator" {
+  # Option 2: Add directories to be prepended to PATH
+  ansible_navigator_path = ["/home/user/.asdf/installs/ansible-navigator/2.3.0/bin"]
+
+  play { target = "site.yml" }
+}
+```
+
+### Other timeout causes
+
+If timeouts occur for reasons other than shims (network delays, container image pulls):
+
+```hcl
+provisioner "ansible-navigator" {
+  version_check_timeout = "120s"  # Increase timeout
+  # skip_version_check = true      # Last resort only
 
   play { target = "site.yml" }
 }

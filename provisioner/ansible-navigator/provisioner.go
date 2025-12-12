@@ -620,6 +620,64 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	return nil
 }
 
+// detectShim checks if the given file is a version manager shim by reading its header
+func detectShim(path string) (string, bool) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", false
+	}
+	defer file.Close()
+
+	// Read first 512 bytes to detect shim patterns
+	scanner := bufio.NewScanner(file)
+	lines := 0
+	for scanner.Scan() && lines < 10 {
+		line := scanner.Text()
+		lines++
+
+		// Check for common shim patterns
+		if strings.Contains(line, "asdf exec") || strings.Contains(line, "ASDF") {
+			return "asdf", true
+		}
+		if strings.Contains(line, "rbenv exec") || strings.Contains(line, "RBENV") {
+			return "rbenv", true
+		}
+		if strings.Contains(line, "pyenv exec") || strings.Contains(line, "PYENV") {
+			return "pyenv", true
+		}
+	}
+
+	return "", false
+}
+
+// resolveShim attempts to resolve a shim to its real binary using the version manager
+func resolveShim(command string, manager string) (string, error) {
+	var whichCmd *exec.Cmd
+
+	switch manager {
+	case "asdf":
+		whichCmd = exec.Command("asdf", "which", command)
+	case "rbenv":
+		whichCmd = exec.Command("rbenv", "which", command)
+	case "pyenv":
+		whichCmd = exec.Command("pyenv", "which", command)
+	default:
+		return "", fmt.Errorf("unsupported version manager: %s", manager)
+	}
+
+	output, err := whichCmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve shim with %s: %w", manager, err)
+	}
+
+	resolvedPath := strings.TrimSpace(string(output))
+	if resolvedPath == "" {
+		return "", fmt.Errorf("%s returned empty path", manager)
+	}
+
+	return resolvedPath, nil
+}
+
 func (p *Provisioner) getVersion() error {
 	// Use the configured command (defaults to "ansible-navigator")
 	command := p.config.Command
@@ -629,6 +687,36 @@ func (p *Provisioner) getVersion() error {
 	if err != nil {
 		// This should never happen as we validate in Prepare(), but handle gracefully
 		timeout = 60 * time.Second
+	}
+
+	// Detect and resolve shims before version check
+	cmdPath, err := exec.LookPath(command)
+	if err == nil {
+		// Check if the resolved path is a shim
+		if manager, isShim := detectShim(cmdPath); isShim {
+			log.Printf("Detected %s shim at %s", manager, cmdPath)
+
+			// Attempt to resolve the shim
+			resolvedPath, resolveErr := resolveShim(command, manager)
+			if resolveErr != nil {
+				// Resolution failed - provide actionable error
+				return fmt.Errorf(
+					"ansible-navigator is installed via %s but could not be resolved automatically.\n"+
+						"This may cause hangs or timeouts during version checks.\n\n"+
+						"Solutions:\n"+
+						"  1. Use 'command' to specify the full path:\n"+
+						"     command = \"/full/path/to/ansible-navigator\"\n\n"+
+						"  2. Find the path with: %s which ansible-navigator\n\n"+
+						"  3. Use 'ansible_navigator_path' to add directories to PATH\n\n"+
+						"  4. Use 'skip_version_check = true' to bypass (not recommended)\n\n"+
+						"Resolution error: %v",
+					manager, manager, resolveErr)
+			}
+
+			// Resolution succeeded - use the real binary
+			log.Printf("Resolved %s shim to: %s", manager, resolvedPath)
+			command = resolvedPath
+		}
 	}
 
 	// Create context with timeout
@@ -646,12 +734,18 @@ func (p *Provisioner) getVersion() error {
 		// Check if it was a timeout
 		if ctx.Err() == context.DeadlineExceeded {
 			return fmt.Errorf(
-				"ansible-navigator version check timed out after %s. "+
-					"This may indicate ansible-navigator is not properly installed or configured. "+
+				"ansible-navigator version check timed out after %s.\n"+
+					"This may indicate ansible-navigator is not properly installed or configured.\n\n"+
+					"Common causes:\n"+
+					"  - Version manager shims (asdf, rbenv, pyenv) causing recursion loops\n"+
+					"  - Network issues when pulling container images\n"+
+					"  - Missing dependencies\n\n"+
 					"Solutions:\n"+
-					"  1. Ensure ansible-navigator is installed and in PATH\n"+
-					"  2. Use 'ansible_navigator_path' to specify additional directories\n"+
-					"  3. Use 'skip_version_check = true' to bypass the check\n"+
+					"  1. Use 'command' with the full path to ansible-navigator:\n"+
+					"     command = \"/full/path/to/ansible-navigator\"\n"+
+					"     (Find with: asdf which ansible-navigator, rbenv which ansible-navigator, or pyenv which ansible-navigator)\n\n"+
+					"  2. Use 'ansible_navigator_path' to specify additional directories\n\n"+
+					"  3. Use 'skip_version_check = true' to bypass the check\n\n"+
 					"  4. Increase 'version_check_timeout' (current: %s)",
 				p.config.VersionCheckTimeout, p.config.VersionCheckTimeout)
 		}
@@ -1153,7 +1247,15 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 		}
 
 		// Execute the play - prepend "run" as first argument
-		cmdArgs := append([]string{"run"}, args...)
+		// CRITICAL: Add --mode flag if navigator_config.mode is set
+		// This prevents ansible-navigator from hanging in interactive mode
+		var cmdArgs []string
+		if p.config.NavigatorConfig != nil && p.config.NavigatorConfig.Mode != "" {
+			cmdArgs = append([]string{"run", "--mode", p.config.NavigatorConfig.Mode}, args...)
+		} else {
+			cmdArgs = append([]string{"run"}, args...)
+		}
+
 		cmd := exec.Command(p.config.Command, cmdArgs...)
 
 		// Set environment with modified PATH if needed
