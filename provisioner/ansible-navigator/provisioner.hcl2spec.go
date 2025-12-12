@@ -10,7 +10,9 @@ import (
 // FlatAnsibleConfig is an auto-generated flat version of AnsibleConfig.
 // Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
 type FlatAnsibleConfig struct {
-	Config *string `mapstructure:"config" cty:"config" hcl:"config"`
+	Config        *string                      `mapstructure:"config" cty:"config" hcl:"config"`
+	Defaults      *FlatAnsibleConfigDefaults   `mapstructure:"defaults" cty:"defaults" hcl:"defaults"`
+	SSHConnection *FlatAnsibleConfigConnection `mapstructure:"ssh_connection" cty:"ssh_connection" hcl:"ssh_connection"`
 }
 
 // FlatMapstructure returns a new FlatAnsibleConfig.
@@ -25,7 +27,9 @@ func (*AnsibleConfig) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec
 // The decoded values from this spec will then be applied to a FlatAnsibleConfig.
 func (*FlatAnsibleConfig) HCL2Spec() map[string]hcldec.Spec {
 	s := map[string]hcldec.Spec{
-		"config": &hcldec.AttrSpec{Name: "config", Type: cty.String, Required: false},
+		"config":         &hcldec.AttrSpec{Name: "config", Type: cty.String, Required: false},
+		"defaults":       &hcldec.BlockSpec{TypeName: "defaults", Nested: hcldec.ObjectSpec((*FlatAnsibleConfigDefaults)(nil).HCL2Spec())},
+		"ssh_connection": &hcldec.BlockSpec{TypeName: "ssh_connection", Nested: hcldec.ObjectSpec((*FlatAnsibleConfigConnection)(nil).HCL2Spec())},
 	}
 	return s
 }
@@ -76,31 +80,6 @@ func (*FlatAnsibleConfigDefaults) HCL2Spec() map[string]hcldec.Spec {
 	s := map[string]hcldec.Spec{
 		"remote_tmp":        &hcldec.AttrSpec{Name: "remote_tmp", Type: cty.String, Required: false},
 		"host_key_checking": &hcldec.AttrSpec{Name: "host_key_checking", Type: cty.Bool, Required: false},
-	}
-	return s
-}
-
-// FlatAnsibleConfigInner is an auto-generated flat version of AnsibleConfigInner.
-// Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
-type FlatAnsibleConfigInner struct {
-	Defaults      *FlatAnsibleConfigDefaults   `mapstructure:"defaults" cty:"defaults" hcl:"defaults"`
-	SSHConnection *FlatAnsibleConfigConnection `mapstructure:"ssh_connection" cty:"ssh_connection" hcl:"ssh_connection"`
-}
-
-// FlatMapstructure returns a new FlatAnsibleConfigInner.
-// FlatAnsibleConfigInner is an auto-generated flat version of AnsibleConfigInner.
-// Where the contents a fields with a `mapstructure:,squash` tag are bubbled up.
-func (*AnsibleConfigInner) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec.Spec } {
-	return new(FlatAnsibleConfigInner)
-}
-
-// HCL2Spec returns the hcl spec of a AnsibleConfigInner.
-// This spec is used by HCL to read the fields of AnsibleConfigInner.
-// The decoded values from this spec will then be applied to a FlatAnsibleConfigInner.
-func (*FlatAnsibleConfigInner) HCL2Spec() map[string]hcldec.Spec {
-	s := map[string]hcldec.Spec{
-		"defaults":       &hcldec.BlockSpec{TypeName: "defaults", Nested: hcldec.ObjectSpec((*FlatAnsibleConfigDefaults)(nil).HCL2Spec())},
-		"ssh_connection": &hcldec.BlockSpec{TypeName: "ssh_connection", Nested: hcldec.ObjectSpec((*FlatAnsibleConfigConnection)(nil).HCL2Spec())},
 	}
 	return s
 }
@@ -244,7 +223,8 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 // FlatEnvironmentVariablesConfig is an auto-generated flat version of EnvironmentVariablesConfig.
 // Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
 type FlatEnvironmentVariablesConfig struct {
-	Variables map[string]string `mapstructure:",remain" cty:"variables" hcl:"variables"`
+	Pass []string          `mapstructure:"pass" cty:"pass" hcl:"pass"`
+	Set  map[string]string `mapstructure:"set" cty:"set" hcl:"set"`
 }
 
 // FlatMapstructure returns a new FlatEnvironmentVariablesConfig.
@@ -259,7 +239,8 @@ func (*EnvironmentVariablesConfig) FlatMapstructure() interface{ HCL2Spec() map[
 // The decoded values from this spec will then be applied to a FlatEnvironmentVariablesConfig.
 func (*FlatEnvironmentVariablesConfig) HCL2Spec() map[string]hcldec.Spec {
 	s := map[string]hcldec.Spec{
-		"variables": &hcldec.AttrSpec{Name: "variables", Type: cty.Map(cty.String), Required: false},
+		"pass": &hcldec.AttrSpec{Name: "pass", Type: cty.List(cty.String), Required: false},
+		"set":  &hcldec.AttrSpec{Name: "set", Type: cty.Map(cty.String), Required: false},
 	}
 	return s
 }

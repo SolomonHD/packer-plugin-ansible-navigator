@@ -43,6 +43,10 @@ build {
         
         environment_variables {
           pass = ["SSH_AUTH_SOCK", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
+          set = {
+            ANSIBLE_REMOTE_TMP = "/tmp/.ansible/tmp"
+            ANSIBLE_LOCAL_TMP  = "/tmp/.ansible-local"
+          }
         }
       }
 
@@ -54,10 +58,17 @@ build {
 
       # Ansible settings (nested block)
       ansible_config {
-        config {
-          path = "/etc/ansible/ansible.cfg"
+        config = "/etc/ansible/ansible.cfg"
+        
+        defaults {
+          remote_tmp       = "/tmp/.ansible/tmp"
+          host_key_checking = false
         }
-        cmdline = "--forks 10"
+        
+        ssh_connection {
+          ssh_timeout = 30
+          pipelining  = true
+        }
       }
 
       # Playbook artifact settings (nested block)
