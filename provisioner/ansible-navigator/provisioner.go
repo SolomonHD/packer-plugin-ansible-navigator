@@ -29,7 +29,6 @@ import (
 	"os/user"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -1494,71 +1493,6 @@ func buildEnvWithPath(ansibleNavigatorPath []string) []string {
 	}
 
 	return env
-}
-
-// generateAnsibleCfg generates INI-formatted content from a map of sections
-// Returns the formatted string and any validation errors
-func generateAnsibleCfg(sections map[string]map[string]string) (string, error) {
-	if len(sections) == 0 {
-		return "", fmt.Errorf("ansible_cfg cannot be empty")
-	}
-
-	var buf strings.Builder
-	sectionNames := make([]string, 0, len(sections))
-	for section := range sections {
-		sectionNames = append(sectionNames, section)
-	}
-	sort.Strings(sectionNames)
-
-	for _, section := range sectionNames {
-		settings := sections[section]
-		// Write section header
-		buf.WriteString(fmt.Sprintf("[%s]\n", section))
-
-		// Write settings
-		keys := make([]string, 0, len(settings))
-		for key := range settings {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
-		for _, key := range keys {
-			buf.WriteString(fmt.Sprintf("%s = %s\n", key, settings[key]))
-		}
-
-		// Add blank line between sections
-		buf.WriteString("\n")
-	}
-
-	return buf.String(), nil
-}
-
-// createTempAnsibleCfg writes ansible.cfg content to a temporary file
-// Returns the absolute path to the file
-func createTempAnsibleCfg(content string) (string, error) {
-	tmpFile, err := os.CreateTemp("", "packer-ansible-cfg-*.ini")
-	if err != nil {
-		return "", fmt.Errorf("failed to create temporary ansible.cfg file: %w", err)
-	}
-
-	if _, err := tmpFile.WriteString(content); err != nil {
-		tmpFile.Close()
-		os.Remove(tmpFile.Name())
-		return "", fmt.Errorf("failed to write ansible.cfg content: %w", err)
-	}
-
-	if err := tmpFile.Close(); err != nil {
-		os.Remove(tmpFile.Name())
-		return "", fmt.Errorf("failed to close ansible.cfg temp file: %w", err)
-	}
-
-	// Return absolute path
-	absPath, err := filepath.Abs(tmpFile.Name())
-	if err != nil {
-		os.Remove(tmpFile.Name())
-		return "", fmt.Errorf("failed to get absolute path for ansible.cfg: %w", err)
-	}
-
-	return absPath, nil
 }
 
 // checkArg Evaluates if argname is in args

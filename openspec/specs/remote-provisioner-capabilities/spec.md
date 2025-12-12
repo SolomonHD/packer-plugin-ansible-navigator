@@ -3,7 +3,9 @@
 ## Purpose
 
 TBD - created by archiving change swap-provisioner-naming. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: SSH-Based Remote Execution
 
 The default `ansible-navigator` provisioner SHALL run ansible-navigator from the local machine (where Packer is executed) and connect to the target via SSH.
@@ -15,29 +17,6 @@ The default `ansible-navigator` provisioner SHALL run ansible-navigator from the
 - **THEN** it SHALL run on the local machine (not the target)
 - **AND** it SHALL connect to the target via SSH using the configured communicator
 - **AND** this matches the behavior of the official `ansible` provisioner
-
-#### Scenario: Execution environment support
-
-- **GIVEN** a configuration with `execution_environment = "quay.io/ansible/creator-ee:latest"`
-- **WHEN** the provisioner executes
-- **THEN** it SHALL pass `--ee true --eei quay.io/ansible/creator-ee:latest` flags to ansible-navigator
-- **AND** the `--ee` flag SHALL be a boolean (`true`) to enable execution environment mode
-- **AND** the `--eei` flag SHALL specify the container image
-- **AND** the container SHALL have network access to reach the target via SSH
-
-#### Scenario: No execution environment specified
-
-- **GIVEN** a configuration without `execution_environment` specified
-- **WHEN** the provisioner executes
-- **THEN** it SHALL NOT pass `--ee` or `--eei` flags
-- **AND** ansible-navigator SHALL use its default execution environment behavior
-
-#### Scenario: Execution environment with custom registry
-
-- **GIVEN** a configuration with `execution_environment = "myregistry.io/custom-ansible-ee:v1.0"`
-- **WHEN** the provisioner constructs the command
-- **THEN** it SHALL pass `--ee true --eei myregistry.io/custom-ansible-ee:v1.0` flags
-- **AND** the full image reference SHALL be preserved including registry, repository, and tag
 
 ### Requirement: Play-Based Execution
 
@@ -388,28 +367,6 @@ The remote provisioner SHALL support generating ansible-navigator.yml configurat
 - **AND** it SHALL NOT set the ANSIBLE_NAVIGATOR_CONFIG environment variable
 - **AND** ansible-navigator SHALL use its normal configuration search order
 
-#### Scenario: navigator_config takes precedence over legacy options
-
-- **GIVEN** a configuration with both legacy options and navigator_config:
-
-  ```hcl
-  execution_environment = "legacy-image:latest"
-  navigator_mode = "json"
-  
-  navigator_config = {
-    execution-environment = {
-      enabled = true
-      image = "new-image:latest"
-    }
-    mode = "stdout"
-  }
-  ```
-
-- **WHEN** ansible-navigator is executed
-- **THEN** the settings from `navigator_config` SHALL be used
-- **AND** the legacy options SHALL be ignored in favor of navigator_config
-- **AND** the generated config file SHALL use "new-image:latest" and "stdout" mode
-
 #### Scenario: Complex nested structure preserved
 
 - **GIVEN** a configuration with deeply nested navigator_config:
@@ -465,4 +422,3 @@ The remote provisioner Config.Validate() method SHALL validate all supported con
 - **THEN** it SHALL fail with an error indicating the option is not recognized
 - **AND** error messages SHOULD guide users to use navigator_config instead
 - **AND** error messages SHOULD reference MIGRATION.md for help
-
