@@ -113,7 +113,9 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"collections_cache_dir":      &hcldec.AttrSpec{Name: "collections_cache_dir", Type: cty.String, Required: false},
 		"use_proxy":                  &hcldec.AttrSpec{Name: "use_proxy", Type: cty.Bool, Required: false},
 		"ansible_winrm_use_http":     &hcldec.AttrSpec{Name: "ansible_winrm_use_http", Type: cty.Bool, Required: false},
-		"navigator_config":           &hcldec.AttrSpec{Name: "navigator_config", Type: cty.Map(cty.String), Required: false},
+		// NOTE: Type manually changed from cty.Map(cty.String) to cty.DynamicPseudoType
+		// to support nested map structures in navigator_config (see fix-navigator-config-hcl2-type)
+		"navigator_config": &hcldec.AttrSpec{Name: "navigator_config", Type: cty.DynamicPseudoType, Required: false},
 	}
 	return s
 }
