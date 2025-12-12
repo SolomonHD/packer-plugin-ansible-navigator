@@ -174,7 +174,10 @@ func convertToYAMLStructure(config *NavigatorConfig) map[string]interface{} {
 		}
 	}
 
-	return result
+	// Wrap everything under the ansible-navigator root key
+	return map[string]interface{}{
+		"ansible-navigator": result,
+	}
 }
 
 // createNavigatorConfigFile creates a temporary ansible-navigator.yml file

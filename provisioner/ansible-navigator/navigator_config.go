@@ -67,10 +67,11 @@ func generateNavigatorConfigYAML(config *NavigatorConfig) (string, error) {
 // convertToYAMLStructure converts NavigatorConfig to a map with YAML-friendly field names
 // (using hyphens instead of underscores for ansible-navigator.yml compatibility)
 func convertToYAMLStructure(config *NavigatorConfig) map[string]interface{} {
-	result := make(map[string]interface{})
+	// Create nested structure with ansible-navigator root key
+	ansibleNavigator := make(map[string]interface{})
 
 	if config.Mode != "" {
-		result["mode"] = config.Mode
+		ansibleNavigator["mode"] = config.Mode
 	}
 
 	if config.ExecutionEnvironment != nil {
@@ -96,7 +97,7 @@ func convertToYAMLStructure(config *NavigatorConfig) map[string]interface{} {
 				eeMap["environment-variables"] = envVarsMap
 			}
 		}
-		result["execution-environment"] = eeMap
+		ansibleNavigator["execution-environment"] = eeMap
 	}
 
 	if config.AnsibleConfig != nil {
@@ -129,7 +130,7 @@ func convertToYAMLStructure(config *NavigatorConfig) map[string]interface{} {
 			ansibleMap["config"] = configMap
 		}
 		if len(ansibleMap) > 0 {
-			result["ansible"] = ansibleMap
+			ansibleNavigator["ansible"] = ansibleMap
 		}
 	}
 
@@ -143,7 +144,7 @@ func convertToYAMLStructure(config *NavigatorConfig) map[string]interface{} {
 		}
 		loggingMap["append"] = config.Logging.Append
 		if len(loggingMap) > 0 {
-			result["logging"] = loggingMap
+			ansibleNavigator["logging"] = loggingMap
 		}
 	}
 
@@ -157,7 +158,7 @@ func convertToYAMLStructure(config *NavigatorConfig) map[string]interface{} {
 			artifactMap["save-as"] = config.PlaybookArtifact.SaveAs
 		}
 		if len(artifactMap) > 0 {
-			result["playbook-artifact"] = artifactMap
+			ansibleNavigator["playbook-artifact"] = artifactMap
 		}
 	}
 
@@ -170,11 +171,14 @@ func convertToYAMLStructure(config *NavigatorConfig) map[string]interface{} {
 			cacheMap["timeout"] = config.CollectionDocCache.Timeout
 		}
 		if len(cacheMap) > 0 {
-			result["collection-doc-cache"] = cacheMap
+			ansibleNavigator["collection-doc-cache"] = cacheMap
 		}
 	}
 
-	return result
+	// Wrap everything under the ansible-navigator root key
+	return map[string]interface{}{
+		"ansible-navigator": ansibleNavigator,
+	}
 }
 
 // createNavigatorConfigFile creates a temporary ansible-navigator.yml file
