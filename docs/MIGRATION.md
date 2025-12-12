@@ -17,15 +17,15 @@ This guide provides step-by-step instructions for migrating from deprecated opti
 
 | Deprecated Option | Replacement | Status |
 |-------------------|-------------|--------|
-| `execution_environment` | `navigator_config.execution-environment` | ⚠️ Deprecated |
-| `navigator_mode` | `navigator_config.mode` | ⚠️ Deprecated |
-| `ansible_cfg` | `navigator_config.ansible.config` | ⚠️ Deprecated |
-| `ansible_env_vars` | `navigator_config.execution-environment.environment-variables` | ⚠️ Deprecated |
-| `ansible_ssh_extra_args` | Play-level options or `navigator_config` | ⚠️ Deprecated |
-| `extra_arguments` | `navigator_config` or play-level options | ⚠️ Deprecated |
-| `roles_path` | `requirements_file` or `navigator_config` | ⚠️ Deprecated |
-| `collections_path` | `requirements_file` or `navigator_config` | ⚠️ Deprecated |
-| `galaxy_command` | Unnecessary with `requirements_file` | ⚠️ Deprecated |
+| `execution_environment` | `navigator_config.execution-environment` | ❌ Removed |
+| `navigator_mode` | `navigator_config.mode` | ❌ Removed |
+| `ansible_cfg` | `navigator_config.ansible.config` | ❌ Removed |
+| `ansible_env_vars` | `navigator_config.execution-environment.environment-variables` | ❌ Removed |
+| `ansible_ssh_extra_args` | Play-level options or `navigator_config` | ❌ Removed |
+| `extra_arguments` | `navigator_config` or play-level options | ❌ Removed |
+| `roles_path` | `requirements_file` or `navigator_config` | ❌ Removed |
+| `collections_path` | `requirements_file` or `navigator_config` | ❌ Removed |
+| `galaxy_command` | Unnecessary with `requirements_file` | ❌ Removed |
 
 ## Migration Examples
 

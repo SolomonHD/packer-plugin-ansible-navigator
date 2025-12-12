@@ -3,6 +3,7 @@
 ## Purpose
 
 Defines the expected behavior and configuration options for the local `ansible-navigator` provisioner.
+
 ## Requirements
 
 <!-- Requirements will be added through change proposals -->
@@ -34,7 +35,7 @@ The on-target provisioner SHALL use ansible-navigator as its default executable,
 - **WHEN** the configuration is validated
 - **THEN** validation SHALL fail
 - **AND** the error message SHALL explain that `command` must be only the executable name or path (no extra arguments)
-- **AND** the error message SHALL direct the user to use supported fields such as `extra_arguments` or play-level options for additional flags
+- **AND** the error message SHALL direct the user to use supported fields such as play-level options or `navigator_config` for additional flags
 
 #### Scenario: Missing ansible-navigator binary on target
 
@@ -375,28 +376,6 @@ The local provisioner SHALL support generating ansible-navigator.yml configurati
 - **AND** it SHALL NOT set the ANSIBLE_NAVIGATOR_CONFIG environment variable
 - **AND** ansible-navigator SHALL use its normal configuration search order on the target
 
-#### Scenario: navigator_config takes precedence over legacy options
-
-- **GIVEN** a configuration with both legacy options and navigator_config:
-
-  ```hcl
-  execution_environment = "legacy-image:latest"
-  navigator_mode = "json"
-  
-  navigator_config = {
-    execution-environment = {
-      enabled = true
-      image = "new-image:latest"
-    }
-    mode = "stdout"
-  }
-  ```
-
-- **WHEN** ansible-navigator is executed
-- **THEN** the settings from `navigator_config` SHALL be used
-- **AND** the legacy options SHALL be ignored in favor of navigator_config
-- **AND** the generated config file SHALL use "new-image:latest" and "stdout" mode
-
 #### Scenario: Complex nested structure preserved
 
 - **GIVEN** a configuration with deeply nested navigator_config:
@@ -429,4 +408,3 @@ The local provisioner SHALL support generating ansible-navigator.yml configurati
 - **WHEN** the YAML file is generated
 - **THEN** the nested structure SHALL be preserved exactly
 - **AND** all keys and values SHALL be written correctly
-

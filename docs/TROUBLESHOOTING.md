@@ -30,7 +30,7 @@ command = "~/.asdf/shims/ansible-navigator"
 command = "~/.asdf/shims/ansible-navigator run"
 ```
 
-If you need to pass flags, use provisioner fields (e.g. `navigator_mode`) or `extra_arguments`.
+If you need to pass flags, use provisioner fields or the `navigator_config` block.
 
 ## Version check hangs / timeouts
 

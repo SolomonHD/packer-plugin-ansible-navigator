@@ -4,7 +4,7 @@ The ansible-navigator provisioner supports parsing structured JSON output from a
 
 ## Overview
 
-When `navigator_mode = "json"` and `structured_logging = true`, the provisioner will:
+When `navigator_config = { mode = "json" }` and `structured_logging = true`, the provisioner will:
 
 1. Parse ansible-navigator's JSON event stream in real-time
 2. Display detailed task-level status information
@@ -18,7 +18,9 @@ When `navigator_mode = "json"` and `structured_logging = true`, the provisioner 
 ```hcl
 provisioner "ansible-navigator" {
   requirements_file   = "./requirements.yml"
-  navigator_mode      = "json"
+  navigator_config = {
+    mode = "json"
+  }
   structured_logging  = true
 
   play {
@@ -38,7 +40,9 @@ provisioner "ansible-navigator" {
 ```hcl
 provisioner "ansible-navigator" {
   requirements_file   = "./requirements.yml"
-  navigator_mode      = "json"
+  navigator_config = {
+    mode = "json"
+  }
   structured_logging  = true
   log_output_path     = "./logs/ansible-summary.json"
 
@@ -58,7 +62,7 @@ provisioner "ansible-navigator" {
 
 | Option | Type | Required | Default | Description |
 |--------|------|----------|---------|-------------|
-| `navigator_mode` | string | No | `"stdout"` | Must be set to `"json"` for structured logging to work |
+| `navigator_config.mode` | string | No | `"stdout"` | Must be set to `"json"` for structured logging to work |
 | `structured_logging` | boolean | No | `false` | Enable JSON event parsing and enhanced reporting |
 | `log_output_path` | string | No | `""` | Path to write structured summary JSON file (disabled if empty) |
 
@@ -121,7 +125,9 @@ Use the structured summary file for integration with CI/CD pipelines:
 
 ```hcl
 provisioner "ansible-navigator" {
-  navigator_mode      = "json"
+  navigator_config = {
+    mode = "json"
+  }
   structured_logging  = true
   log_output_path     = "${path.root}/build-artifacts/ansible-summary.json"
 
@@ -145,7 +151,9 @@ Enable structured logging during development to get detailed feedback:
 
 ```hcl
 provisioner "ansible-navigator" {
-  navigator_mode      = "json"
+  navigator_config = {
+    mode = "json"
+  }
   structured_logging  = true
   log_output_path     = "./debug/ansible-run-${timestamp()}.json"
 
@@ -162,7 +170,9 @@ Maintain execution logs for compliance and auditing:
 
 ```hcl
 provisioner "ansible-navigator" {
-  navigator_mode      = "json"
+  navigator_config = {
+    mode = "json"
+  }
   structured_logging  = true
   log_output_path     = "/var/log/packer/ansible-${build.ID}.json"
 
@@ -212,7 +222,7 @@ Failed tasks are reported with details:
 Structured logging is opt-in and fully backward compatible:
 
 - Default behavior (`structured_logging = false`) remains unchanged
-- Works only when `navigator_mode = "json"`
+- Works only when `navigator_config = { mode = "json" }`
 - When disabled, output is streamed line-by-line as before
 
 ## Best Practices
@@ -225,7 +235,7 @@ Structured logging is opt-in and fully backward compatible:
 
 ## Limitations
 
-- Structured logging only works when `navigator_mode = "json"`
+- Structured logging only works when `navigator_config = { mode = "json" }`
 - Summary file writes are best-effort (failures are logged but don't stop the build)
 - Very large playbooks may generate large summary files
 - Event parsing is based on Ansible Runner event schema
