@@ -18,10 +18,8 @@ func TestGenerateNavigatorConfigYAML_Basic(t *testing.T) {
 	config := &NavigatorConfig{
 		Mode: "stdout",
 		AnsibleConfig: &AnsibleConfig{
-			Inner: &AnsibleConfigInner{
-				Defaults: &AnsibleConfigDefaults{
-					HostKeyChecking: false,
-				},
+			Defaults: &AnsibleConfigDefaults{
+				HostKeyChecking: false,
 			},
 		},
 	}
@@ -77,16 +75,14 @@ func TestGenerateNavigatorConfigYAML_UserValuesPreserved(t *testing.T) {
 			Enabled: true,
 			Image:   "quay.io/ansible/creator-ee:latest",
 			EnvironmentVariables: &EnvironmentVariablesConfig{
-				Variables: map[string]string{
+				Set: map[string]string{
 					"ANSIBLE_REMOTE_TMP": "/custom/path",
 				},
 			},
 		},
 		AnsibleConfig: &AnsibleConfig{
-			Inner: &AnsibleConfigInner{
-				Defaults: &AnsibleConfigDefaults{
-					RemoteTmp: "/another/custom/path",
-				},
+			Defaults: &AnsibleConfigDefaults{
+				RemoteTmp: "/another/custom/path",
 			},
 		},
 	}
@@ -258,14 +254,12 @@ func TestGenerateNavigatorConfigYAML_ComplexConfig(t *testing.T) {
 	config := &NavigatorConfig{
 		Mode: "json",
 		AnsibleConfig: &AnsibleConfig{
-			Inner: &AnsibleConfigInner{
-				Defaults: &AnsibleConfigDefaults{
-					HostKeyChecking: false,
-					RemoteTmp:       "/tmp/.ansible/tmp",
-				},
-				SSHConnection: &AnsibleConfigConnection{
-					Pipelining: true,
-				},
+			Defaults: &AnsibleConfigDefaults{
+				HostKeyChecking: false,
+				RemoteTmp:       "/tmp/.ansible/tmp",
+			},
+			SSHConnection: &AnsibleConfigConnection{
+				Pipelining: true,
 			},
 		},
 		ExecutionEnvironment: &ExecutionEnvironment{
@@ -273,7 +267,7 @@ func TestGenerateNavigatorConfigYAML_ComplexConfig(t *testing.T) {
 			Image:      "quay.io/ansible/creator-ee:latest",
 			PullPolicy: "missing",
 			EnvironmentVariables: &EnvironmentVariablesConfig{
-				Variables: map[string]string{
+				Set: map[string]string{
 					"CUSTOM_VAR": "custom_value",
 				},
 			},

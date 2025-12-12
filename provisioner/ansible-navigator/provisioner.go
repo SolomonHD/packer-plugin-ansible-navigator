@@ -3,7 +3,7 @@
 // You may obtain a copy of the License at
 // http://www.apache.org/licenses/LICENSE-2.0
 
-//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play,PathEntry,NavigatorConfig,ExecutionEnvironment,EnvironmentVariablesConfig,AnsibleConfig,AnsibleConfigInner,AnsibleConfigDefaults,AnsibleConfigConnection,LoggingConfig,PlaybookArtifact,CollectionDocCache
+//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play,PathEntry,NavigatorConfig,ExecutionEnvironment,EnvironmentVariablesConfig,AnsibleConfig,AnsibleConfigDefaults,AnsibleConfigConnection,LoggingConfig,PlaybookArtifact,CollectionDocCache
 //go:generate packer-sdc struct-markdown
 
 package ansiblenavigator
@@ -83,20 +83,16 @@ type ExecutionEnvironment struct {
 
 // EnvironmentVariablesConfig represents environment variable configuration
 type EnvironmentVariablesConfig struct {
-	// Map of environment variable key-value pairs
-	Variables map[string]string `mapstructure:",remain"`
+	// List of environment variables to pass from the host
+	Pass []string `mapstructure:"pass"`
+	// Explicit key-value pairs of environment variables to set
+	Set map[string]string `mapstructure:"set"`
 }
 
 // AnsibleConfig represents ansible-specific configuration
 type AnsibleConfig struct {
 	// Path to ansible.cfg file
 	Config string `mapstructure:"config"`
-	// Inner configuration sections
-	Inner *AnsibleConfigInner `mapstructure:",squash"`
-}
-
-// AnsibleConfigInner represents nested ansible config sections
-type AnsibleConfigInner struct {
 	// Defaults section
 	Defaults *AnsibleConfigDefaults `mapstructure:"defaults"`
 	// SSH connection section

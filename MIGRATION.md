@@ -1,5 +1,119 @@
 # Migration Guide
 
+## v4.2.0: Navigator Config Structure Updates
+
+### Overview
+
+Version 4.2.0 introduces breaking changes to the `environment_variables` and `ansible_config` structures within `navigator_config` to correctly model the ansible-navigator.yml schema and fix HCL2 spec generation issues.
+
+### Breaking Changes
+
+#### 1. Environment Variables: Inline Keys → Pass/Set Structure
+
+**Before (v4.1.x):**
+
+```hcl
+navigator_config {
+  execution_environment {
+    environment_variables {
+      ANSIBLE_REMOTE_TMP = "/tmp/.ansible/tmp"
+      CUSTOM_VAR = "value"
+    }
+  }
+}
+```
+
+**After (v4.2.0+):**
+
+```hcl
+navigator_config {
+  execution_environment {
+    environment_variables {
+      pass = ["SSH_AUTH_SOCK", "AWS_ACCESS_KEY_ID"]
+      set = {
+        ANSIBLE_REMOTE_TMP = "/tmp/.ansible/tmp"
+        CUSTOM_VAR        = "value"
+      }
+    }
+  }
+}
+```
+
+**Why?**: This matches the actual ansible-navigator.yml schema which has `pass` (list of variables to pass from host) and `set` (explicit key-value pairs) sections.
+
+#### 2. Ansible Config: Removed Inner Struct
+
+**Before (v4.1.x):**
+
+The `ansible_config` structure had an implicit `Inner` field with `mapstructure:",squash"` that didn't properly generate HCL2 specs.
+
+**After (v4.2.0+):**
+
+```hcl
+navigator_config {
+  ansible_config {
+    config = "/etc/ansible/ansible.cfg"
+    
+    defaults {
+      remote_tmp        = "/tmp/.ansible/tmp"
+      host_key_checking = false
+    }
+    
+    ssh_connection {
+      ssh_timeout = 30
+      pipelining  = true
+    }
+  }
+}
+```
+
+The `defaults` and `ssh_connection` blocks are now direct children of `ansible_config` instead of being nested within an implicit `Inner` struct.
+
+### Migration Steps
+
+1. **Update `environment_variables` blocks**:
+   - Wrap inline variable assignments in a `set` map
+   - Optionally add a `pass` list for pass-through variables
+
+2. **Update `ansible_config` blocks**:
+   - Ensure `defaults` and `ssh_connection` are direct children
+   - Verify the `config` field uses a simple string assignment
+
+3. **Test with `packer validate`**
+
+### Complete Migration Example
+
+**Before (v4.1.x):**
+
+```hcl
+navigator_config {
+  execution_environment {
+    environment_variables {
+      ANSIBLE_REMOTE_TMP = "/tmp/.ansible/tmp"
+      ANSIBLE_LOCAL_TMP  = "/tmp/.ansible-local"
+    }
+  }
+}
+```
+
+**After (v4.2.0+):**
+
+```hcl
+navigator_config {
+  execution_environment {
+    environment_variables {
+      pass = ["SSH_AUTH_SOCK"]
+      set = {
+        ANSIBLE_REMOTE_TMP = "/tmp/.ansible/tmp"
+        ANSIBLE_LOCAL_TMP  = "/tmp/.ansible-local"
+      }
+    }
+  }
+}
+```
+
+---
+
 ## v4.1.0: Navigator Config Breaking Change
 
 ### Overview

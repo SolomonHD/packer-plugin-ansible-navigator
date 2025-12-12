@@ -448,7 +448,10 @@ The remote provisioner's `navigator_config` field SHALL use explicit Go struct t
       pull_policy = "missing"
       
       environment_variables {
-        ANSIBLE_REMOTE_TMP = "/tmp/.ansible/tmp"
+        pass = ["SSH_AUTH_SOCK"]
+        set = {
+          ANSIBLE_REMOTE_TMP = "/tmp/.ansible/tmp"
+        }
       }
     }
   }
@@ -458,6 +461,65 @@ The remote provisioner's `navigator_config` field SHALL use explicit Go struct t
 - **THEN** validation SHALL succeed
 - **AND** all nested structures SHALL be properly parsed into their respective struct types
 - **AND** field names SHALL use underscores (not hyphens) for HCL compatibility
+
+#### Scenario: Environment variables block uses pass/set structure
+
+- **GIVEN** a configuration using `environment_variables` within `execution_environment`:
+
+  ```hcl
+  execution_environment {
+    environment_variables {
+      pass = ["SSH_AUTH_SOCK", "HOME"]
+      set = {
+        ANSIBLE_REMOTE_TMP = "/tmp/.ansible/tmp"
+        MY_CUSTOM_VAR = "value"
+      }
+    }
+  }
+  ```
+
+- **WHEN** Packer parses the configuration
+- **THEN** `pass` SHALL be parsed as a list of strings (environment variable names to pass through)
+- **AND** `set` SHALL be parsed as a map of string key-value pairs to set
+- **AND** the generated YAML SHALL produce valid ansible-navigator.yml structure:
+
+  ```yaml
+  execution-environment:
+    environment-variables:
+      pass:
+        - SSH_AUTH_SOCK
+        - HOME
+      set:
+        ANSIBLE_REMOTE_TMP: "/tmp/.ansible/tmp"
+        MY_CUSTOM_VAR: "value"
+  ```
+
+#### Scenario: Ansible config block supports nested defaults and ssh_connection
+
+- **GIVEN** a configuration using `ansible_config` within `navigator_config`:
+
+  ```hcl
+  navigator_config {
+    ansible_config {
+      config = "/path/to/ansible.cfg"
+      
+      defaults {
+        remote_tmp       = "/tmp/.ansible/tmp"
+        host_key_checking = false
+      }
+      
+      ssh_connection {
+        ssh_timeout = 30
+        pipelining  = true
+      }
+    }
+  }
+  ```
+
+- **WHEN** Packer parses the configuration
+- **THEN** the `ansible_config` block SHALL be parsed with nested `defaults` and `ssh_connection` blocks
+- **AND** the struct SHALL NOT use `mapstructure:",squash"` tags that lose nested structure
+- **AND** all nested fields SHALL be accessible as proper HCL blocks
 
 #### Scenario: HCL2 spec uses RPC-serializable types
 
@@ -482,7 +544,8 @@ The remote provisioner's `navigator_config` field SHALL use explicit Go struct t
 - **THEN** they SHALL support at minimum:
   - `mode` (string)
   - `execution_environment` block with `enabled`, `image`, `pull_policy`, `environment_variables`
-  - `ansible_config` block with nested `defaults` and `ssh_connection` sections
+  - `environment_variables` block with `pass` (list), `set` (map)
+  - `ansible_config` block with `config`, `defaults`, `ssh_connection` fields
   - `logging` configuration options
   - `playbook_artifact` settings
   - `collection_doc_cache` settings
@@ -494,6 +557,7 @@ The remote provisioner's `navigator_config` field SHALL use explicit Go struct t
 - **THEN** the YAML generation SHALL work correctly with the struct-based config
 - **AND** the generated YAML SHALL match the expected ansible-navigator.yml schema
 - **AND** nested structures SHALL be preserved in the YAML output
+- **AND** hyphens SHALL be used in YAML keys where required by ansible-navigator
 
 #### Scenario: Validation works with typed config
 
@@ -516,4 +580,5 @@ The remote provisioner's `navigator_config` field SHALL use explicit Go struct t
 - **WHEN** examining the `go:generate` directive
 - **THEN** it SHALL include all navigator config struct types needed for HCL2 spec generation
 - **AND** `make generate` SHALL successfully generate specs for all types
+- **AND** the directive SHALL NOT include removed types like `AnsibleConfigInner`
 

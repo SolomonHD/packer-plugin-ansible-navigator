@@ -25,33 +25,30 @@ func generateNavigatorConfigYAML(config *NavigatorConfig) (string, error) {
 		if config.AnsibleConfig == nil {
 			config.AnsibleConfig = &AnsibleConfig{}
 		}
-		if config.AnsibleConfig.Inner == nil {
-			config.AnsibleConfig.Inner = &AnsibleConfigInner{}
-		}
-		if config.AnsibleConfig.Inner.Defaults == nil {
-			config.AnsibleConfig.Inner.Defaults = &AnsibleConfigDefaults{}
+		if config.AnsibleConfig.Defaults == nil {
+			config.AnsibleConfig.Defaults = &AnsibleConfigDefaults{}
 		}
 
 		// Set temp directory defaults to prevent permission errors
-		if config.AnsibleConfig.Inner.Defaults.RemoteTmp == "" {
-			config.AnsibleConfig.Inner.Defaults.RemoteTmp = "/tmp/.ansible/tmp"
+		if config.AnsibleConfig.Defaults.RemoteTmp == "" {
+			config.AnsibleConfig.Defaults.RemoteTmp = "/tmp/.ansible/tmp"
 		}
 
 		// Set environment variables for EE container
 		if config.ExecutionEnvironment.EnvironmentVariables == nil {
 			config.ExecutionEnvironment.EnvironmentVariables = &EnvironmentVariablesConfig{
-				Variables: make(map[string]string),
+				Set: make(map[string]string),
 			}
 		}
-		if config.ExecutionEnvironment.EnvironmentVariables.Variables == nil {
-			config.ExecutionEnvironment.EnvironmentVariables.Variables = make(map[string]string)
+		if config.ExecutionEnvironment.EnvironmentVariables.Set == nil {
+			config.ExecutionEnvironment.EnvironmentVariables.Set = make(map[string]string)
 		}
 
-		if _, hasRemoteTmp := config.ExecutionEnvironment.EnvironmentVariables.Variables["ANSIBLE_REMOTE_TMP"]; !hasRemoteTmp {
-			config.ExecutionEnvironment.EnvironmentVariables.Variables["ANSIBLE_REMOTE_TMP"] = "/tmp/.ansible/tmp"
+		if _, hasRemoteTmp := config.ExecutionEnvironment.EnvironmentVariables.Set["ANSIBLE_REMOTE_TMP"]; !hasRemoteTmp {
+			config.ExecutionEnvironment.EnvironmentVariables.Set["ANSIBLE_REMOTE_TMP"] = "/tmp/.ansible/tmp"
 		}
-		if _, hasLocalTmp := config.ExecutionEnvironment.EnvironmentVariables.Variables["ANSIBLE_LOCAL_TMP"]; !hasLocalTmp {
-			config.ExecutionEnvironment.EnvironmentVariables.Variables["ANSIBLE_LOCAL_TMP"] = "/tmp/.ansible-local"
+		if _, hasLocalTmp := config.ExecutionEnvironment.EnvironmentVariables.Set["ANSIBLE_LOCAL_TMP"]; !hasLocalTmp {
+			config.ExecutionEnvironment.EnvironmentVariables.Set["ANSIBLE_LOCAL_TMP"] = "/tmp/.ansible-local"
 		}
 	}
 
@@ -85,8 +82,17 @@ func convertToYAMLStructure(config *NavigatorConfig) map[string]interface{} {
 		if config.ExecutionEnvironment.PullPolicy != "" {
 			eeMap["pull-policy"] = config.ExecutionEnvironment.PullPolicy
 		}
-		if config.ExecutionEnvironment.EnvironmentVariables != nil && len(config.ExecutionEnvironment.EnvironmentVariables.Variables) > 0 {
-			eeMap["environment-variables"] = config.ExecutionEnvironment.EnvironmentVariables.Variables
+		if config.ExecutionEnvironment.EnvironmentVariables != nil {
+			envVarsMap := make(map[string]interface{})
+			if len(config.ExecutionEnvironment.EnvironmentVariables.Pass) > 0 {
+				envVarsMap["pass"] = config.ExecutionEnvironment.EnvironmentVariables.Pass
+			}
+			if len(config.ExecutionEnvironment.EnvironmentVariables.Set) > 0 {
+				envVarsMap["set"] = config.ExecutionEnvironment.EnvironmentVariables.Set
+			}
+			if len(envVarsMap) > 0 {
+				eeMap["environment-variables"] = envVarsMap
+			}
 		}
 		result["execution-environment"] = eeMap
 	}
@@ -96,31 +102,29 @@ func convertToYAMLStructure(config *NavigatorConfig) map[string]interface{} {
 		if config.AnsibleConfig.Config != "" {
 			ansibleMap["config"] = config.AnsibleConfig.Config
 		}
-		if config.AnsibleConfig.Inner != nil {
-			configMap := make(map[string]interface{})
-			if config.AnsibleConfig.Inner.Defaults != nil {
-				defaultsMap := make(map[string]interface{})
-				if config.AnsibleConfig.Inner.Defaults.RemoteTmp != "" {
-					defaultsMap["remote_tmp"] = config.AnsibleConfig.Inner.Defaults.RemoteTmp
-				}
-				defaultsMap["host_key_checking"] = config.AnsibleConfig.Inner.Defaults.HostKeyChecking
-				if len(defaultsMap) > 0 {
-					configMap["defaults"] = defaultsMap
-				}
+		configMap := make(map[string]interface{})
+		if config.AnsibleConfig.Defaults != nil {
+			defaultsMap := make(map[string]interface{})
+			if config.AnsibleConfig.Defaults.RemoteTmp != "" {
+				defaultsMap["remote_tmp"] = config.AnsibleConfig.Defaults.RemoteTmp
 			}
-			if config.AnsibleConfig.Inner.SSHConnection != nil {
-				sshMap := make(map[string]interface{})
-				if config.AnsibleConfig.Inner.SSHConnection.SSHTimeout > 0 {
-					sshMap["ssh_timeout"] = config.AnsibleConfig.Inner.SSHConnection.SSHTimeout
-				}
-				sshMap["pipelining"] = config.AnsibleConfig.Inner.SSHConnection.Pipelining
-				if len(sshMap) > 0 {
-					configMap["ssh_connection"] = sshMap
-				}
+			defaultsMap["host_key_checking"] = config.AnsibleConfig.Defaults.HostKeyChecking
+			if len(defaultsMap) > 0 {
+				configMap["defaults"] = defaultsMap
 			}
-			if len(configMap) > 0 {
-				ansibleMap["config"] = configMap
+		}
+		if config.AnsibleConfig.SSHConnection != nil {
+			sshMap := make(map[string]interface{})
+			if config.AnsibleConfig.SSHConnection.SSHTimeout > 0 {
+				sshMap["ssh_timeout"] = config.AnsibleConfig.SSHConnection.SSHTimeout
 			}
+			sshMap["pipelining"] = config.AnsibleConfig.SSHConnection.Pipelining
+			if len(sshMap) > 0 {
+				configMap["ssh_connection"] = sshMap
+			}
+		}
+		if len(configMap) > 0 {
+			ansibleMap["config"] = configMap
 		}
 		if len(ansibleMap) > 0 {
 			result["ansible"] = ansibleMap
