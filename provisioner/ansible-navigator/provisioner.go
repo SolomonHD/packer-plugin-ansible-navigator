@@ -3,7 +3,7 @@
 // You may obtain a copy of the License at
 // http://www.apache.org/licenses/LICENSE-2.0
 
-//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play,PathEntry
+//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play,PathEntry,NavigatorConfig,ExecutionEnvironment,EnvironmentVariablesConfig,AnsibleConfig,AnsibleConfigInner,AnsibleConfigDefaults,AnsibleConfigConnection,LoggingConfig,PlaybookArtifact,CollectionDocCache
 //go:generate packer-sdc struct-markdown
 
 package ansiblenavigator
@@ -51,6 +51,101 @@ import (
 var (
 	_ packersdk.Provisioner = &Provisioner{}
 )
+
+// NavigatorConfig represents the ansible-navigator.yml configuration structure.
+// This is the root configuration container for ansible-navigator settings.
+type NavigatorConfig struct {
+	// Ansible-navigator execution mode
+	Mode string `mapstructure:"mode"`
+	// Execution environment configuration
+	ExecutionEnvironment *ExecutionEnvironment `mapstructure:"execution_environment"`
+	// Ansible configuration settings
+	AnsibleConfig *AnsibleConfig `mapstructure:"ansible_config"`
+	// Logging configuration
+	Logging *LoggingConfig `mapstructure:"logging"`
+	// Playbook artifact settings
+	PlaybookArtifact *PlaybookArtifact `mapstructure:"playbook_artifact"`
+	// Collection documentation cache settings
+	CollectionDocCache *CollectionDocCache `mapstructure:"collection_doc_cache"`
+}
+
+// ExecutionEnvironment represents execution environment settings
+type ExecutionEnvironment struct {
+	// Enable execution environment
+	Enabled bool `mapstructure:"enabled"`
+	// Container image to use
+	Image string `mapstructure:"image"`
+	// Pull policy for the container image
+	PullPolicy string `mapstructure:"pull_policy"`
+	// Environment variables to pass to the execution environment
+	EnvironmentVariables *EnvironmentVariablesConfig `mapstructure:"environment_variables"`
+}
+
+// EnvironmentVariablesConfig represents environment variable configuration
+type EnvironmentVariablesConfig struct {
+	// Map of environment variable key-value pairs
+	Variables map[string]string `mapstructure:",remain"`
+}
+
+// AnsibleConfig represents ansible-specific configuration
+type AnsibleConfig struct {
+	// Path to ansible.cfg file
+	Config string `mapstructure:"config"`
+	// Inner configuration sections
+	Inner *AnsibleConfigInner `mapstructure:",squash"`
+}
+
+// AnsibleConfigInner represents nested ansible config sections
+type AnsibleConfigInner struct {
+	// Defaults section
+	Defaults *AnsibleConfigDefaults `mapstructure:"defaults"`
+	// SSH connection section
+	SSHConnection *AnsibleConfigConnection `mapstructure:"ssh_connection"`
+}
+
+// AnsibleConfigDefaults represents ansible defaults configuration
+type AnsibleConfigDefaults struct {
+	// Remote temp directory
+	RemoteTmp string `mapstructure:"remote_tmp"`
+	// Host key checking
+	HostKeyChecking bool `mapstructure:"host_key_checking"`
+}
+
+// AnsibleConfigConnection represents ansible SSH connection settings
+type AnsibleConfigConnection struct {
+	// SSH timeout
+	SSHTimeout int `mapstructure:"ssh_timeout"`
+	// Pipelining
+	Pipelining bool `mapstructure:"pipelining"`
+}
+
+// LoggingConfig represents logging configuration
+type LoggingConfig struct {
+	// Log level
+	Level string `mapstructure:"level"`
+	// Log file path
+	File string `mapstructure:"file"`
+	// Append to log file
+	Append bool `mapstructure:"append"`
+}
+
+// PlaybookArtifact represents playbook artifact settings
+type PlaybookArtifact struct {
+	// Enable playbook artifact
+	Enable bool `mapstructure:"enable"`
+	// Replay directory
+	Replay string `mapstructure:"replay"`
+	// Save directory
+	SaveAs string `mapstructure:"save_as"`
+}
+
+// CollectionDocCache represents collection documentation cache settings
+type CollectionDocCache struct {
+	// Path to collection doc cache
+	Path string `mapstructure:"path"`
+	// Timeout for collection doc cache
+	Timeout int `mapstructure:"timeout"`
+}
 
 // Play represents a single Ansible play execution with its configuration.
 // It supports both traditional playbook files and Ansible Collection role FQDNs.
@@ -268,20 +363,18 @@ type Config struct {
 	// Default: `false`
 	WinRMUseHTTP bool `mapstructure:"ansible_winrm_use_http"`
 
-	// Modern declarative ansible-navigator configuration via YAML file generation.
-	// Maps directly to ansible-navigator.yml schema structure.
-	// Supports full ansible-navigator.yml structure including:
-	//   - ansible section (config overrides, playbook settings)
-	//   - execution-environment object (enabled, image, pull-policy, environment-variables)
-	//   - mode (stdout, json, yaml, interactive)
-	//   - All other ansible-navigator.yml options
-	// When provided:
-	//   - Plugin generates temporary ansible-navigator.yml file
-	//   - Sets ANSIBLE_NAVIGATOR_CONFIG environment variable
-	//   - Automatically sets EE temp dir defaults when execution-environment.enabled = true
-	//   - Cleans up config file after execution
-	// When both navigator_config and legacy options present, navigator_config takes precedence.
-	NavigatorConfig map[string]interface{} `mapstructure:"navigator_config"`
+	// Modern declarative ansible-navigator configuration via typed structs.
+	// When provided, the plugin generates a temporary ansible-navigator.yml file.
+	// This replaces the previous map[string]interface{} approach to ensure RPC serializability.
+	// Use block syntax in HCL:
+	//   navigator_config {
+	//     mode = "stdout"
+	//     execution_environment {
+	//       enabled = true
+	//       image = "quay.io/ansible/creator-ee:latest"
+	//     }
+	//   }
+	NavigatorConfig *NavigatorConfig `mapstructure:"navigator_config"`
 	userWasEmpty    bool
 }
 
@@ -367,9 +460,19 @@ func (c *Config) Validate() error {
 	}
 
 	// Validate navigator_config
-	if c.NavigatorConfig != nil && len(c.NavigatorConfig) == 0 {
-		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-			"navigator_config cannot be an empty map. Either provide configuration or omit the field"))
+	// Note: Empty struct pointer is valid (will be ignored), but if present, should have some configuration
+	if c.NavigatorConfig != nil {
+		// Basic validation - ensure at least one field is set
+		isEmpty := c.NavigatorConfig.Mode == "" &&
+			c.NavigatorConfig.ExecutionEnvironment == nil &&
+			c.NavigatorConfig.AnsibleConfig == nil &&
+			c.NavigatorConfig.Logging == nil &&
+			c.NavigatorConfig.PlaybookArtifact == nil &&
+			c.NavigatorConfig.CollectionDocCache == nil
+		if isEmpty {
+			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+				"navigator_config block cannot be empty. Either provide configuration or omit the block"))
+		}
 	}
 
 	if errs != nil && len(errs.Errors) > 0 {
@@ -946,7 +1049,7 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 
 	// Generate and setup ansible-navigator.yml if configured
 	var navigatorConfigPath string
-	if p.config.NavigatorConfig != nil && len(p.config.NavigatorConfig) > 0 {
+	if p.config.NavigatorConfig != nil {
 		yamlContent, err := generateNavigatorConfigYAML(p.config.NavigatorConfig)
 		if err != nil {
 			return fmt.Errorf("failed to generate navigator_config YAML: %w", err)

@@ -15,12 +15,12 @@ import (
 
 // Test successful YAML generation from navigator_config
 func TestGenerateNavigatorConfigYAML_Basic(t *testing.T) {
-	config := map[string]interface{}{
-		"mode": "stdout",
-		"ansible": map[string]interface{}{
-			"config": map[string]interface{}{
-				"defaults": map[string]interface{}{
-					"host_key_checking": "False",
+	config := &NavigatorConfig{
+		Mode: "stdout",
+		AnsibleConfig: &AnsibleConfig{
+			Inner: &AnsibleConfigInner{
+				Defaults: &AnsibleConfigDefaults{
+					HostKeyChecking: false,
 				},
 			},
 		},
@@ -42,10 +42,10 @@ func TestGenerateNavigatorConfigYAML_Basic(t *testing.T) {
 
 // Test automatic EE defaults when execution-environment.enabled = true
 func TestGenerateNavigatorConfigYAML_AutomaticEEDefaults(t *testing.T) {
-	config := map[string]interface{}{
-		"execution-environment": map[string]interface{}{
-			"enabled": true,
-			"image":   "quay.io/ansible/creator-ee:latest",
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled: true,
+			Image:   "quay.io/ansible/creator-ee:latest",
 		},
 	}
 
@@ -59,9 +59,7 @@ func TestGenerateNavigatorConfigYAML_AutomaticEEDefaults(t *testing.T) {
 		t.Errorf("Expected automatic remote_tmp default in YAML, got: %s", yaml)
 	}
 
-	if !strings.Contains(yaml, "local_tmp: /tmp/.ansible-local") {
-		t.Errorf("Expected automatic local_tmp default in YAML, got: %s", yaml)
-	}
+	// Note: local_tmp is NOT set in ansible config defaults, only in environment variables
 
 	if !strings.Contains(yaml, "ANSIBLE_REMOTE_TMP: /tmp/.ansible/tmp") {
 		t.Errorf("Expected automatic ANSIBLE_REMOTE_TMP env var in YAML, got: %s", yaml)
@@ -74,18 +72,20 @@ func TestGenerateNavigatorConfigYAML_AutomaticEEDefaults(t *testing.T) {
 
 // Test that user-provided values are not overridden
 func TestGenerateNavigatorConfigYAML_UserValuesPreserved(t *testing.T) {
-	config := map[string]interface{}{
-		"execution-environment": map[string]interface{}{
-			"enabled": true,
-			"image":   "quay.io/ansible/creator-ee:latest",
-			"environment-variables": map[string]interface{}{
-				"ANSIBLE_REMOTE_TMP": "/custom/path",
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled: true,
+			Image:   "quay.io/ansible/creator-ee:latest",
+			EnvironmentVariables: &EnvironmentVariablesConfig{
+				Variables: map[string]string{
+					"ANSIBLE_REMOTE_TMP": "/custom/path",
+				},
 			},
 		},
-		"ansible": map[string]interface{}{
-			"config": map[string]interface{}{
-				"defaults": map[string]interface{}{
-					"remote_tmp": "/another/custom/path",
+		AnsibleConfig: &AnsibleConfig{
+			Inner: &AnsibleConfigInner{
+				Defaults: &AnsibleConfigDefaults{
+					RemoteTmp: "/another/custom/path",
 				},
 			},
 		},
@@ -111,17 +111,20 @@ func TestGenerateNavigatorConfigYAML_UserValuesPreserved(t *testing.T) {
 	}
 }
 
-// Test error when config is empty
-func TestGenerateNavigatorConfigYAML_EmptyConfig(t *testing.T) {
-	config := map[string]interface{}{}
+// Test that empty config is allowed (validation happens in Packer Config.Validate())
+func TestGeneratorNavigatorConfigYAML_EmptyConfig(t *testing.T) {
+	config := &NavigatorConfig{}
 
-	_, err := generateNavigatorConfigYAML(config)
-	if err == nil {
-		t.Fatal("Expected error for empty config, got nil")
+	// Empty config is technically allowed by generateNavigatorConfigYAML
+	// The validation that it must have at least one field happens in Config.Validate()
+	yaml, err := generateNavigatorConfigYAML(config)
+	if err != nil {
+		t.Fatalf("generateNavigatorConfigYAML should not error on empty config: %v", err)
 	}
 
-	if !strings.Contains(err.Error(), "cannot be empty") {
-		t.Errorf("Expected 'cannot be empty' error message, got: %v", err)
+	// Should produce minimal YAML (likely just empty map or minimal structure)
+	if yaml == "" {
+		t.Errorf("Expected some YAML output even for empty config")
 	}
 }
 
@@ -132,18 +135,18 @@ func TestGenerateNavigatorConfigYAML_NilConfig(t *testing.T) {
 		t.Fatal("Expected error for nil config, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "cannot be empty") {
-		t.Errorf("Expected 'cannot be empty' error message, got: %v", err)
+	if !strings.Contains(err.Error(), "cannot be nil") {
+		t.Errorf("Expected 'cannot be nil' error message, got: %v", err)
 	}
 }
 
 // Test that YAML can be parsed back
 func TestGenerateNavigatorConfigYAML_ValidYAML(t *testing.T) {
-	config := map[string]interface{}{
-		"mode": "json",
-		"execution-environment": map[string]interface{}{
-			"enabled": true,
-			"image":   "quay.io/ansible/creator-ee:latest",
+	config := &NavigatorConfig{
+		Mode: "json",
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled: true,
+			Image:   "quay.io/ansible/creator-ee:latest",
 		},
 	}
 
@@ -228,10 +231,10 @@ mode: stdout
 
 // Test EE enabled=false doesn't add defaults
 func TestGenerateNavigatorConfigYAML_EEDisabled(t *testing.T) {
-	config := map[string]interface{}{
-		"execution-environment": map[string]interface{}{
-			"enabled": false,
-			"image":   "quay.io/ansible/creator-ee:latest",
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled: false,
+			Image:   "quay.io/ansible/creator-ee:latest",
 		},
 	}
 
@@ -252,33 +255,32 @@ func TestGenerateNavigatorConfigYAML_EEDisabled(t *testing.T) {
 
 // Test complex nested configuration
 func TestGenerateNavigatorConfigYAML_ComplexConfig(t *testing.T) {
-	config := map[string]interface{}{
-		"mode": "json",
-		"ansible": map[string]interface{}{
-			"config": map[string]interface{}{
-				"defaults": map[string]interface{}{
-					"host_key_checking": "False",
-					"gathering":         "smart",
+	config := &NavigatorConfig{
+		Mode: "json",
+		AnsibleConfig: &AnsibleConfig{
+			Inner: &AnsibleConfigInner{
+				Defaults: &AnsibleConfigDefaults{
+					HostKeyChecking: false,
+					RemoteTmp:       "/tmp/.ansible/tmp",
 				},
-				"ssh_connection": map[string]interface{}{
-					"pipelining": "True",
+				SSHConnection: &AnsibleConfigConnection{
+					Pipelining: true,
 				},
-			},
-			"playbook": map[string]interface{}{
-				"timeout": 30,
 			},
 		},
-		"execution-environment": map[string]interface{}{
-			"enabled":     true,
-			"image":       "quay.io/ansible/creator-ee:latest",
-			"pull-policy": "missing",
-			"environment-variables": map[string]interface{}{
-				"CUSTOM_VAR": "custom_value",
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled:    true,
+			Image:      "quay.io/ansible/creator-ee:latest",
+			PullPolicy: "missing",
+			EnvironmentVariables: &EnvironmentVariablesConfig{
+				Variables: map[string]string{
+					"CUSTOM_VAR": "custom_value",
+				},
 			},
 		},
-		"logging": map[string]interface{}{
-			"level":  "debug",
-			"append": true,
+		Logging: &LoggingConfig{
+			Level:  "debug",
+			Append: true,
 		},
 	}
 
@@ -291,9 +293,7 @@ func TestGenerateNavigatorConfigYAML_ComplexConfig(t *testing.T) {
 	expectedStrings := []string{
 		"mode: json",
 		"host_key_checking",
-		"gathering",
 		"pipelining",
-		"timeout",
 		"pull-policy",
 		"CUSTOM_VAR",
 		"level: debug",

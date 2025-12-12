@@ -183,18 +183,16 @@
   
   Default: `false`
 
-- `navigator_config` (map[string]interface{}) - Modern declarative ansible-navigator configuration via YAML file generation.
-  Maps directly to ansible-navigator.yml schema structure.
-  Supports full ansible-navigator.yml structure including:
-    - ansible section (config overrides, playbook settings)
-    - execution-environment object (enabled, image, pull-policy, environment-variables)
-    - mode (stdout, json, yaml, interactive)
-    - All other ansible-navigator.yml options
-  When provided:
-    - Plugin generates temporary ansible-navigator.yml file
-    - Sets ANSIBLE_NAVIGATOR_CONFIG environment variable
-    - Automatically sets EE temp dir defaults when execution-environment.enabled = true
-    - Cleans up config file after execution
-  When both navigator_config and legacy options present, navigator_config takes precedence.
+- `navigator_config` (\*NavigatorConfig) - Modern declarative ansible-navigator configuration via typed structs.
+  When provided, the plugin generates a temporary ansible-navigator.yml file.
+  This replaces the previous map[string]interface{} approach to ensure RPC serializability.
+  Use block syntax in HCL:
+    navigator_config {
+      mode = "stdout"
+      execution_environment {
+        enabled = true
+        image = "quay.io/ansible/creator-ee:latest"
+      }
+    }
 
 <!-- End of code generated from the comments of the Config struct in provisioner/ansible-navigator/provisioner.go; -->
