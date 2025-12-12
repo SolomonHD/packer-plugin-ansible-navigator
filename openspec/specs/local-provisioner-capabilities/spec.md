@@ -282,25 +282,23 @@ The on-target ansible-navigator provisioner SHALL include a `version_check_timeo
 
 ### Requirement: Navigator Config File Generation
 
-The local provisioner SHALL support generating ansible-navigator.yml configuration files from a declarative HCL map, uploading them to the target, and using them to control ansible-navigator behavior.
+The local provisioner SHALL support generating ansible-navigator.yml configuration files from a declarative HCL map, uploading them to the target, and using them to control ansible-navigator behavior. The generated YAML SHALL conform to the ansible-navigator v24+/v25+ schema, including proper nested structure for execution environment fields.
 
 #### Scenario: User-specified navigator_config generates YAML file
 
 - **GIVEN** a configuration with:
 
   ```hcl
-  navigator_config = {
+  navigator_config {
     mode = "stdout"
-    execution-environment = {
-      enabled = true
-      image = "quay.io/ansible/creator-ee:latest"
-      pull-policy = "missing"
+    execution_environment {
+      enabled     = true
+      image       = "quay.io/ansible/creator-ee:latest"
+      pull_policy = "missing"
     }
-    ansible = {
-      config = {
-        defaults = {
-          remote_tmp = "/tmp/.ansible/tmp"
-        }
+    ansible_config {
+      defaults {
+        remote_tmp = "/tmp/.ansible/tmp"
       }
     }
   }
@@ -308,7 +306,9 @@ The local provisioner SHALL support generating ansible-navigator.yml configurati
 
 - **WHEN** the provisioner prepares for execution
 - **THEN** it SHALL generate a temporary file named `/tmp/packer-navigator-cfg-<uuid>.yml` (or equivalent in system temp directory) on the LOCAL machine
-- **AND** the file SHALL contain valid YAML matching the ansible-navigator.yml schema
+- **AND** the file SHALL contain valid YAML conforming to the ansible-navigator.yml v25+ schema
+- **AND** the execution-environment pull policy SHALL be generated as nested structure: `pull: { policy: missing }`
+- **AND** the file SHALL NOT use flat `pull-policy: missing` syntax (which is rejected by ansible-navigator v25+)
 - **AND** the file SHALL be uploaded to the staging directory on the TARGET machine
 - **AND** the local temporary file SHALL be added to the cleanup list
 
@@ -331,16 +331,16 @@ The local provisioner SHALL support generating ansible-navigator.yml configurati
 - **GIVEN** a configuration with:
 
   ```hcl
-  navigator_config = {
-    execution-environment = {
+  navigator_config {
+    execution_environment {
       enabled = true
-      image = "quay.io/ansible/creator-ee:latest"
+      image   = "quay.io/ansible/creator-ee:latest"
     }
   }
   ```
 
-- **AND** the user has NOT specified `ansible.config.defaults.remote_tmp` or `ansible.config.defaults.local_tmp`
-- **AND** the user has NOT specified `execution-environment.environment-variables`
+- **AND** the user has NOT specified `ansible_config.defaults.remote_tmp`
+- **AND** the user has NOT specified `execution_environment.environment_variables`
 - **WHEN** the provisioner generates the ansible-navigator.yml file
 - **THEN** it SHALL automatically include:
 
@@ -349,18 +349,18 @@ The local provisioner SHALL support generating ansible-navigator.yml configurati
     config:
       defaults:
         remote_tmp: "/tmp/.ansible/tmp"
-        local_tmp: "/tmp/.ansible-local"
   execution-environment:
     environment-variables:
-      ANSIBLE_REMOTE_TMP: "/tmp/.ansible/tmp"
-      ANSIBLE_LOCAL_TMP: "/tmp/.ansible-local"
+      set:
+        ANSIBLE_REMOTE_TMP: "/tmp/.ansible/tmp"
+        ANSIBLE_LOCAL_TMP: "/tmp/.ansible-local"
   ```
 
 - **AND** these defaults SHALL prevent "Permission denied: /.ansible/tmp" errors in EE containers
 
 #### Scenario: User-provided values override automatic defaults
 
-- **GIVEN** a configuration with `execution-environment.enabled = true`
+- **GIVEN** a configuration with `execution_environment.enabled = true`
 - **AND** the user has explicitly specified temp directory settings in navigator_config
 - **WHEN** the provisioner generates the ansible-navigator.yml file
 - **THEN** it SHALL use the user-specified values
@@ -375,30 +375,47 @@ The local provisioner SHALL support generating ansible-navigator.yml configurati
 - **AND** it SHALL NOT set the ANSIBLE_NAVIGATOR_CONFIG environment variable
 - **AND** ansible-navigator SHALL use its normal configuration search order on the target
 
+#### Scenario: Execution environment pull policy generates correct nested structure
+
+- **GIVEN** a configuration with `execution_environment.pull_policy = "missing"`
+- **WHEN** the ansible-navigator.yml YAML is generated
+- **THEN** the YAML SHALL contain:
+
+  ```yaml
+  execution-environment:
+    pull:
+      policy: missing
+  ```
+
+- **AND** it SHALL NOT contain the flat structure `pull-policy: missing`
+- **AND** the generated YAML SHALL pass ansible-navigator's built-in schema validation
+- **AND** ansible-navigator SHALL accept the config file without "Additional properties" errors
+
 #### Scenario: Complex nested structure preserved
 
 - **GIVEN** a configuration with deeply nested navigator_config:
 
   ```hcl
-  navigator_config = {
-    ansible = {
-      config = {
-        defaults = {
-          remote_tmp = "/tmp/.ansible/tmp"
-          host_key_checking = "False"
-        }
-        ssh_connection = {
-          pipelining = "True"
-          timeout = "30"
-        }
+  navigator_config {
+    ansible_config {
+      defaults {
+        remote_tmp         = "/tmp/.ansible/tmp"
+        host_key_checking  = false
+      }
+      ssh_connection {
+        pipelining  = true
+        ssh_timeout = 30
       }
     }
-    execution-environment = {
-      enabled = true
-      image = "custom:latest"
-      environment-variables = {
-        ANSIBLE_REMOTE_TMP = "/custom/tmp"
-        CUSTOM_VAR = "value"
+    execution_environment {
+      enabled     = true
+      image       = "custom:latest"
+      pull_policy = "always"
+      environment_variables {
+        set = {
+          ANSIBLE_REMOTE_TMP = "/custom/tmp"
+          CUSTOM_VAR         = "value"
+        }
       }
     }
   }
@@ -407,6 +424,7 @@ The local provisioner SHALL support generating ansible-navigator.yml configurati
 - **WHEN** the YAML file is generated
 - **THEN** the nested structure SHALL be preserved exactly
 - **AND** all keys and values SHALL be written correctly
+- **AND** execution-environment pull policy SHALL use nested `pull.policy` structure
 
 ### Requirement: Navigator Config Nested Structure Support
 

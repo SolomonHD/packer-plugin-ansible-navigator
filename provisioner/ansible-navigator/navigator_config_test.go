@@ -288,7 +288,8 @@ func TestGenerateNavigatorConfigYAML_ComplexConfig(t *testing.T) {
 		"mode: json",
 		"host_key_checking",
 		"pipelining",
-		"pull-policy",
+		"pull:",
+		"policy: missing",
 		"CUSTOM_VAR",
 		"level: debug",
 	}
