@@ -23,11 +23,8 @@
   Note: the local provisioner does not currently perform a version check, but this is
   kept for configuration parity and for warning when it makes version_check_timeout ineffective.
 
-- `work_dir` (string) - Working directory for ansible-navigator execution.
-  When specified, ansible-navigator will be executed from this directory.
-  Defaults to the current working directory if not set.
-
-- `keep_going` (bool) - Continue executing remaining plays even if one fails.
+- `keep_going` (bool) - Modern Ansible Navigator fields (aligned with remote provisioner)
+  Continue executing remaining plays even if one fails.
   When true, a play failure won't stop execution of subsequent plays.
   Default: false
 

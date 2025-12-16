@@ -213,7 +213,7 @@ The local provisioner Config.Validate() method SHALL validate all supported conf
 
 #### Scenario: Removed options cause validation errors
 
-- **GIVEN** a configuration attempting to use removed options like `execution_environment = "image:tag"`
+- **GIVEN** a configuration attempting to use removed options like `execution_environment = "image:tag"` or `work_dir = "/tmp/ansible"`
 - **WHEN** Packer parses the configuration
 - **THEN** it SHALL fail with an error indicating the option is not recognized
 - **AND** error messages SHOULD guide users to use navigator_config instead
@@ -247,7 +247,7 @@ The on-target ansible-navigator provisioner SHALL expand HOME-relative (`~`) pat
 #### Scenario: Expand bare tilde to HOME
 
 - **GIVEN** a configuration for `provisioner "ansible-navigator-local"`
-- **AND** one or more local-side path-like fields (e.g., `command`, `ansible_navigator_path` entries, `requirements_file`, `work_dir`, play `target` when it is a playbook path, and play `vars_files` entries) are set to `"~"`
+- **AND** one or more local-side path-like fields (e.g., `command`, `ansible_navigator_path` entries, `requirements_file`, play `target` when it is a playbook path, and play `vars_files` entries) are set to `"~"`
 - **WHEN** the configuration is prepared or validated
 - **THEN** each `"~"` value SHALL be expanded to the user's HOME directory as reported by the local environment
 - **AND** subsequent validation and remote command construction SHALL use the expanded absolute path
@@ -766,4 +766,14 @@ Then: No warning about `version_check_timeout` being ignored is printed
 Given: A configuration for `provisioner "ansible-navigator-local"` with `skip_version_check = true` and without an explicitly set `version_check_timeout`
 When: The provisioner prepares for execution (configuration validation/prepare)
 Then: No warning about `version_check_timeout` being ignored is printed
+
+### Requirement: `work_dir` is not supported (local provisioner)
+
+The on-target `ansible-navigator-local` provisioner SHALL NOT support a `work_dir` configuration field.
+
+#### Scenario: `work_dir` rejected at HCL parse time
+
+Given: a configuration using `provisioner "ansible-navigator-local"` that includes `work_dir = "/tmp/ansible"`
+When: Packer parses the configuration
+Then: parsing SHALL fail with an error indicating `work_dir` is not a recognized argument
 

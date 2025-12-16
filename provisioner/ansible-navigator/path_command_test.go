@@ -287,12 +287,10 @@ func TestPreparePathExpansion(t *testing.T) {
 		"skip_version_check": true,
 		"play":               []map[string]interface{}{{"target": tildePlaybook}},
 		"command":            "~/bin/ansible-navigator",
-		"work_dir":           "~/ansible-work",
 	}
 
 	require.NoError(t, p.Prepare(config))
 	require.Equal(t, filepath.Join(home, "bin/ansible-navigator"), p.config.Command)
-	require.Equal(t, filepath.Join(home, "ansible-work"), p.config.WorkDir)
 	require.Len(t, p.config.Plays, 1)
 	require.Equal(t, absPlaybook, p.config.Plays[0].Target)
 }

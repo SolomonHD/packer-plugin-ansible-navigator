@@ -242,7 +242,6 @@ provisioner "ansible-navigator" {
   execution_environment = "ansible-execution-env:latest"
   extra_arguments = ["--mode", "stdout"]
   inventory_directory = "inventory/"
-  work_dir = "/tmp/ansible"
 }
 ```
 
