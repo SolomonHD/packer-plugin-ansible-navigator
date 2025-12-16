@@ -4,6 +4,7 @@
 package ansiblenavigatorlocal
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -131,4 +132,97 @@ func TestProvisionerProvision_UploadsInventoryAndExecutesPlaybook(t *testing.T) 
 func testConfig() map[string]interface{} {
 	m := make(map[string]interface{})
 	return m
+}
+
+func TestProvisioner_WarnsOnSkipVersionCheckWithExplicitTimeout(t *testing.T) {
+	var p Provisioner
+	config := testConfig()
+
+	playbookFile, err := os.CreateTemp("", "playbook-*.yml")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(playbookFile.Name())
+
+	config["play"] = []map[string]interface{}{{"target": playbookFile.Name()}}
+	config["skip_version_check"] = true
+	config["version_check_timeout"] = "10s"
+
+	if err := p.Prepare(config); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	comm := &communicatorMock{}
+	out := new(bytes.Buffer)
+	ui := &packersdk.BasicUi{Reader: new(bytes.Buffer), Writer: out}
+
+	if err := p.Provision(context.Background(), ui, comm, map[string]interface{}{"PackerHTTPAddr": "127.0.0.1"}); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !strings.Contains(out.String(), "Warning: version_check_timeout is ignored when skip_version_check=true") {
+		t.Fatalf("expected warning in UI output; got: %q", out.String())
+	}
+}
+
+func TestProvisioner_DoesNotWarnOnSkipVersionCheckWithoutExplicitTimeout(t *testing.T) {
+	var p Provisioner
+	config := testConfig()
+
+	playbookFile, err := os.CreateTemp("", "playbook-*.yml")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(playbookFile.Name())
+
+	config["play"] = []map[string]interface{}{{"target": playbookFile.Name()}}
+	config["skip_version_check"] = true
+	// Do not set version_check_timeout; Prepare defaults it.
+
+	if err := p.Prepare(config); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	comm := &communicatorMock{}
+	out := new(bytes.Buffer)
+	ui := &packersdk.BasicUi{Reader: new(bytes.Buffer), Writer: out}
+
+	if err := p.Provision(context.Background(), ui, comm, map[string]interface{}{"PackerHTTPAddr": "127.0.0.1"}); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if strings.Contains(out.String(), "version_check_timeout is ignored") {
+		t.Fatalf("did not expect warning in UI output; got: %q", out.String())
+	}
+}
+
+func TestProvisioner_DoesNotWarnWhenSkipVersionCheckIsFalse(t *testing.T) {
+	var p Provisioner
+	config := testConfig()
+
+	playbookFile, err := os.CreateTemp("", "playbook-*.yml")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(playbookFile.Name())
+
+	config["play"] = []map[string]interface{}{{"target": playbookFile.Name()}}
+	config["skip_version_check"] = false
+	config["version_check_timeout"] = "10s"
+
+	if err := p.Prepare(config); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	comm := &communicatorMock{}
+	out := new(bytes.Buffer)
+	ui := &packersdk.BasicUi{Reader: new(bytes.Buffer), Writer: out}
+
+	if err := p.Provision(context.Background(), ui, comm, map[string]interface{}{"PackerHTTPAddr": "127.0.0.1"}); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if strings.Contains(out.String(), "version_check_timeout is ignored") {
+		t.Fatalf("did not expect warning in UI output; got: %q", out.String())
+	}
 }

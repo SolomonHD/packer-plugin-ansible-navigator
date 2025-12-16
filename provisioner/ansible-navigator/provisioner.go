@@ -289,8 +289,11 @@ type Config struct {
 	// is not properly configured or cannot be found.
 	// Format: duration string (e.g., "30s", "1m", "90s").
 	// Set to "0" to disable timeout (not recommended).
-	VersionCheckTimeout string `mapstructure:"version_check_timeout"`
-	UseSFTP             bool   `mapstructure:"use_sftp"`
+	VersionCheckTimeout *string `mapstructure:"version_check_timeout"`
+	// Internal: tracks whether version_check_timeout was explicitly provided by the user.
+	// This allows warning when skip_version_check makes it ineffective.
+	versionCheckTimeoutWasSet bool `mapstructure:"-"`
+	UseSFTP                   bool `mapstructure:"use_sftp"`
 	// The directory in which to place the
 	//  temporary generated Ansible inventory file. By default, this is the
 	//  system-specific temporary file location. The fully-qualified name of this
@@ -450,11 +453,11 @@ func (c *Config) Validate() error {
 	}
 
 	// Validate version_check_timeout format
-	if c.VersionCheckTimeout != "" {
-		if _, err := time.ParseDuration(c.VersionCheckTimeout); err != nil {
+	if c.VersionCheckTimeout != nil {
+		if _, err := time.ParseDuration(*c.VersionCheckTimeout); err != nil {
 			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
 				"invalid version_check_timeout: %q (must be a valid duration like '30s', '1m', '90s'): %w",
-				c.VersionCheckTimeout, err))
+				*c.VersionCheckTimeout, err))
 		}
 	}
 
@@ -554,9 +557,12 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 		p.config.HostAlias = "default"
 	}
 
+	// Detect explicit timeout setting before defaulting
+	p.config.versionCheckTimeoutWasSet = p.config.VersionCheckTimeout != nil
+
 	// Set default version check timeout
-	if p.config.VersionCheckTimeout == "" {
-		p.config.VersionCheckTimeout = "60s"
+	if p.config.VersionCheckTimeout == nil {
+		p.config.VersionCheckTimeout = stringPtr("60s")
 	}
 
 	// Defaults for galaxy
@@ -690,9 +696,14 @@ func resolveShim(command string, manager string) (string, error) {
 func (p *Provisioner) getVersion() error {
 	// Use the configured command (defaults to "ansible-navigator")
 	command := p.config.Command
+	// Safe: defaulted in Prepare
+	timeoutStr := "60s"
+	if p.config.VersionCheckTimeout != nil {
+		timeoutStr = *p.config.VersionCheckTimeout
+	}
 
 	// Parse timeout duration
-	timeout, err := time.ParseDuration(p.config.VersionCheckTimeout)
+	timeout, err := time.ParseDuration(timeoutStr)
 	if err != nil {
 		// This should never happen as we validate in Prepare(), but handle gracefully
 		timeout = 60 * time.Second
@@ -756,7 +767,7 @@ func (p *Provisioner) getVersion() error {
 					"  2. Use 'ansible_navigator_path' to specify additional directories\n\n"+
 					"  3. Use 'skip_version_check = true' to bypass the check\n\n"+
 					"  4. Increase 'version_check_timeout' (current: %s)",
-				p.config.VersionCheckTimeout, p.config.VersionCheckTimeout)
+				timeoutStr, timeoutStr)
 		}
 		// Not a timeout - likely not found or other error
 		return fmt.Errorf(
@@ -785,6 +796,8 @@ func (p *Provisioner) getVersion() error {
 
 	return nil
 }
+
+func stringPtr(s string) *string { return &s }
 
 func (p *Provisioner) setupAdapter(ui packersdk.Ui, comm packersdk.Communicator) (string, error) {
 	ui.Message("Setting up proxy adapter for Ansible....")
@@ -934,6 +947,9 @@ func (p *Provisioner) createInventoryFile() error {
 // and executes the configured playbooks or plays.
 func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packersdk.Communicator, generatedData map[string]interface{}) error {
 	ui.Say("Provisioning with Ansible Navigator...")
+	if p.config.SkipVersionCheck && p.config.versionCheckTimeoutWasSet {
+		ui.Message("Warning: version_check_timeout is ignored when skip_version_check=true")
+	}
 
 	p.generatedData = generatedData
 	p.config.ctx.Data = generatedData

@@ -14,6 +14,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/packer-plugin-sdk/multistep/commonsteps"
@@ -531,5 +532,159 @@ func TestUseProxy(t *testing.T) {
 			t.Fatalf("%s", tc.explanation)
 		}
 		os.Remove(p.config.Command)
+	}
+}
+
+func TestProvisioner_WarnsOnSkipVersionCheckWithExplicitTimeout(t *testing.T) {
+	var p Provisioner
+	config := testConfig(t)
+	defer os.Remove(config["command"].(string))
+
+	hostkeyFile, err := os.CreateTemp("", "hostkey")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(hostkeyFile.Name())
+
+	publickeyFile, err := os.CreateTemp("", "publickey")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(publickeyFile.Name())
+
+	playbookFile, err := os.CreateTemp("", "playbook")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(playbookFile.Name())
+
+	config["ssh_host_key_file"] = hostkeyFile.Name()
+	config["ssh_authorized_key_file"] = publickeyFile.Name()
+	config["play"] = []map[string]interface{}{{"target": playbookFile.Name()}}
+	config["skip_version_check"] = true
+	config["version_check_timeout"] = "10s"
+
+	if err := p.Prepare(config); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Avoid exercising real SSH proxy setup / ansible execution
+	p.setupAdapterFunc = func(ui packersdk.Ui, comm packersdk.Communicator) (string, error) { return "", nil }
+	p.executeAnsibleFunc = func(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string) error { return nil }
+	p.config.UseProxy = confighelper.TriFalse
+
+	out := new(bytes.Buffer)
+	ui := &packersdk.BasicUi{Reader: new(bytes.Buffer), Writer: out}
+	comm := new(packersdk.MockCommunicator)
+
+	gd := basicGenData(map[string]interface{}{"SSHPrivateKeyFile": "/dev/null"})
+	if err := p.Provision(context.Background(), ui, comm, gd); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !strings.Contains(out.String(), "Warning: version_check_timeout is ignored when skip_version_check=true") {
+		t.Fatalf("expected warning in UI output; got: %q", out.String())
+	}
+}
+
+func TestProvisioner_DoesNotWarnOnSkipVersionCheckWithoutExplicitTimeout(t *testing.T) {
+	var p Provisioner
+	config := testConfig(t)
+	defer os.Remove(config["command"].(string))
+
+	hostkeyFile, err := os.CreateTemp("", "hostkey")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(hostkeyFile.Name())
+
+	publickeyFile, err := os.CreateTemp("", "publickey")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(publickeyFile.Name())
+
+	playbookFile, err := os.CreateTemp("", "playbook")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(playbookFile.Name())
+
+	config["ssh_host_key_file"] = hostkeyFile.Name()
+	config["ssh_authorized_key_file"] = publickeyFile.Name()
+	config["play"] = []map[string]interface{}{{"target": playbookFile.Name()}}
+	config["skip_version_check"] = true
+	// Do not set version_check_timeout; Prepare defaults it.
+
+	if err := p.Prepare(config); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	p.setupAdapterFunc = func(ui packersdk.Ui, comm packersdk.Communicator) (string, error) { return "", nil }
+	p.executeAnsibleFunc = func(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string) error { return nil }
+	p.config.UseProxy = confighelper.TriFalse
+
+	out := new(bytes.Buffer)
+	ui := &packersdk.BasicUi{Reader: new(bytes.Buffer), Writer: out}
+	comm := new(packersdk.MockCommunicator)
+
+	gd := basicGenData(map[string]interface{}{"SSHPrivateKeyFile": "/dev/null"})
+	if err := p.Provision(context.Background(), ui, comm, gd); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if strings.Contains(out.String(), "version_check_timeout is ignored") {
+		t.Fatalf("did not expect warning in UI output; got: %q", out.String())
+	}
+}
+
+func TestProvisioner_DoesNotWarnWhenSkipVersionCheckIsFalse(t *testing.T) {
+	var p Provisioner
+	config := testConfig(t)
+	defer os.Remove(config["command"].(string))
+
+	hostkeyFile, err := os.CreateTemp("", "hostkey")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(hostkeyFile.Name())
+
+	publickeyFile, err := os.CreateTemp("", "publickey")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(publickeyFile.Name())
+
+	playbookFile, err := os.CreateTemp("", "playbook")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(playbookFile.Name())
+
+	config["ssh_host_key_file"] = hostkeyFile.Name()
+	config["ssh_authorized_key_file"] = publickeyFile.Name()
+	config["play"] = []map[string]interface{}{{"target": playbookFile.Name()}}
+	config["skip_version_check"] = false
+	config["version_check_timeout"] = "10s"
+
+	if err := p.Prepare(config); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	p.setupAdapterFunc = func(ui packersdk.Ui, comm packersdk.Communicator) (string, error) { return "", nil }
+	p.executeAnsibleFunc = func(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string) error { return nil }
+	p.config.UseProxy = confighelper.TriFalse
+
+	out := new(bytes.Buffer)
+	ui := &packersdk.BasicUi{Reader: new(bytes.Buffer), Writer: out}
+	comm := new(packersdk.MockCommunicator)
+
+	gd := basicGenData(map[string]interface{}{"SSHPrivateKeyFile": "/dev/null"})
+	if err := p.Provision(context.Background(), ui, comm, gd); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if strings.Contains(out.String(), "version_check_timeout is ignored") {
+		t.Fatalf("did not expect warning in UI output; got: %q", out.String())
 	}
 }

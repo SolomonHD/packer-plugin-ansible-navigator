@@ -110,11 +110,14 @@
 - `skip_version_check` (bool) - Check if ansible-navigator is installed prior to running.
   Set this to `true`, for example, if you're going to install it during the packer run.
 
-- `version_check_timeout` (string) - Maximum time to wait for ansible-navigator version check to complete.
+- `version_check_timeout` (\*string) - Maximum time to wait for ansible-navigator version check to complete.
   Defaults to "60s". This prevents indefinite hangs when ansible-navigator
   is not properly configured or cannot be found.
   Format: duration string (e.g., "30s", "1m", "90s").
   Set to "0" to disable timeout (not recommended).
+
+- `-` (bool) - Internal: tracks whether version_check_timeout was explicitly provided by the user.
+  This allows warning when skip_version_check makes it ineffective.
 
 - `use_sftp` (bool) - Use SFTP
 

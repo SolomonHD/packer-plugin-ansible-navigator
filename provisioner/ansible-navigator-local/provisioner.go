@@ -157,7 +157,16 @@ type Config struct {
 	// is not properly configured or cannot be found.
 	// Format: duration string (e.g., "30s", "1m", "90s").
 	// Set to "0" to disable timeout (not recommended).
-	VersionCheckTimeout string `mapstructure:"version_check_timeout"`
+	VersionCheckTimeout *string `mapstructure:"version_check_timeout"`
+	// Internal: tracks whether version_check_timeout was explicitly provided by the user.
+	// This allows warning when skip_version_check makes it ineffective.
+	versionCheckTimeoutWasSet bool `mapstructure:"-"`
+
+	// Check if ansible-navigator is installed prior to running.
+	// Set this to `true`, for example, if you're going to install it during the packer run.
+	// Note: the local provisioner does not currently perform a version check, but this is
+	// kept for configuration parity and for warning when it makes version_check_timeout ineffective.
+	SkipVersionCheck bool `mapstructure:"skip_version_check"`
 
 	// Modern Ansible Navigator fields (aligned with remote provisioner)
 
@@ -287,11 +296,11 @@ func (c *Config) Validate() error {
 	}
 
 	// Validate version_check_timeout format
-	if c.VersionCheckTimeout != "" {
-		if _, err := time.ParseDuration(c.VersionCheckTimeout); err != nil {
+	if c.VersionCheckTimeout != nil {
+		if _, err := time.ParseDuration(*c.VersionCheckTimeout); err != nil {
 			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
 				"invalid version_check_timeout: %q (must be a valid duration like '30s', '1m', '90s'): %w",
-				c.VersionCheckTimeout, err))
+				*c.VersionCheckTimeout, err))
 		}
 	}
 
@@ -368,9 +377,12 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 			p.config.Plays[i].VarsFiles[j] = expandUserPath(p.config.Plays[i].VarsFiles[j])
 		}
 	}
+	// Detect explicit timeout setting before defaulting
+	p.config.versionCheckTimeoutWasSet = p.config.VersionCheckTimeout != nil
+
 	// Set default version check timeout
-	if p.config.VersionCheckTimeout == "" {
-		p.config.VersionCheckTimeout = "60s"
+	if p.config.VersionCheckTimeout == nil {
+		p.config.VersionCheckTimeout = stringPtr("60s")
 	}
 
 	p.stagingDir = filepath.ToSlash(filepath.Join(DefaultStagingDir, uuid.TimeOrderedUUID()))
@@ -407,6 +419,9 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 
 func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packersdk.Communicator, generatedData map[string]interface{}) error {
 	ui.Say("Provisioning with Ansible...")
+	if p.config.SkipVersionCheck && p.config.versionCheckTimeoutWasSet {
+		ui.Message("Warning: version_check_timeout is ignored when skip_version_check=true")
+	}
 	p.generatedData = generatedData
 
 	ui.Message("Creating Ansible staging directory...")
@@ -492,6 +507,8 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 	}
 	return nil
 }
+
+func stringPtr(s string) *string { return &s }
 func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicator, inventoryRemotePath string, navigatorConfigRemotePath string) error {
 	// Execute plays (required by validation)
 	return p.executePlays(ui, comm, inventoryRemotePath, navigatorConfigRemotePath)
