@@ -129,9 +129,12 @@ type FlatConfig struct {
 	VerboseTaskOutput       *bool                `mapstructure:"verbose_task_output" cty:"verbose_task_output" hcl:"verbose_task_output"`
 	Plays                   []FlatPlay           `mapstructure:"play" cty:"play" hcl:"play"`
 	RequirementsFile        *string              `mapstructure:"requirements_file" cty:"requirements_file" hcl:"requirements_file"`
-	RolesCacheDir           *string              `mapstructure:"roles_cache_dir" cty:"roles_cache_dir" hcl:"roles_cache_dir"`
+	RolesPath               *string              `mapstructure:"roles_path" cty:"roles_path" hcl:"roles_path"`
+	CollectionsPath         *string              `mapstructure:"collections_path" cty:"collections_path" hcl:"collections_path"`
 	OfflineMode             *bool                `mapstructure:"offline_mode" cty:"offline_mode" hcl:"offline_mode"`
-	ForceUpdate             *bool                `mapstructure:"force_update" cty:"force_update" hcl:"force_update"`
+	GalaxyCommand           *string              `mapstructure:"galaxy_command" cty:"galaxy_command" hcl:"galaxy_command"`
+	GalaxyArgs              []string             `mapstructure:"galaxy_args" cty:"galaxy_args" hcl:"galaxy_args"`
+	GalaxyForce             *bool                `mapstructure:"galaxy_force" cty:"galaxy_force" hcl:"galaxy_force"`
 	Groups                  []string             `mapstructure:"groups" cty:"groups" hcl:"groups"`
 	EmptyGroups             []string             `mapstructure:"empty_groups" cty:"empty_groups" hcl:"empty_groups"`
 	HostAlias               *string              `mapstructure:"host_alias" cty:"host_alias" hcl:"host_alias"`
@@ -151,9 +154,7 @@ type FlatConfig struct {
 	InventoryFile           *string              `mapstructure:"inventory_file" cty:"inventory_file" hcl:"inventory_file"`
 	Limit                   *string              `mapstructure:"limit" cty:"limit" hcl:"limit"`
 	KeepInventoryFile       *bool                `mapstructure:"keep_inventory_file" cty:"keep_inventory_file" hcl:"keep_inventory_file"`
-	GalaxyForceInstall      *bool                `mapstructure:"galaxy_force_install" cty:"galaxy_force_install" hcl:"galaxy_force_install"`
 	GalaxyForceWithDeps     *bool                `mapstructure:"galaxy_force_with_deps" cty:"galaxy_force_with_deps" hcl:"galaxy_force_with_deps"`
-	CollectionsCacheDir     *string              `mapstructure:"collections_cache_dir" cty:"collections_cache_dir" hcl:"collections_cache_dir"`
 	UseProxy                *bool                `mapstructure:"use_proxy" cty:"use_proxy" hcl:"use_proxy"`
 	WinRMUseHTTP            *bool                `mapstructure:"ansible_winrm_use_http" cty:"ansible_winrm_use_http" hcl:"ansible_winrm_use_http"`
 	NavigatorConfig         *FlatNavigatorConfig `mapstructure:"navigator_config" cty:"navigator_config" hcl:"navigator_config"`
@@ -188,9 +189,12 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"verbose_task_output":        &hcldec.AttrSpec{Name: "verbose_task_output", Type: cty.Bool, Required: false},
 		"play":                       &hcldec.BlockListSpec{TypeName: "play", Nested: hcldec.ObjectSpec((*FlatPlay)(nil).HCL2Spec())},
 		"requirements_file":          &hcldec.AttrSpec{Name: "requirements_file", Type: cty.String, Required: false},
-		"roles_cache_dir":            &hcldec.AttrSpec{Name: "roles_cache_dir", Type: cty.String, Required: false},
+		"roles_path":                 &hcldec.AttrSpec{Name: "roles_path", Type: cty.String, Required: false},
+		"collections_path":           &hcldec.AttrSpec{Name: "collections_path", Type: cty.String, Required: false},
 		"offline_mode":               &hcldec.AttrSpec{Name: "offline_mode", Type: cty.Bool, Required: false},
-		"force_update":               &hcldec.AttrSpec{Name: "force_update", Type: cty.Bool, Required: false},
+		"galaxy_command":             &hcldec.AttrSpec{Name: "galaxy_command", Type: cty.String, Required: false},
+		"galaxy_args":                &hcldec.AttrSpec{Name: "galaxy_args", Type: cty.List(cty.String), Required: false},
+		"galaxy_force":               &hcldec.AttrSpec{Name: "galaxy_force", Type: cty.Bool, Required: false},
 		"groups":                     &hcldec.AttrSpec{Name: "groups", Type: cty.List(cty.String), Required: false},
 		"empty_groups":               &hcldec.AttrSpec{Name: "empty_groups", Type: cty.List(cty.String), Required: false},
 		"host_alias":                 &hcldec.AttrSpec{Name: "host_alias", Type: cty.String, Required: false},
@@ -210,9 +214,7 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"inventory_file":             &hcldec.AttrSpec{Name: "inventory_file", Type: cty.String, Required: false},
 		"limit":                      &hcldec.AttrSpec{Name: "limit", Type: cty.String, Required: false},
 		"keep_inventory_file":        &hcldec.AttrSpec{Name: "keep_inventory_file", Type: cty.Bool, Required: false},
-		"galaxy_force_install":       &hcldec.AttrSpec{Name: "galaxy_force_install", Type: cty.Bool, Required: false},
 		"galaxy_force_with_deps":     &hcldec.AttrSpec{Name: "galaxy_force_with_deps", Type: cty.Bool, Required: false},
-		"collections_cache_dir":      &hcldec.AttrSpec{Name: "collections_cache_dir", Type: cty.String, Required: false},
 		"use_proxy":                  &hcldec.AttrSpec{Name: "use_proxy", Type: cty.Bool, Required: false},
 		"ansible_winrm_use_http":     &hcldec.AttrSpec{Name: "ansible_winrm_use_http", Type: cty.Bool, Required: false},
 		"navigator_config":           &hcldec.BlockSpec{TypeName: "navigator_config", Nested: hcldec.ObjectSpec((*FlatNavigatorConfig)(nil).HCL2Spec())},

@@ -22,17 +22,15 @@ import (
 
 // GalaxyManager handles all Ansible Galaxy operations for roles and collections
 type GalaxyManager struct {
-	config  *Config
-	ui      packersdk.Ui
-	envVars []string
+	config *Config
+	ui     packersdk.Ui
 }
 
 // NewGalaxyManager creates a new GalaxyManager instance
 func NewGalaxyManager(config *Config, ui packersdk.Ui) *GalaxyManager {
 	return &GalaxyManager{
-		config:  config,
-		ui:      ui,
-		envVars: []string{},
+		config: config,
+		ui:     ui,
 	}
 }
 
@@ -57,12 +55,6 @@ func (gm *GalaxyManager) installFromFile(filePath string) error {
 		return fmt.Errorf("requirements file not found: %s", filePath)
 	} else if err != nil {
 		return fmt.Errorf("error checking requirements file: %w", err)
-	}
-
-	// Check offline mode
-	if gm.config.OfflineMode {
-		gm.ui.Message("Offline mode enabled: skipping network operations")
-		return nil
 	}
 
 	// Read file to determine content
@@ -101,17 +93,24 @@ func (gm *GalaxyManager) installRolesFromFile(filePath string) error {
 	args := []string{"install", "-r", filepath.ToSlash(filePath)}
 
 	// Add roles path if specified
-	if gm.config.RolesCacheDir != "" {
-		args = append(args, "-p", gm.config.RolesCacheDir)
+	if gm.config.RolesPath != "" {
+		args = append(args, "-p", gm.config.RolesPath)
+	}
+
+	// Add offline option
+	if gm.config.OfflineMode {
+		args = append(args, "--offline")
 	}
 
 	// Add force options
-	if gm.config.GalaxyForceInstall || gm.config.ForceUpdate {
-		args = append(args, "--force")
-	}
 	if gm.config.GalaxyForceWithDeps {
 		args = append(args, "--force-with-deps")
+	} else if gm.config.GalaxyForce {
+		args = append(args, "--force")
 	}
+
+	// Append user-provided args last
+	args = append(args, gm.config.GalaxyArgs...)
 
 	return gm.executeGalaxyCommand(args, "roles")
 }
@@ -122,17 +121,24 @@ func (gm *GalaxyManager) installCollectionsFromFile(filePath string) error {
 	args := []string{"collection", "install", "-r", filepath.ToSlash(filePath)}
 
 	// Add collections path if specified
-	if gm.config.CollectionsCacheDir != "" {
-		args = append(args, "-p", gm.config.CollectionsCacheDir)
+	if gm.config.CollectionsPath != "" {
+		args = append(args, "-p", gm.config.CollectionsPath)
+	}
+
+	// Add offline option
+	if gm.config.OfflineMode {
+		args = append(args, "--offline")
 	}
 
 	// Add force options
-	if gm.config.GalaxyForceInstall || gm.config.ForceUpdate {
-		args = append(args, "--force")
-	}
 	if gm.config.GalaxyForceWithDeps {
 		args = append(args, "--force-with-deps")
+	} else if gm.config.GalaxyForce {
+		args = append(args, "--force")
 	}
+
+	// Append user-provided args last
+	args = append(args, gm.config.GalaxyArgs...)
 
 	return gm.executeGalaxyCommand(args, "collections")
 }
@@ -141,13 +147,8 @@ func (gm *GalaxyManager) installCollectionsFromFile(filePath string) error {
 
 // executeGalaxyCommand executes an ansible-galaxy command with streaming output
 func (gm *GalaxyManager) executeGalaxyCommand(args []string, target string) error {
-	cmd := exec.Command("ansible-galaxy", args...)
-
-	// Set environment
+	cmd := exec.Command(gm.config.GalaxyCommand, args...)
 	cmd.Env = os.Environ()
-	if len(gm.envVars) > 0 {
-		cmd.Env = append(cmd.Env, gm.envVars...)
-	}
 
 	// Setup pipes
 	stdout, err := cmd.StdoutPipe()
@@ -200,37 +201,17 @@ func (gm *GalaxyManager) executeGalaxyCommand(args []string, target string) erro
 
 // SetupEnvironmentPaths configures ANSIBLE_COLLECTIONS_PATHS and ANSIBLE_ROLES_PATH
 func (gm *GalaxyManager) SetupEnvironmentPaths() error {
-	// Set collections path
-	if gm.config.CollectionsCacheDir != "" {
-		if err := gm.setEnvironmentPath("ANSIBLE_COLLECTIONS_PATHS", gm.config.CollectionsCacheDir); err != nil {
-			return err
+	// Treat roles_path/collections_path as opaque strings.
+	// They are used both for Galaxy install destinations (-p) and Ansible discovery (env vars).
+	if gm.config.CollectionsPath != "" {
+		if err := os.Setenv("ANSIBLE_COLLECTIONS_PATHS", gm.config.CollectionsPath); err != nil {
+			return fmt.Errorf("failed to set ANSIBLE_COLLECTIONS_PATHS: %w", err)
 		}
 	}
-
-	// Set roles path
-	if gm.config.RolesCacheDir != "" {
-		if err := gm.setEnvironmentPath("ANSIBLE_ROLES_PATH", gm.config.RolesCacheDir); err != nil {
-			return err
+	if gm.config.RolesPath != "" {
+		if err := os.Setenv("ANSIBLE_ROLES_PATH", gm.config.RolesPath); err != nil {
+			return fmt.Errorf("failed to set ANSIBLE_ROLES_PATH: %w", err)
 		}
 	}
-
-	return nil
-}
-
-// setEnvironmentPath sets an environment variable, prepending to existing value if present
-func (gm *GalaxyManager) setEnvironmentPath(envVar, path string) error {
-	existing := os.Getenv(envVar)
-
-	var newPath string
-	if existing != "" {
-		newPath = path + ":" + existing
-	} else {
-		newPath = path
-	}
-
-	if err := os.Setenv(envVar, newPath); err != nil {
-		return fmt.Errorf("failed to set %s: %w", envVar, err)
-	}
-
 	return nil
 }

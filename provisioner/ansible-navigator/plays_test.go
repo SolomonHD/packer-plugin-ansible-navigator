@@ -233,8 +233,8 @@ func TestDefaultCacheDirectories(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Check that default cache directories were set
-	assert.Contains(t, p.config.CollectionsCacheDir, ".packer.d/ansible_collections_cache")
-	assert.Contains(t, p.config.RolesCacheDir, ".packer.d/ansible_roles_cache")
+	assert.Contains(t, p.config.CollectionsPath, ".packer.d/ansible_collections_cache")
+	assert.Contains(t, p.config.RolesPath, ".packer.d/ansible_roles_cache")
 }
 
 func TestMultiplePlayConfiguration(t *testing.T) {
@@ -271,9 +271,12 @@ func TestMultiplePlayConfiguration(t *testing.T) {
 func TestUnifiedRequirementsFieldPresent(t *testing.T) {
 	config := Config{
 		RequirementsFile: "./requirements.yml",
-		RolesCacheDir:    "~/.packer.d/ansible_roles_cache",
+		RolesPath:        "~/.packer.d/ansible_roles_cache",
+		CollectionsPath:  "~/.packer.d/ansible_collections_cache",
+		GalaxyCommand:    "ansible-galaxy",
+		GalaxyArgs:       []string{"--ignore-certs"},
+		GalaxyForce:      true,
 		OfflineMode:      false,
-		ForceUpdate:      true,
 		Plays: []Play{
 			{
 				Target: "geerlingguy.docker",
@@ -283,5 +286,5 @@ func TestUnifiedRequirementsFieldPresent(t *testing.T) {
 
 	assert.Equal(t, "./requirements.yml", config.RequirementsFile)
 	assert.False(t, config.OfflineMode)
-	assert.True(t, config.ForceUpdate)
+	assert.True(t, config.GalaxyForce)
 }

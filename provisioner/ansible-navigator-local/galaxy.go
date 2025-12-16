@@ -63,11 +63,6 @@ func (gm *GalaxyManager) installFromFile(filePath string) error {
 	}
 
 	// Check offline mode
-	if gm.config.OfflineMode {
-		gm.ui.Message("Offline mode enabled: skipping network operations")
-		return nil
-	}
-
 	// Read file to determine content
 	content, err := os.ReadFile(filePath)
 	if err != nil {
@@ -108,17 +103,27 @@ func (gm *GalaxyManager) installRolesFromFile(remoteFilePath string) error {
 
 	// Add roles path
 	rolesPath := gm.galaxyRolesPath
-	if gm.config.RolesCacheDir != "" {
-		rolesPath = gm.config.RolesCacheDir
+	if gm.config.RolesPath != "" {
+		rolesPath = gm.config.RolesPath
 	}
 	if rolesPath != "" {
 		args = append(args, "-p", filepath.ToSlash(rolesPath))
 	}
 
+	// Add offline option
+	if gm.config.OfflineMode {
+		args = append(args, "--offline")
+	}
+
 	// Add force options
-	if gm.config.GalaxyForceInstall || gm.config.ForceUpdate {
+	if gm.config.GalaxyForceWithDeps {
+		args = append(args, "--force-with-deps")
+	} else if gm.config.GalaxyForce {
 		args = append(args, "--force")
 	}
+
+	// Append user-provided args last
+	args = append(args, gm.config.GalaxyArgs...)
 
 	return gm.executeGalaxyCommand(args, "roles")
 }
@@ -130,17 +135,27 @@ func (gm *GalaxyManager) installCollectionsFromFile(remoteFilePath string) error
 
 	// Add collections path
 	collectionsPath := gm.galaxyCollectionsPath
-	if gm.config.CollectionsCacheDir != "" {
-		collectionsPath = gm.config.CollectionsCacheDir
+	if gm.config.CollectionsPath != "" {
+		collectionsPath = gm.config.CollectionsPath
 	}
 	if collectionsPath != "" {
 		args = append(args, "-p", filepath.ToSlash(collectionsPath))
 	}
 
+	// Add offline option
+	if gm.config.OfflineMode {
+		args = append(args, "--offline")
+	}
+
 	// Add force options
-	if gm.config.GalaxyForceInstall || gm.config.ForceUpdate {
+	if gm.config.GalaxyForceWithDeps {
+		args = append(args, "--force-with-deps")
+	} else if gm.config.GalaxyForce {
 		args = append(args, "--force")
 	}
+
+	// Append user-provided args last
+	args = append(args, gm.config.GalaxyArgs...)
 
 	return gm.executeGalaxyCommand(args, "collections")
 }
@@ -151,7 +166,7 @@ func (gm *GalaxyManager) installCollectionsFromFile(remoteFilePath string) error
 func (gm *GalaxyManager) executeGalaxyCommand(args []string, target string) error {
 	ctx := context.TODO()
 	command := fmt.Sprintf("cd %s && %s %s",
-		gm.stagingDir, "ansible-galaxy", strings.Join(args, " "))
+		gm.stagingDir, gm.config.GalaxyCommand, strings.Join(args, " "))
 	gm.ui.Message(fmt.Sprintf("Executing Ansible Galaxy: %s", command))
 
 	cmd := &packersdk.RemoteCmd{
@@ -173,15 +188,13 @@ func (gm *GalaxyManager) SetupEnvironmentPaths() []string {
 	envVars := []string{}
 
 	// Set collections path
-	if gm.config.CollectionsCacheDir != "" {
-		envVars = append(envVars, fmt.Sprintf("ANSIBLE_COLLECTIONS_PATH=$ANSIBLE_COLLECTIONS_PATH:%s",
-			gm.config.CollectionsCacheDir))
+	if gm.config.CollectionsPath != "" {
+		envVars = append(envVars, fmt.Sprintf("ANSIBLE_COLLECTIONS_PATHS=%s", gm.config.CollectionsPath))
 	}
 
 	// Set roles path
-	if gm.config.RolesCacheDir != "" {
-		envVars = append(envVars, fmt.Sprintf("ANSIBLE_ROLES_PATH=$ANSIBLE_ROLES_PATH:%s",
-			gm.config.RolesCacheDir))
+	if gm.config.RolesPath != "" {
+		envVars = append(envVars, fmt.Sprintf("ANSIBLE_ROLES_PATH=%s", gm.config.RolesPath))
 	}
 
 	return envVars

@@ -1,6 +1,10 @@
 # Examples
 
-> **⚠️ BREAKING CHANGE (v4.0.0):** The following options have been REMOVED: `execution_environment`, `ansible_cfg`, `ansible_env_vars`, `ansible_ssh_extra_args`, `extra_arguments`, `navigator_mode`, `roles_path`, `collections_path`, `galaxy_command`. All examples below use the current supported configuration. See [Migration Guide](MIGRATION.md) for upgrade instructions.
+> **⚠️ BREAKING CHANGE:** Legacy options have been REMOVED: `execution_environment`, `ansible_cfg`, `ansible_env_vars`, `ansible_ssh_extra_args`, `extra_arguments`, `navigator_mode`.
+>
+> **⚠️ BREAKING CHANGE (dependencies):** `roles_cache_dir`/`collections_cache_dir` were renamed to `roles_path`/`collections_path`, and `force_update`/`galaxy_force_install` were replaced by `galaxy_force`/`galaxy_force_with_deps`.
+>
+> All examples below use the current supported configuration. See [Migration Guide](MIGRATION.md) for upgrade instructions.
 
 ## 1) Minimal playbook run
 

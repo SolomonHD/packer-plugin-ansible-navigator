@@ -93,6 +93,17 @@ The local provisioner SHALL execute provisioning via one or more ordered `play {
 
 The local provisioner SHALL support dependency installation via an optional `requirements_file` that can define both roles and collections.
 
+The local provisioner SHALL expose a consistent set of dependency-install configuration options:
+
+- `requirements_file` (string, optional)
+- `offline_mode` (bool, optional)
+- `roles_path` (string, optional)
+- `collections_path` (string, optional)
+- `galaxy_force` (bool, optional)
+- `galaxy_force_with_deps` (bool, optional)
+- `galaxy_command` (string, optional; defaults to `ansible-galaxy`)
+- `galaxy_args` (list(string), optional)
+
 #### Scenario: requirements_file installs roles and collections
 
 - **GIVEN** a configuration with `requirements_file = "requirements.yml"`
@@ -104,6 +115,48 @@ The local provisioner SHALL support dependency installation via an optional `req
 - **GIVEN** a configuration with no `requirements_file`
 - **WHEN** the provisioner executes
 - **THEN** it SHALL proceed without performing dependency installation
+
+#### Scenario: roles_path exported via ANSIBLE_ROLES_PATH
+
+- **GIVEN** a configuration with `roles_path` set
+- **WHEN** the provisioner executes any ansible-galaxy operation and any ansible-navigator play execution on the target
+- **THEN** it SHALL ensure `ANSIBLE_ROLES_PATH` is set to the provided `roles_path` value for those operations
+
+#### Scenario: collections_path exported via ANSIBLE_COLLECTIONS_PATHS
+
+- **GIVEN** a configuration with `collections_path` set
+- **WHEN** the provisioner executes any ansible-galaxy operation and any ansible-navigator play execution on the target
+- **THEN** it SHALL ensure `ANSIBLE_COLLECTIONS_PATHS` is set to the provided `collections_path` value for those operations
+
+#### Scenario: Galaxy command override and extra args
+
+- **GIVEN** a configuration with `requirements_file` set
+- **AND** `galaxy_command` set to a custom value
+- **AND** `galaxy_args` set to one or more arguments
+- **WHEN** the provisioner installs roles and collections
+- **THEN** it SHALL invoke Galaxy using the configured `galaxy_command`
+- **AND** it SHALL append `galaxy_args` to the constructed Galaxy argument list
+- **AND** this behavior SHALL be consistent for both roles install and collections install
+
+#### Scenario: galaxy_force maps to --force
+
+- **GIVEN** a configuration with `galaxy_force = true`
+- **AND** `galaxy_force_with_deps` is unset or `false`
+- **WHEN** the provisioner invokes ansible-galaxy
+- **THEN** it SHALL include `--force`
+
+#### Scenario: galaxy_force_with_deps maps to --force-with-deps and takes precedence
+
+- **GIVEN** a configuration with `galaxy_force_with_deps = true`
+- **WHEN** the provisioner invokes ansible-galaxy
+- **THEN** it SHALL include `--force-with-deps`
+- **AND** it SHALL NOT additionally include `--force`
+
+#### Scenario: offline_mode maps to --offline
+
+- **GIVEN** a configuration with `offline_mode = true`
+- **WHEN** the provisioner invokes ansible-galaxy to install from `requirements_file`
+- **THEN** it SHALL include `--offline`
 
 ### Requirement: Error Handling and Keep Going
 
@@ -326,6 +379,32 @@ The local provisioner SHALL support generating ansible-navigator.yml configurati
 - **THEN** the local temporary ansible-navigator.yml file SHALL be deleted
 - **AND** if `clean_staging_directory` is true, the uploaded file SHALL be removed with the staging directory
 
+#### Scenario: Ansible config schema compliance
+
+- **GIVEN** a configuration with `navigator_config.ansible_config` set (any combination of supported fields)
+- **WHEN** the provisioner generates the ansible-navigator.yml file
+- **THEN** the generated YAML MUST NOT contain `defaults` (or any other unexpected keys) under `ansible.config`
+- **AND** `ansible.config` MUST contain only the allowed properties: `help`, `path`, and/or `cmdline`
+
+#### Scenario: Mutual exclusivity for ansible_config.config vs nested blocks
+
+- **GIVEN** a configuration with:
+
+  ```hcl
+  navigator_config {
+    ansible_config {
+      config = "/etc/ansible/ansible.cfg"
+      defaults {
+        remote_tmp = "/tmp/.ansible/tmp"
+      }
+    }
+  }
+  ```
+
+- **WHEN** the configuration is validated
+- **THEN** validation SHALL fail
+- **AND** the error message SHALL state that `ansible_config.config` is mutually exclusive with `ansible_config.defaults` and `ansible_config.ssh_connection`
+
 #### Scenario: Automatic EE defaults when execution environment enabled
 
 - **GIVEN** a configuration with:
@@ -342,13 +421,9 @@ The local provisioner SHALL support generating ansible-navigator.yml configurati
 - **AND** the user has NOT specified `ansible_config.defaults.remote_tmp`
 - **AND** the user has NOT specified `execution_environment.environment_variables`
 - **WHEN** the provisioner generates the ansible-navigator.yml file
-- **THEN** it SHALL automatically include:
+- **THEN** it SHALL automatically include execution-environment temp dir environment variables:
 
   ```yaml
-  ansible:
-    config:
-      defaults:
-        remote_tmp: "/tmp/.ansible/tmp"
   execution-environment:
     environment-variables:
       set:
@@ -356,7 +431,7 @@ The local provisioner SHALL support generating ansible-navigator.yml configurati
         ANSIBLE_LOCAL_TMP: "/tmp/.ansible-local"
   ```
 
-- **AND** these defaults SHALL prevent "Permission denied: /.ansible/tmp" errors in EE containers
+- **AND** it SHALL configure Ansible temp directory defaults via an ansible.cfg referenced by `ansible.config.path` (NOT by emitting `defaults` under `ansible.config`)
 
 #### Scenario: User-provided values override automatic defaults
 
@@ -391,7 +466,7 @@ The local provisioner SHALL support generating ansible-navigator.yml configurati
 - **AND** the generated YAML SHALL pass ansible-navigator's built-in schema validation
 - **AND** ansible-navigator SHALL accept the config file without "Additional properties" errors
 
-#### Scenario: Complex nested structure preserved
+#### Scenario: Complex nested structure preserved (except ansible.config)
 
 - **GIVEN** a configuration with deeply nested navigator_config:
 
@@ -399,8 +474,8 @@ The local provisioner SHALL support generating ansible-navigator.yml configurati
   navigator_config {
     ansible_config {
       defaults {
-        remote_tmp         = "/tmp/.ansible/tmp"
-        host_key_checking  = false
+        remote_tmp        = "/tmp/.ansible/tmp"
+        host_key_checking = false
       }
       ssh_connection {
         pipelining  = true
@@ -422,9 +497,9 @@ The local provisioner SHALL support generating ansible-navigator.yml configurati
   ```
 
 - **WHEN** the YAML file is generated
-- **THEN** the nested structure SHALL be preserved exactly
-- **AND** all keys and values SHALL be written correctly
-- **AND** execution-environment pull policy SHALL use nested `pull.policy` structure
+- **THEN** the nested structure SHALL be preserved for execution-environment and other supported ansible-navigator.yml sections
+- **AND** `ansible.config` SHALL remain schema-compliant (help/path/cmdline only)
+- **AND** the Ansible defaults and ssh_connection settings SHALL be represented via a generated ansible.cfg referenced by `ansible.config.path`
 
 ### Requirement: Navigator Config Nested Structure Support
 
