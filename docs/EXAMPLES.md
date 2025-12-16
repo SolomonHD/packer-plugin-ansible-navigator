@@ -39,19 +39,19 @@ provisioner "ansible-navigator" {
 
 ```hcl
 provisioner "ansible-navigator" {
-  navigator_config = {
+  navigator_config {
     mode = "stdout"
-    execution-environment = {
-      enabled = true
-      image = "quay.io/ansible/creator-ee:latest"
-      pull-policy = "missing"
+
+    execution_environment {
+      enabled     = true
+      image       = "quay.io/ansible/creator-ee:latest"
+      pull_policy = "missing"
     }
-    ansible = {
-      config = {
-        defaults = {
-          remote_tmp = "/tmp/.ansible/tmp"
-          local_tmp = "/tmp/.ansible-local"
-        }
+
+    ansible_config {
+      defaults {
+        remote_tmp = "/tmp/.ansible/tmp"
+        local_tmp  = "/tmp/.ansible-local"
       }
     }
   }
@@ -64,32 +64,41 @@ provisioner "ansible-navigator" {
 
 ```hcl
 provisioner "ansible-navigator" {
-  navigator_config = {
+  navigator_config {
     mode = "json"
-    execution-environment = {
-      enabled = true
-      image = "quay.io/ansible/creator-ee:latest"
-      pull-policy = "always"
-      environment-variables = {
-        ANSIBLE_REMOTE_TMP = "/custom/tmp"
-        ANSIBLE_LOCAL_TMP = "/custom/local"
-        CUSTOM_VAR = "production"
-      }
-    }
-    ansible = {
-      config = {
-        defaults = {
-          host_key_checking = "False"
-          gathering = "smart"
-        }
-        ssh_connection = {
-          pipelining = "True"
-          timeout = "30"
+
+    execution_environment {
+      enabled     = true
+      image       = "quay.io/ansible/creator-ee:latest"
+      pull_policy = "always"
+
+      environment_variables {
+        set = {
+          ANSIBLE_REMOTE_TMP = "/custom/tmp"
+          ANSIBLE_LOCAL_TMP  = "/custom/local"
+          CUSTOM_VAR         = "production"
         }
       }
     }
-    logging = {
-      level = "debug"
+
+    # Any ansible_config.defaults/ssh_connection settings are written into a
+    # generated ansible.cfg file and referenced from ansible-navigator.yml via
+    # ansible.config.path.
+    ansible_config {
+      defaults {
+        remote_tmp        = "/custom/tmp"
+        local_tmp         = "/custom/local"
+        host_key_checking = false
+      }
+
+      ssh_connection {
+        pipelining  = true
+        ssh_timeout = 30
+      }
+    }
+
+    logging {
+      level  = "debug"
       append = true
     }
   }

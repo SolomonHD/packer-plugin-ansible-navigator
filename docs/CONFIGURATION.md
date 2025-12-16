@@ -114,24 +114,26 @@ provisioner "ansible-navigator" {
 
 ## Navigator configuration: `navigator_config` (optional, recommended for ansible-navigator v3+)
 
-`navigator_config` is a map that maps directly to the `ansible-navigator.yml` configuration schema. When set, the provisioner generates a temporary `ansible-navigator.yml` file and sets `ANSIBLE_NAVIGATOR_CONFIG` environment variable.
+`navigator_config` is an HCL block that maps to a typed configuration struct. When set, the provisioner generates a temporary `ansible-navigator.yml` file and sets `ANSIBLE_NAVIGATOR_CONFIG`.
+
+When you configure `ansible_config.defaults` and/or `ansible_config.ssh_connection`, the plugin generates an **ansible.cfg** (INI) file and references it from the generated `ansible-navigator.yml` via `ansible.config.path`.
 
 ```hcl
 provisioner "ansible-navigator" {
-  navigator_config = {
+  navigator_config {
     mode = "stdout"
-    execution-environment = {
-      enabled = true
-      image = "quay.io/ansible/creator-ee:latest"
-      pull-policy = "missing"
+
+    execution_environment {
+      enabled     = true
+      image       = "quay.io/ansible/creator-ee:latest"
+      pull_policy = "missing"
     }
-    ansible = {
-      config = {
-        defaults = {
-          remote_tmp = "/tmp/.ansible/tmp"
-          local_tmp = "/tmp/.ansible-local"
-          host_key_checking = "False"
-        }
+
+    # Configure Ansible temp directories (written to generated ansible.cfg)
+    ansible_config {
+      defaults {
+        remote_tmp = "/tmp/.ansible/tmp"
+        local_tmp  = "/tmp/.ansible-local"
       }
     }
   }
@@ -147,12 +149,12 @@ provisioner "ansible-navigator" {
 - Automatically sets safe EE temp directory defaults when `execution-environment.enabled = true`
 - Single source of truth for ansible-navigator settings
 
-**Automatic EE defaults:** When `execution-environment.enabled = true` and temp directory settings are not explicitly provided, the plugin automatically adds:
+**Automatic EE defaults:** When `execution_environment.enabled = true` and temp directory settings are not explicitly provided, the plugin automatically adds:
 
-- `ansible.config.defaults.remote_tmp = "/tmp/.ansible/tmp"`
-- `ansible.config.defaults.local_tmp = "/tmp/.ansible-local"`
-- `execution-environment.environment-variables.ANSIBLE_REMOTE_TMP`
-- `execution-environment.environment-variables.ANSIBLE_LOCAL_TMP`
+- `ansible_config.defaults.remote_tmp = "/tmp/.ansible/tmp"`
+- `ansible_config.defaults.local_tmp = "/tmp/.ansible-local"`
+- `execution_environment.environment_variables.set.ANSIBLE_REMOTE_TMP`
+- `execution_environment.environment_variables.set.ANSIBLE_LOCAL_TMP`
 
 This prevents "Permission denied: /.ansible/tmp" errors in EE containers.
 
