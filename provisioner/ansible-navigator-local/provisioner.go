@@ -81,6 +81,8 @@ type AnsibleConfig struct {
 type AnsibleConfigDefaults struct {
 	// Remote temp directory
 	RemoteTmp string `mapstructure:"remote_tmp"`
+	// Local temp directory
+	LocalTmp string `mapstructure:"local_tmp"`
 	// Host key checking
 	HostKeyChecking bool `mapstructure:"host_key_checking"`
 }
@@ -313,6 +315,16 @@ func (c *Config) Validate() error {
 			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
 				"navigator_config block cannot be empty. Either provide configuration or omit the block"))
 		}
+
+		// Schema compliance: ansible_config.config (path) is mutually exclusive with
+		// the nested defaults/ssh_connection blocks (which map to a generated ansible.cfg).
+		if c.NavigatorConfig.AnsibleConfig != nil {
+			ac := c.NavigatorConfig.AnsibleConfig
+			if ac.Config != "" && (ac.Defaults != nil || ac.SSHConnection != nil) {
+				errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+					"navigator_config.ansible_config.config is mutually exclusive with navigator_config.ansible_config.defaults and navigator_config.ansible_config.ssh_connection"))
+			}
+		}
 	}
 
 	if errs != nil && len(errs.Errors) > 0 {
@@ -470,6 +482,38 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 	// Generate and upload ansible-navigator.yml if configured
 	var navigatorConfigRemotePath string
 	if p.config.NavigatorConfig != nil {
+		applyAutomaticEEDefaults(p.config.NavigatorConfig)
+
+		// If ansible_config.defaults / ansible_config.ssh_connection are provided
+		// (explicitly or via EE defaults), generate an ansible.cfg file, upload it
+		// to the staging directory, and reference it from the navigator config YAML
+		// via ansible.config.path.
+		if p.config.NavigatorConfig.AnsibleConfig != nil && needsGeneratedAnsibleCfg(p.config.NavigatorConfig.AnsibleConfig) {
+			if p.config.NavigatorConfig.AnsibleConfig.Config != "" {
+				return fmt.Errorf("invalid navigator_config.ansible_config: config is mutually exclusive with defaults/ssh_connection")
+			}
+
+			cfgContent, err := generateAnsibleCfgContent(p.config.NavigatorConfig.AnsibleConfig)
+			if err != nil {
+				return fmt.Errorf("Error generating ansible.cfg content: %s", err)
+			}
+			if cfgContent != "" {
+				cfgTmpPath, err := createTempAnsibleCfgFile(cfgContent)
+				if err != nil {
+					return fmt.Errorf("Error creating temporary ansible.cfg: %s", err)
+				}
+				defer os.Remove(cfgTmpPath)
+
+				cfgRemotePath := filepath.ToSlash(filepath.Join(p.stagingDir, "ansible.cfg"))
+				ui.Message("Uploading generated ansible.cfg...")
+				if err := p.uploadFile(ui, comm, cfgRemotePath, cfgTmpPath); err != nil {
+					return fmt.Errorf("Error uploading ansible.cfg: %s", err)
+				}
+
+				p.config.NavigatorConfig.AnsibleConfig.Config = cfgRemotePath
+			}
+		}
+
 		yamlContent, err := generateNavigatorConfigYAML(p.config.NavigatorConfig)
 		if err != nil {
 			return fmt.Errorf("Error generating navigator_config YAML: %s", err)

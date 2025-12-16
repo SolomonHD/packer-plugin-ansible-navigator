@@ -103,6 +103,8 @@ type AnsibleConfig struct {
 type AnsibleConfigDefaults struct {
 	// Remote temp directory
 	RemoteTmp string `mapstructure:"remote_tmp"`
+	// Local temp directory
+	LocalTmp string `mapstructure:"local_tmp"`
 	// Host key checking
 	HostKeyChecking bool `mapstructure:"host_key_checking"`
 }
@@ -469,6 +471,16 @@ func (c *Config) Validate() error {
 		if isEmpty {
 			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
 				"navigator_config block cannot be empty. Either provide configuration or omit the block"))
+		}
+
+		// Schema compliance: ansible_config.config (path) is mutually exclusive with
+		// the nested defaults/ssh_connection blocks (which map to a generated ansible.cfg).
+		if c.NavigatorConfig.AnsibleConfig != nil {
+			ac := c.NavigatorConfig.AnsibleConfig
+			if ac.Config != "" && (ac.Defaults != nil || ac.SSHConnection != nil) {
+				errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+					"navigator_config.ansible_config.config is mutually exclusive with navigator_config.ansible_config.defaults and navigator_config.ansible_config.ssh_connection"))
+			}
 		}
 	}
 
@@ -1159,6 +1171,35 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 	// Generate and setup ansible-navigator.yml if configured
 	var navigatorConfigPath string
 	if p.config.NavigatorConfig != nil {
+		// Ensure automatic execution-environment defaults are applied before we
+		// generate ansible.cfg and ansible-navigator.yml.
+		applyAutomaticEEDefaults(p.config.NavigatorConfig)
+
+		// If ansible_config.defaults / ansible_config.ssh_connection are provided
+		// (explicitly or via EE defaults), generate an ansible.cfg file and reference
+		// it from the navigator config YAML via ansible.config.path.
+		if p.config.NavigatorConfig.AnsibleConfig != nil && needsGeneratedAnsibleCfg(p.config.NavigatorConfig.AnsibleConfig) {
+			if p.config.NavigatorConfig.AnsibleConfig.Config != "" {
+				return fmt.Errorf("invalid navigator_config.ansible_config: config is mutually exclusive with defaults/ssh_connection")
+			}
+
+			cfgContent, err := generateAnsibleCfgContent(p.config.NavigatorConfig.AnsibleConfig)
+			if err != nil {
+				return fmt.Errorf("failed to generate ansible.cfg content: %w", err)
+			}
+			if cfgContent != "" {
+				cfgPath, err := createTempAnsibleCfgFile(cfgContent)
+				if err != nil {
+					return fmt.Errorf("failed to create temporary ansible.cfg: %w", err)
+				}
+				ui.Message(fmt.Sprintf("Generated ansible.cfg at %s", cfgPath))
+				p.config.NavigatorConfig.AnsibleConfig.Config = cfgPath
+				defer func() {
+					_ = os.Remove(cfgPath)
+				}()
+			}
+		}
+
 		yamlContent, err := generateNavigatorConfigYAML(p.config.NavigatorConfig)
 		if err != nil {
 			return fmt.Errorf("failed to generate navigator_config YAML: %w", err)

@@ -33,8 +33,10 @@ func TestGenerateNavigatorConfigYAML_Basic(t *testing.T) {
 		t.Errorf("Expected mode: stdout in YAML, got: %s", yaml)
 	}
 
-	if !strings.Contains(yaml, "host_key_checking") {
-		t.Errorf("Expected host_key_checking in YAML, got: %s", yaml)
+	// Schema compliance: ansible defaults live in a generated ansible.cfg and are
+	// NOT embedded in ansible-navigator.yml.
+	if strings.Contains(yaml, "host_key_checking") {
+		t.Errorf("Did not expect host_key_checking in YAML, got: %s", yaml)
 	}
 }
 
@@ -52,12 +54,14 @@ func TestGenerateNavigatorConfigYAML_AutomaticEEDefaults(t *testing.T) {
 		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
 	}
 
-	// Verify automatic defaults were applied
-	if !strings.Contains(yaml, "remote_tmp: /tmp/.ansible/tmp") {
-		t.Errorf("Expected automatic remote_tmp default in YAML, got: %s", yaml)
+	// Note: remote_tmp/local_tmp are configured via ansible.cfg (referenced by path)
+	// and MUST NOT appear under ansible.config in this YAML.
+	if strings.Contains(yaml, "remote_tmp") {
+		t.Errorf("Did not expect remote_tmp in YAML, got: %s", yaml)
 	}
-
-	// Note: local_tmp is NOT set in ansible config defaults, only in environment variables
+	if strings.Contains(yaml, "local_tmp") {
+		t.Errorf("Did not expect local_tmp in YAML, got: %s", yaml)
+	}
 
 	if !strings.Contains(yaml, "ANSIBLE_REMOTE_TMP: /tmp/.ansible/tmp") {
 		t.Errorf("Expected automatic ANSIBLE_REMOTE_TMP env var in YAML, got: %s", yaml)
@@ -97,13 +101,70 @@ func TestGenerateNavigatorConfigYAML_UserValuesPreserved(t *testing.T) {
 		t.Errorf("Expected user-provided ANSIBLE_REMOTE_TMP to be preserved, got: %s", yaml)
 	}
 
-	if !strings.Contains(yaml, "/another/custom/path") {
-		t.Errorf("Expected user-provided remote_tmp to be preserved, got: %s", yaml)
-	}
-
 	// Verify defaults are not added when user values exist
 	if strings.Count(yaml, "ANSIBLE_REMOTE_TMP") > 1 {
 		t.Errorf("ANSIBLE_REMOTE_TMP should only appear once (user value), got: %s", yaml)
+	}
+}
+
+func TestGenerateNavigatorConfigYAML_AnsibleConfigPathSchemaCompliant(t *testing.T) {
+	config := &NavigatorConfig{
+		Mode: "stdout",
+		AnsibleConfig: &AnsibleConfig{
+			Config: "/tmp/ansible.cfg",
+			Defaults: &AnsibleConfigDefaults{
+				RemoteTmp: "/tmp/.ansible/tmp",
+				LocalTmp:  "/tmp/.ansible-local",
+			},
+			SSHConnection: &AnsibleConfigConnection{Pipelining: true},
+		},
+	}
+
+	yamlStr, err := generateNavigatorConfigYAML(config)
+	if err != nil {
+		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+	}
+
+	if !strings.Contains(yamlStr, "path: /tmp/ansible.cfg") {
+		t.Fatalf("expected ansible.config.path in YAML, got: %s", yamlStr)
+	}
+
+	if strings.Contains(yamlStr, "defaults") {
+		t.Fatalf("did not expect defaults under ansible.config in YAML, got: %s", yamlStr)
+	}
+	if strings.Contains(yamlStr, "ssh_connection") {
+		t.Fatalf("did not expect ssh_connection under ansible.config in YAML, got: %s", yamlStr)
+	}
+}
+
+func TestGenerateAnsibleCfgContent_LocalTmpIncludedWhenSet(t *testing.T) {
+	content, err := generateAnsibleCfgContent(&AnsibleConfig{
+		Defaults: &AnsibleConfigDefaults{
+			RemoteTmp:       "/tmp/.ansible/tmp",
+			LocalTmp:        "/tmp/.ansible-local",
+			HostKeyChecking: false,
+		},
+	})
+	if err != nil {
+		t.Fatalf("generateAnsibleCfgContent failed: %v", err)
+	}
+	if !strings.Contains(content, "local_tmp = /tmp/.ansible-local") {
+		t.Fatalf("expected local_tmp in generated ansible.cfg, got: %q", content)
+	}
+}
+
+func TestGenerateAnsibleCfgContent_LocalTmpOmittedWhenUnset(t *testing.T) {
+	content, err := generateAnsibleCfgContent(&AnsibleConfig{
+		Defaults: &AnsibleConfigDefaults{
+			RemoteTmp:       "/tmp/.ansible/tmp",
+			HostKeyChecking: false,
+		},
+	})
+	if err != nil {
+		t.Fatalf("generateAnsibleCfgContent failed: %v", err)
+	}
+	if strings.Contains(content, "local_tmp") {
+		t.Fatalf("did not expect local_tmp in generated ansible.cfg when unset, got: %q", content)
 	}
 }
 
@@ -287,11 +348,10 @@ func TestGenerateNavigatorConfigYAML_ComplexConfig(t *testing.T) {
 		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
 	}
 
-	// Verify all sections are present
+	// Verify all YAML sections are present (note: ansible defaults / ssh_connection
+	// are represented via ansible.cfg and are NOT embedded in YAML).
 	expectedStrings := []string{
 		"mode: json",
-		"host_key_checking",
-		"pipelining",
 		"pull:",
 		"policy: missing",
 		"CUSTOM_VAR",

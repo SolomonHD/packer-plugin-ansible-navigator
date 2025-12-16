@@ -12,6 +12,53 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// applyAutomaticEEDefaults applies safe defaults for execution environments.
+//
+// This is primarily to avoid permission errors inside containers when Ansible
+// tries to write under non-writable default paths like "/.ansible/tmp".
+func applyAutomaticEEDefaults(config *NavigatorConfig) {
+	if config == nil {
+		return
+	}
+
+	if config.ExecutionEnvironment == nil || !config.ExecutionEnvironment.Enabled {
+		return
+	}
+
+	// Initialize AnsibleConfig if not present
+	if config.AnsibleConfig == nil {
+		config.AnsibleConfig = &AnsibleConfig{}
+	}
+	if config.AnsibleConfig.Defaults == nil {
+		config.AnsibleConfig.Defaults = &AnsibleConfigDefaults{}
+	}
+
+	// Set temp directory defaults to prevent permission errors
+	if config.AnsibleConfig.Defaults.RemoteTmp == "" {
+		config.AnsibleConfig.Defaults.RemoteTmp = "/tmp/.ansible/tmp"
+	}
+	if config.AnsibleConfig.Defaults.LocalTmp == "" {
+		config.AnsibleConfig.Defaults.LocalTmp = "/tmp/.ansible-local"
+	}
+
+	// Set environment variables for EE container
+	if config.ExecutionEnvironment.EnvironmentVariables == nil {
+		config.ExecutionEnvironment.EnvironmentVariables = &EnvironmentVariablesConfig{
+			Set: make(map[string]string),
+		}
+	}
+	if config.ExecutionEnvironment.EnvironmentVariables.Set == nil {
+		config.ExecutionEnvironment.EnvironmentVariables.Set = make(map[string]string)
+	}
+
+	if _, hasRemoteTmp := config.ExecutionEnvironment.EnvironmentVariables.Set["ANSIBLE_REMOTE_TMP"]; !hasRemoteTmp {
+		config.ExecutionEnvironment.EnvironmentVariables.Set["ANSIBLE_REMOTE_TMP"] = "/tmp/.ansible/tmp"
+	}
+	if _, hasLocalTmp := config.ExecutionEnvironment.EnvironmentVariables.Set["ANSIBLE_LOCAL_TMP"]; !hasLocalTmp {
+		config.ExecutionEnvironment.EnvironmentVariables.Set["ANSIBLE_LOCAL_TMP"] = "/tmp/.ansible-local"
+	}
+}
+
 // generateNavigatorConfigYAML converts the NavigatorConfig struct to YAML format
 // and applies automatic defaults when execution-environment.enabled = true
 func generateNavigatorConfigYAML(config *NavigatorConfig) (string, error) {
@@ -19,38 +66,7 @@ func generateNavigatorConfigYAML(config *NavigatorConfig) (string, error) {
 		return "", fmt.Errorf("navigator_config cannot be nil")
 	}
 
-	// Apply automatic EE defaults if execution-environment.enabled = true
-	if config.ExecutionEnvironment != nil && config.ExecutionEnvironment.Enabled {
-		// Initialize AnsibleConfig if not present
-		if config.AnsibleConfig == nil {
-			config.AnsibleConfig = &AnsibleConfig{}
-		}
-		if config.AnsibleConfig.Defaults == nil {
-			config.AnsibleConfig.Defaults = &AnsibleConfigDefaults{}
-		}
-
-		// Set temp directory defaults to prevent permission errors
-		if config.AnsibleConfig.Defaults.RemoteTmp == "" {
-			config.AnsibleConfig.Defaults.RemoteTmp = "/tmp/.ansible/tmp"
-		}
-
-		// Set environment variables for EE container
-		if config.ExecutionEnvironment.EnvironmentVariables == nil {
-			config.ExecutionEnvironment.EnvironmentVariables = &EnvironmentVariablesConfig{
-				Set: make(map[string]string),
-			}
-		}
-		if config.ExecutionEnvironment.EnvironmentVariables.Set == nil {
-			config.ExecutionEnvironment.EnvironmentVariables.Set = make(map[string]string)
-		}
-
-		if _, hasRemoteTmp := config.ExecutionEnvironment.EnvironmentVariables.Set["ANSIBLE_REMOTE_TMP"]; !hasRemoteTmp {
-			config.ExecutionEnvironment.EnvironmentVariables.Set["ANSIBLE_REMOTE_TMP"] = "/tmp/.ansible/tmp"
-		}
-		if _, hasLocalTmp := config.ExecutionEnvironment.EnvironmentVariables.Set["ANSIBLE_LOCAL_TMP"]; !hasLocalTmp {
-			config.ExecutionEnvironment.EnvironmentVariables.Set["ANSIBLE_LOCAL_TMP"] = "/tmp/.ansible-local"
-		}
-	}
+	applyAutomaticEEDefaults(config)
 
 	// Convert to YAML-friendly structure with proper field names
 	yamlConfig := convertToYAMLStructure(config)
@@ -102,32 +118,13 @@ func convertToYAMLStructure(config *NavigatorConfig) map[string]interface{} {
 
 	if config.AnsibleConfig != nil {
 		ansibleMap := make(map[string]interface{})
+		// Schema compliance: ansible.config may contain only help/path/cmdline.
+		// We represent defaults/ssh_connection via a generated ansible.cfg file and
+		// reference it here.
 		if config.AnsibleConfig.Config != "" {
-			ansibleMap["config"] = config.AnsibleConfig.Config
-		}
-		configMap := make(map[string]interface{})
-		if config.AnsibleConfig.Defaults != nil {
-			defaultsMap := make(map[string]interface{})
-			if config.AnsibleConfig.Defaults.RemoteTmp != "" {
-				defaultsMap["remote_tmp"] = config.AnsibleConfig.Defaults.RemoteTmp
+			ansibleMap["config"] = map[string]interface{}{
+				"path": config.AnsibleConfig.Config,
 			}
-			defaultsMap["host_key_checking"] = config.AnsibleConfig.Defaults.HostKeyChecking
-			if len(defaultsMap) > 0 {
-				configMap["defaults"] = defaultsMap
-			}
-		}
-		if config.AnsibleConfig.SSHConnection != nil {
-			sshMap := make(map[string]interface{})
-			if config.AnsibleConfig.SSHConnection.SSHTimeout > 0 {
-				sshMap["ssh_timeout"] = config.AnsibleConfig.SSHConnection.SSHTimeout
-			}
-			sshMap["pipelining"] = config.AnsibleConfig.SSHConnection.Pipelining
-			if len(sshMap) > 0 {
-				configMap["ssh_connection"] = sshMap
-			}
-		}
-		if len(configMap) > 0 {
-			ansibleMap["config"] = configMap
 		}
 		if len(ansibleMap) > 0 {
 			ansibleNavigator["ansible"] = ansibleMap

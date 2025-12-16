@@ -63,6 +63,7 @@ func (*FlatAnsibleConfigConnection) HCL2Spec() map[string]hcldec.Spec {
 // Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
 type FlatAnsibleConfigDefaults struct {
 	RemoteTmp       *string `mapstructure:"remote_tmp" cty:"remote_tmp" hcl:"remote_tmp"`
+	LocalTmp        *string `mapstructure:"local_tmp" cty:"local_tmp" hcl:"local_tmp"`
 	HostKeyChecking *bool   `mapstructure:"host_key_checking" cty:"host_key_checking" hcl:"host_key_checking"`
 }
 
@@ -79,6 +80,7 @@ func (*AnsibleConfigDefaults) FlatMapstructure() interface{ HCL2Spec() map[strin
 func (*FlatAnsibleConfigDefaults) HCL2Spec() map[string]hcldec.Spec {
 	s := map[string]hcldec.Spec{
 		"remote_tmp":        &hcldec.AttrSpec{Name: "remote_tmp", Type: cty.String, Required: false},
+		"local_tmp":         &hcldec.AttrSpec{Name: "local_tmp", Type: cty.String, Required: false},
 		"host_key_checking": &hcldec.AttrSpec{Name: "host_key_checking", Type: cty.Bool, Required: false},
 	}
 	return s
