@@ -307,6 +307,7 @@ type FlatPlay struct {
 	Tags      []string          `mapstructure:"tags" cty:"tags" hcl:"tags"`
 	VarsFiles []string          `mapstructure:"vars_files" cty:"vars_files" hcl:"vars_files"`
 	Become    *bool             `mapstructure:"become" cty:"become" hcl:"become"`
+	ExtraArgs []string          `mapstructure:"extra_args" cty:"extra_args" hcl:"extra_args"`
 }
 
 // FlatMapstructure returns a new FlatPlay.
@@ -327,6 +328,7 @@ func (*FlatPlay) HCL2Spec() map[string]hcldec.Spec {
 		"tags":       &hcldec.AttrSpec{Name: "tags", Type: cty.List(cty.String), Required: false},
 		"vars_files": &hcldec.AttrSpec{Name: "vars_files", Type: cty.List(cty.String), Required: false},
 		"become":     &hcldec.AttrSpec{Name: "become", Type: cty.Bool, Required: false},
+		"extra_args": &hcldec.AttrSpec{Name: "extra_args", Type: cty.List(cty.String), Required: false},
 	}
 	return s
 }

@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	packersdk "github.com/hashicorp/packer-plugin-sdk/packer"
+	"github.com/stretchr/testify/require"
 )
 
 func TestProvisioner_Impl(t *testing.T) {
@@ -225,4 +226,63 @@ func TestProvisioner_DoesNotWarnWhenSkipVersionCheckIsFalse(t *testing.T) {
 	if strings.Contains(out.String(), "version_check_timeout is ignored") {
 		t.Fatalf("did not expect warning in UI output; got: %q", out.String())
 	}
+}
+
+func TestProvisionerProvision_PlayExtraArgs_AppliedBeforeGeneratedArgsAndTarget(t *testing.T) {
+	var p Provisioner
+	config := testConfig()
+
+	playbookFile, err := os.CreateTemp("", "playbook-*.yml")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(playbookFile.Name())
+
+	config["play"] = []map[string]interface{}{
+		{
+			"target":     playbookFile.Name(),
+			"extra_args": []string{"--check", "--diff"},
+		},
+	}
+	config["navigator_config"] = map[string]interface{}{"mode": "stdout"}
+
+	if err := p.Prepare(config); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	comm := &communicatorMock{}
+	ui := packersdk.TestUi(t)
+
+	if err := p.Provision(context.Background(), ui, comm, map[string]interface{}{"PackerHTTPAddr": "127.0.0.1"}); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	invRemote := filepath.ToSlash(filepath.Join(p.stagingDir, "inventory.ini"))
+	playRemote := filepath.ToSlash(filepath.Join(p.stagingDir, filepath.Base(playbookFile.Name())))
+
+	var cmd string
+	for _, c := range comm.startCommand {
+		if strings.Contains(c, "ansible-navigator") && strings.Contains(c, " run") {
+			cmd = c
+			break
+		}
+	}
+	require.NotEmpty(t, cmd)
+
+	idxRun := strings.Index(cmd, " run --mode stdout")
+	idxCheck := strings.Index(cmd, " --check")
+	idxDiff := strings.Index(cmd, " --diff")
+	idxInv := strings.Index(cmd, "-i "+invRemote)
+	idxPlay := strings.Index(cmd, playRemote)
+
+	require.NotEqual(t, -1, idxRun)
+	require.NotEqual(t, -1, idxCheck)
+	require.NotEqual(t, -1, idxDiff)
+	require.NotEqual(t, -1, idxInv)
+	require.NotEqual(t, -1, idxPlay)
+
+	// Ordering expectations: extra_args before inventory, and inventory before play target.
+	require.Less(t, idxCheck, idxInv)
+	require.Less(t, idxDiff, idxInv)
+	require.Less(t, idxInv, idxPlay)
 }

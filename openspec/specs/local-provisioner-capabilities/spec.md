@@ -3,6 +3,7 @@
 ## Purpose
 
 Defines the expected behavior and configuration options for the local `ansible-navigator` provisioner.
+
 ## Requirements
 
 <!-- Requirements will be added through change proposals -->
@@ -692,6 +693,47 @@ The local provisioner SHALL pass the `--mode` CLI flag in the remote shell comma
 - **AND** it SHALL NOT wait for terminal input
 - **AND** execution SHALL complete without hanging
 
+### Requirement: Per-Play extra_args escape hatch (local provisioner)
+
+The on-target provisioner SHALL support a per-play `extra_args` field (list(string)) that is appended to the `ansible-navigator run` invocation for that play.
+
+#### Scenario: play.extra_args is accepted in HCL schema
+
+- **GIVEN** a configuration using `provisioner "ansible-navigator-local"`
+- **AND** a `play {}` block includes `extra_args = ["--check", "--diff"]`
+- **WHEN** Packer parses the configuration
+- **THEN** parsing SHALL succeed
+- **AND** the provisioner configuration SHALL include the `extra_args` values for that play
+
+#### Scenario: play.extra_args is passed verbatim
+
+- **GIVEN** a configuration using `provisioner "ansible-navigator-local"` with a play:
+
+  ```hcl
+  play {
+    target     = "site.yml"
+    extra_args = ["--check", "--diff"]
+  }
+  ```
+
+- **WHEN** the provisioner constructs the remote shell command for that play
+- **THEN** it SHALL include both `--check` and `--diff` as command arguments
+- **AND** it SHALL not rewrite, split, or validate the `extra_args` values beyond basic type handling
+
+#### Scenario: Deterministic argument ordering includes extra_args
+
+- **GIVEN** a configuration using `provisioner "ansible-navigator-local"` with:
+  - one `play {}` block
+  - `navigator_config.mode = "stdout"`
+  - `play.extra_args = ["--check", "--diff"]`
+- **WHEN** the provisioner constructs the remote shell command arguments
+- **THEN** the argument ordering SHALL be deterministic and consistent across executions:
+  1. `run` subcommand
+  2. enforced mode flag behavior (when configured), inserted immediately after `run`
+  3. play-level `extra_args`
+  4. provisioner-generated arguments (inventory, extra vars, tags, etc.)
+  5. the play target (playbook path or generated playbook/role invocation)
+
 ### Requirement: YAML Root Structure for Local Provisioner
 
 The local provisioner SHALL generate ansible-navigator.yml configuration files with a top-level `ansible-navigator:` root key wrapping all settings to conform to ansible-navigator v25.x schema requirements, preventing validation errors.
@@ -744,6 +786,7 @@ The local provisioner SHALL generate ansible-navigator.yml configuration files w
 The on-target provisioner SHALL include a `skip_version_check` configuration field for parity with the remote provisioner, even though local version checks are not currently performed.
 
 #### Scenario: Configuration field present
+
 Given: A configuration for `provisioner "ansible-navigator-local"` including `skip_version_check = true`
 When: Packer parses the configuration
 Then: Parsing succeeds and the field is accepted (non-fatal)
@@ -753,16 +796,19 @@ Then: Parsing succeeds and the field is accepted (non-fatal)
 When users explicitly configure `version_check_timeout` but also set `skip_version_check = true`, the plugin SHALL emit a user-visible warning indicating that the timeout is ignored.
 
 #### Scenario: Warning when skip_version_check=true and version_check_timeout explicitly set
+
 Given: A configuration for `provisioner "ansible-navigator-local"` with `skip_version_check = true` and an explicitly set `version_check_timeout`
 When: The provisioner prepares for execution (configuration validation/prepare)
 Then: The provisioner prints a non-fatal warning in Packer UI output stating that `version_check_timeout` is ignored when `skip_version_check=true`
 
 #### Scenario: No warning when skip_version_check=false
+
 Given: A configuration for `provisioner "ansible-navigator-local"` with `skip_version_check = false` and an explicitly set `version_check_timeout`
 When: The provisioner prepares for execution (configuration validation/prepare)
 Then: No warning about `version_check_timeout` being ignored is printed
 
 #### Scenario: No warning when version_check_timeout not explicitly set
+
 Given: A configuration for `provisioner "ansible-navigator-local"` with `skip_version_check = true` and without an explicitly set `version_check_timeout`
 When: The provisioner prepares for execution (configuration validation/prepare)
 Then: No warning about `version_check_timeout` being ignored is printed
@@ -813,4 +859,3 @@ The on-target provisioner SHALL support configuring Ansible's local temp directo
 - **GIVEN** a configuration that does not set `navigator_config.ansible_config.defaults.local_tmp`
 - **WHEN** the provisioner generates ansible.cfg
 - **THEN** the generated ansible.cfg SHALL NOT include a `local_tmp` entry
-
