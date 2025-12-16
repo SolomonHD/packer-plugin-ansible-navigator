@@ -41,12 +41,24 @@ provisioner "ansible-navigator" {
 
 - `name` (string, optional)
 - `target` (string, required)
+- `extra_args` (list(string), optional; passed verbatim to `ansible-navigator run` for that play)
 - `extra_vars` (map(string), optional)
 - `vars_files` (list(string), optional)
 - `tags` (list(string), optional)
 - `skip_tags` (list(string), optional; remote provisioner only if supported by your version)
 - `become` (bool, optional)
 - `become_user` (string, optional; remote provisioner only if supported by your version)
+
+Example:
+
+```hcl
+provisioner "ansible-navigator" {
+  play {
+    target     = "site.yml"
+    extra_args = ["--check", "--diff"]
+  }
+}
+```
 
 ## Dependency installation: `requirements_file` (optional)
 

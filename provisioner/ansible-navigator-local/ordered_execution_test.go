@@ -30,7 +30,7 @@ func TestProvisioner_ExecutePlays_ExecutesInOrder(t *testing.T) {
 
 	comm := &communicatorMock{}
 	ui := packersdk.TestUi(t)
-	// Required by buildExtraArgs() (uses %s formatting)
+	// Required by buildPluginArgsForPlay() (uses %s formatting)
 	p.generatedData = map[string]interface{}{"PackerHTTPAddr": "127.0.0.1"}
 
 	inventoryRemote := filepath.ToSlash(filepath.Join(p.stagingDir, "inventory.ini"))

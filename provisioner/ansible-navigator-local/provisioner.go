@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -139,6 +140,10 @@ type Play struct {
 	VarsFiles []string `mapstructure:"vars_files"`
 	// Whether to use privilege escalation (become) for this play
 	Become bool `mapstructure:"become"`
+	// Extra arguments to pass verbatim to ansible-navigator for this play.
+	// These are appended after `ansible-navigator run` (and enforced `--mode`),
+	// and before plugin-generated inventory/extra-vars/etc.
+	ExtraArgs []string `mapstructure:"extra_args"`
 }
 
 type Config struct {
@@ -594,11 +599,8 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 			}
 		}
 
-		// Build extra arguments for this play
-		extraArgs := p.buildExtraArgs(play)
-
 		// Execute the play
-		err := p.executeAnsiblePlaybook(ui, comm, playbookPath, extraArgs, inventory, navigatorConfigRemotePath)
+		err := p.executeAnsiblePlaybook(ui, comm, playbookPath, play, inventory, navigatorConfigRemotePath)
 
 		// Cleanup temporary playbook if it was generated
 		if cleanupFunc != nil {
@@ -624,29 +626,68 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 	return nil
 }
 
-// buildExtraArgs constructs extra arguments for a specific play
-func (p *Provisioner) buildExtraArgs(play Play) string {
-	extraArgs := fmt.Sprintf(" --extra-vars \"packer_build_name=%s packer_builder_type=%s packer_http_addr=%s -o IdentitiesOnly=yes\" ",
-		p.config.PackerBuildName, p.config.PackerBuilderType, p.generatedData["PackerHTTPAddr"])
+func (p *Provisioner) buildPluginArgsForPlay(play Play, inventory string) []string {
+	args := make([]string, 0)
 
-	// Add per-play arguments
+	// Keep existing behavior: expose packer_* variables as a single --extra-vars string.
+	args = append(args,
+		"--extra-vars",
+		fmt.Sprintf(
+			"packer_build_name=%s packer_builder_type=%s packer_http_addr=%s -o IdentitiesOnly=yes",
+			p.config.PackerBuildName,
+			p.config.PackerBuilderType,
+			p.generatedData["PackerHTTPAddr"],
+		),
+	)
+
 	if play.Become {
-		extraArgs = extraArgs + " --become"
+		args = append(args, "--become")
 	}
 
-	if len(play.Tags) > 0 {
-		extraArgs = extraArgs + " --tags " + strings.Join(play.Tags, ",")
+	for _, tag := range play.Tags {
+		args = append(args, "--tags", tag)
 	}
 
-	for k, v := range play.ExtraVars {
-		extraArgs = extraArgs + fmt.Sprintf(" -e %s=%s", k, v)
+	if len(play.ExtraVars) > 0 {
+		keys := make([]string, 0, len(play.ExtraVars))
+		for k := range play.ExtraVars {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			args = append(args, "-e", fmt.Sprintf("%s=%s", k, play.ExtraVars[k]))
+		}
 	}
 
 	for _, varsFile := range play.VarsFiles {
-		extraArgs = extraArgs + fmt.Sprintf(" -e @%s", varsFile)
+		args = append(args, "-e", fmt.Sprintf("@%s", varsFile))
 	}
 
-	return extraArgs
+	args = append(args, "-c", "local", "-i", inventory)
+
+	return args
+}
+
+// shellEscapePOSIX returns a POSIX-shell-safe representation of s.
+// It uses single-quote escaping, suitable for remote shell commands.
+func shellEscapePOSIX(s string) string {
+	if s == "" {
+		return "''"
+	}
+	// Fast path: no characters that require quoting.
+	if !strings.ContainsAny(s, " \t\n\r\"'\\$&;|<>*?[]{}()!`") {
+		return s
+	}
+	// Single-quote escape: close, escape single quote, reopen.
+	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
+}
+
+func shellEscapeAllPOSIX(args []string) []string {
+	out := make([]string, 0, len(args))
+	for _, a := range args {
+		out = append(out, shellEscapePOSIX(a))
+	}
+	return out
 }
 
 // createRolePlaybook generates a temporary playbook file for executing an Ansible role
@@ -698,7 +739,12 @@ func (p *Provisioner) createRolePlaybook(role string, play Play) (string, error)
 }
 
 func (p *Provisioner) executeAnsiblePlaybook(
-	ui packersdk.Ui, comm packersdk.Communicator, playbookFile, extraArgs, inventory string, navigatorConfigRemotePath string,
+	ui packersdk.Ui,
+	comm packersdk.Communicator,
+	playbookFile string,
+	play Play,
+	inventory string,
+	navigatorConfigRemotePath string,
 ) error {
 	ctx := context.TODO()
 	env_vars := ""
@@ -724,14 +770,26 @@ func (p *Provisioner) executeAnsiblePlaybook(
 		pathPrefix = buildPathPrefixForRemoteShell(p.config.AnsibleNavigatorPath) + " "
 	}
 
-	// Command now defaults to just "ansible-navigator", so we need to add "run" as first arg
-	// Add --mode flag if navigator_config.mode is set to prevent hanging in interactive mode
-	runCommand := "run"
+	// Deterministic ordering:
+	//   1) ansible-navigator run (+ enforced --mode)
+	//   2) play.extra_args (verbatim)
+	//   3) plugin-generated inventory/extra-vars/etc (including play-level flags)
+	//   4) play target (playbook path)
+	runArgs := []string{"run"}
 	if p.config.NavigatorConfig != nil && p.config.NavigatorConfig.Mode != "" {
-		runCommand = fmt.Sprintf("run --mode %s", p.config.NavigatorConfig.Mode)
+		runArgs = append(runArgs, "--mode", p.config.NavigatorConfig.Mode)
 	}
-	command := fmt.Sprintf("cd %s && %s%s %s %s %s%s -c local -i %s",
-		p.stagingDir, pathPrefix, env_vars, p.config.Command, runCommand, playbookFile, extraArgs, inventory,
+	runArgs = append(runArgs, play.ExtraArgs...)
+	runArgs = append(runArgs, p.buildPluginArgsForPlay(play, inventory)...)
+	runArgs = append(runArgs, playbookFile)
+
+	command := fmt.Sprintf(
+		"cd %s && %s%s %s %s",
+		shellEscapePOSIX(p.stagingDir),
+		pathPrefix,
+		env_vars,
+		shellEscapePOSIX(p.config.Command),
+		strings.Join(shellEscapeAllPOSIX(runArgs), " "),
 	)
 	ui.Message(fmt.Sprintf("Executing Ansible Navigator: %s", command))
 	cmd := &packersdk.RemoteCmd{

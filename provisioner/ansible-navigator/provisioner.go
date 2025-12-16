@@ -29,6 +29,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -165,6 +166,10 @@ type Play struct {
 	BecomeUser string `mapstructure:"become_user"`
 	// Tags to skip for this play
 	SkipTags []string `mapstructure:"skip_tags"`
+	// Extra arguments to pass verbatim to ansible-navigator for this play.
+	// These are appended after `ansible-navigator run` (and enforced `--mode`),
+	// and before plugin-generated inventory/extra-vars/etc.
+	ExtraArgs []string `mapstructure:"extra_args"`
 }
 
 // Config holds the configuration for the Ansible Navigator provisioner.
@@ -1064,7 +1069,7 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 	return nil
 }
 
-func (p *Provisioner) createCmdArgs(httpAddr, inventory, playbook, privKeyFile string) (args []string, envVars []string) {
+func (p *Provisioner) createCmdArgs(httpAddr, inventory, privKeyFile string) (args []string, envVars []string) {
 	args = []string{}
 
 	if p.config.PackerBuildName != "" {
@@ -1107,8 +1112,8 @@ func (p *Provisioner) createCmdArgs(httpAddr, inventory, playbook, privKeyFile s
 			args = append(args, "-e", "ansible_host_key_checking=False")
 		}
 	}
-	// This must be the last arg appended to args
-	args = append(args, "-i", inventory, playbook)
+	// This must be the last arg appended to args (the play target is appended later).
+	args = append(args, "-i", inventory)
 	return args, envVars
 }
 
@@ -1236,6 +1241,55 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 	return p.executePlays(ui, comm, privKeyFile, httpAddr, navigatorConfigPath)
 }
 
+func (p *Provisioner) buildRunCommandArgsForPlay(play Play, httpAddr, inventory, playbookPath, privKeyFile string) (cmdArgs []string, envvars []string) {
+	// Build command arguments (excluding play target; appended last for deterministic ordering)
+	baseArgs, envvars := p.createCmdArgs(httpAddr, inventory, privKeyFile)
+
+	// Play-level flags (deterministic order)
+	playArgs := make([]string, 0)
+	if play.Become {
+		playArgs = append(playArgs, "--become")
+	}
+	if play.BecomeUser != "" {
+		playArgs = append(playArgs, "--become-user", play.BecomeUser)
+	}
+	for _, tag := range play.Tags {
+		playArgs = append(playArgs, "--tags", tag)
+	}
+	for _, tag := range play.SkipTags {
+		playArgs = append(playArgs, "--skip-tags", tag)
+	}
+	if len(play.ExtraVars) > 0 {
+		keys := make([]string, 0, len(play.ExtraVars))
+		for k := range play.ExtraVars {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			playArgs = append(playArgs, "-e", fmt.Sprintf("%s=%s", k, play.ExtraVars[k]))
+		}
+	}
+	for _, varsFile := range play.VarsFiles {
+		playArgs = append(playArgs, "-e", fmt.Sprintf("@%s", varsFile))
+	}
+
+	// Deterministic ordering:
+	//   1) ansible-navigator run (+ enforced --mode)
+	//   2) play.extra_args (verbatim)
+	//   3) plugin-generated inventory/extra-vars/etc (including play-level flags)
+	//   4) play target (playbook path)
+	cmdArgs = []string{"run"}
+	if p.config.NavigatorConfig != nil && p.config.NavigatorConfig.Mode != "" {
+		cmdArgs = append(cmdArgs, "--mode", p.config.NavigatorConfig.Mode)
+	}
+	cmdArgs = append(cmdArgs, play.ExtraArgs...)
+	cmdArgs = append(cmdArgs, playArgs...)
+	cmdArgs = append(cmdArgs, baseArgs...)
+	cmdArgs = append(cmdArgs, playbookPath)
+
+	return cmdArgs, envvars
+}
+
 // executePlays executes multiple Ansible plays in sequence.
 // If a play fails and keep_going is false, execution stops immediately.
 // Otherwise, errors are logged and execution continues to the next play.
@@ -1274,47 +1328,7 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 			}
 		}
 
-		// Build command arguments
-		args, envvars := p.createCmdArgs(httpAddr, inventory, playbookPath, privKeyFile)
-
-		// Add per-play arguments
-		if play.Become && !checkArg("--become", args) {
-			args = append([]string{"--become"}, args...)
-		}
-
-		if play.BecomeUser != "" && !checkArg("--become-user", args) {
-			args = append([]string{"--become-user", play.BecomeUser}, args...)
-		}
-
-		if len(play.Tags) > 0 {
-			for _, tag := range play.Tags {
-				args = append([]string{"--tags", tag}, args...)
-			}
-		}
-
-		if len(play.SkipTags) > 0 {
-			for _, tag := range play.SkipTags {
-				args = append([]string{"--skip-tags", tag}, args...)
-			}
-		}
-
-		for k, v := range play.ExtraVars {
-			args = append([]string{"-e", fmt.Sprintf("%s=%s", k, v)}, args...)
-		}
-
-		for _, varsFile := range play.VarsFiles {
-			args = append([]string{"-e", fmt.Sprintf("@%s", varsFile)}, args...)
-		}
-
-		// Execute the play - prepend "run" as first argument
-		// CRITICAL: Add --mode flag if navigator_config.mode is set
-		// This prevents ansible-navigator from hanging in interactive mode
-		var cmdArgs []string
-		if p.config.NavigatorConfig != nil && p.config.NavigatorConfig.Mode != "" {
-			cmdArgs = append([]string{"run", "--mode", p.config.NavigatorConfig.Mode}, args...)
-		} else {
-			cmdArgs = append([]string{"run"}, args...)
-		}
+		cmdArgs, envvars := p.buildRunCommandArgsForPlay(play, httpAddr, inventory, playbookPath, privKeyFile)
 
 		cmd := exec.Command(p.config.Command, cmdArgs...)
 
