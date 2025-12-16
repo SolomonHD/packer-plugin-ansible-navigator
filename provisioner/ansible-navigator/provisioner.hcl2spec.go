@@ -122,7 +122,6 @@ type FlatConfig struct {
 	PackerSensitiveVars     []string             `mapstructure:"packer_sensitive_variables" cty:"packer_sensitive_variables" hcl:"packer_sensitive_variables"`
 	Command                 *string              `mapstructure:"command" cty:"command" hcl:"command"`
 	AnsibleNavigatorPath    []string             `mapstructure:"ansible_navigator_path" cty:"ansible_navigator_path" hcl:"ansible_navigator_path"`
-	WorkDir                 *string              `mapstructure:"work_dir" cty:"work_dir" hcl:"work_dir"`
 	KeepGoing               *bool                `mapstructure:"keep_going" cty:"keep_going" hcl:"keep_going"`
 	StructuredLogging       *bool                `mapstructure:"structured_logging" cty:"structured_logging" hcl:"structured_logging"`
 	LogOutputPath           *string              `mapstructure:"log_output_path" cty:"log_output_path" hcl:"log_output_path"`
@@ -182,7 +181,6 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"packer_sensitive_variables": &hcldec.AttrSpec{Name: "packer_sensitive_variables", Type: cty.List(cty.String), Required: false},
 		"command":                    &hcldec.AttrSpec{Name: "command", Type: cty.String, Required: false},
 		"ansible_navigator_path":     &hcldec.AttrSpec{Name: "ansible_navigator_path", Type: cty.List(cty.String), Required: false},
-		"work_dir":                   &hcldec.AttrSpec{Name: "work_dir", Type: cty.String, Required: false},
 		"keep_going":                 &hcldec.AttrSpec{Name: "keep_going", Type: cty.Bool, Required: false},
 		"structured_logging":         &hcldec.AttrSpec{Name: "structured_logging", Type: cty.Bool, Required: false},
 		"log_output_path":            &hcldec.AttrSpec{Name: "log_output_path", Type: cty.String, Required: false},

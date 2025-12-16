@@ -3,6 +3,7 @@
 > **⚠️ BREAKING CHANGE:** The following configuration options have been REMOVED: `execution_environment`, `ansible_cfg`, `ansible_env_vars`, `ansible_ssh_extra_args`, `extra_arguments`, `navigator_mode`.
 >
 > **⚠️ BREAKING CHANGE (dependencies):** The dependency-install options have been simplified:
+>
 > - `roles_cache_dir` → `roles_path`
 > - `collections_cache_dir` → `collections_path`
 > - `force_update` and `galaxy_force_install` removed (use `galaxy_force` / `galaxy_force_with_deps`)
@@ -103,7 +104,6 @@ provisioner "ansible-navigator" {
 
 ## Execution environment options
 
-- `work_dir` (string; sets working directory for execution)
 - `keep_going` (bool; continue running remaining plays after failures)
 
 ## Logging

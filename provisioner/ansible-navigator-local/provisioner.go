@@ -169,11 +169,6 @@ type Config struct {
 	SkipVersionCheck bool `mapstructure:"skip_version_check"`
 
 	// Modern Ansible Navigator fields (aligned with remote provisioner)
-
-	// Working directory for ansible-navigator execution.
-	// When specified, ansible-navigator will be executed from this directory.
-	// Defaults to the current working directory if not set.
-	WorkDir string `mapstructure:"work_dir"`
 	// Continue executing remaining plays even if one fails.
 	// When true, a play failure won't stop execution of subsequent plays.
 	// Default: false
@@ -368,7 +363,6 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	p.config.CollectionsPath = expandUserPath(p.config.CollectionsPath)
 	p.config.RolesPath = expandUserPath(p.config.RolesPath)
 	p.config.GalaxyCommand = expandUserPath(p.config.GalaxyCommand)
-	p.config.WorkDir = expandUserPath(p.config.WorkDir)
 
 	// Apply HOME expansion to plays
 	for i := range p.config.Plays {

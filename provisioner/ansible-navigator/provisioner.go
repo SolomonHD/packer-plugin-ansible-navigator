@@ -180,11 +180,6 @@ type Config struct {
 	// Entries are HOME-expanded and prepended to PATH during version checks and execution.
 	// Example: ["~/bin", "/opt/ansible/bin"]
 	AnsibleNavigatorPath []string `mapstructure:"ansible_navigator_path"`
-
-	// Working directory for ansible-navigator execution.
-	// When specified, ansible-navigator will be executed from this directory.
-	// Defaults to the current working directory if not set.
-	WorkDir string `mapstructure:"work_dir"`
 	// Continue executing remaining plays even if one fails.
 	// When true, a play failure won't stop execution of subsequent plays.
 	// Default: false
@@ -543,7 +538,6 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	p.config.CollectionsPath = expandUserPath(p.config.CollectionsPath)
 	p.config.RolesPath = expandUserPath(p.config.RolesPath)
 	p.config.GalaxyCommand = expandUserPath(p.config.GalaxyCommand)
-	p.config.WorkDir = expandUserPath(p.config.WorkDir)
 
 	// Apply HOME expansion to plays
 	for i := range p.config.Plays {
@@ -1295,11 +1289,6 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 		}
 		if len(envvars) > 0 {
 			cmd.Env = append(cmd.Env, envvars...)
-		}
-
-		// Set working directory if specified
-		if p.config.WorkDir != "" {
-			cmd.Dir = p.config.WorkDir
 		}
 
 		err := p.executeAnsibleCommand(ui, cmd, playName)

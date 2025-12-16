@@ -16,7 +16,6 @@ These options control the plugin's behavior, not Ansible's:
 | `ansible_navigator_path` | PATH manipulation for finding navigator |
 | `navigator_mode` | Plugin-level control of navigator output mode |
 | `execution_environment` | EE image name (though could also be in ansible.cfg) |
-| `work_dir` | Plugin's working directory for execution |
 | `keep_going` | Plugin control for multi-play execution |
 | `structured_logging` | Plugin feature for parsing JSON output |
 | `log_output_path` | Plugin feature for structured logs |
