@@ -159,11 +159,6 @@ type Config struct {
 	// Set to "0" to disable timeout (not recommended).
 	VersionCheckTimeout string `mapstructure:"version_check_timeout"`
 
-	// Force overwriting an existing role.
-	//  Adds `--force` option to `ansible-galaxy` command. By default, this is
-	//  `false`.
-	GalaxyForceInstall bool `mapstructure:"galaxy_force_install"`
-
 	// Modern Ansible Navigator fields (aligned with remote provisioner)
 
 	// Working directory for ansible-navigator execution.
@@ -194,18 +189,27 @@ type Config struct {
 	// Path to a unified requirements.yml file containing both roles and collections.
 	// Alternative to galaxy_file with enhanced support for modern Ansible requirements format.
 	RequirementsFile string `mapstructure:"requirements_file"`
-
-	// Directory to cache downloaded collections.
-	// Defaults to ~/.packer.d/ansible_collections_cache if not specified.
-	CollectionsCacheDir string `mapstructure:"collections_cache_dir"`
-	// Directory to cache downloaded roles. Similar to collections_cache_dir but for roles.
+	// Destination directory for installed roles.
+	// This value is passed to ansible-galaxy as the roles install path and exported to Ansible via ANSIBLE_ROLES_PATH.
 	// Defaults to ~/.packer.d/ansible_roles_cache if not specified.
-	RolesCacheDir string `mapstructure:"roles_cache_dir"`
+	RolesPath string `mapstructure:"roles_path"`
+	// Destination directory for installed collections.
+	// This value is passed to ansible-galaxy as the collections install path and exported to Ansible via ANSIBLE_COLLECTIONS_PATHS.
+	// Defaults to ~/.packer.d/ansible_collections_cache if not specified.
+	CollectionsPath string `mapstructure:"collections_path"`
 	// When true, skip network operations for both collections and roles.
-	// Uses only locally cached dependencies.
+	// This maps to ansible-galaxy --offline.
 	OfflineMode bool `mapstructure:"offline_mode"`
-	// When true, always reinstall both collections and roles even if cached.
-	ForceUpdate bool `mapstructure:"force_update"`
+	// The ansible-galaxy executable to invoke.
+	// Defaults to "ansible-galaxy".
+	GalaxyCommand string `mapstructure:"galaxy_command"`
+	// Additional arguments appended to all ansible-galaxy invocations.
+	GalaxyArgs []string `mapstructure:"galaxy_args"`
+	// When true, pass --force to ansible-galaxy.
+	// Ignored if galaxy_force_with_deps is true.
+	GalaxyForce bool `mapstructure:"galaxy_force"`
+	// When true, pass --force-with-deps to ansible-galaxy.
+	GalaxyForceWithDeps bool `mapstructure:"galaxy_force_with_deps"`
 
 	// Modern declarative ansible-navigator configuration via YAML file generation.
 	// Maps directly to ansible-navigator.yml schema structure.
@@ -352,8 +356,9 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 
 	// Apply HOME expansion to path-like configuration fields on local side
 	p.config.RequirementsFile = expandUserPath(p.config.RequirementsFile)
-	p.config.CollectionsCacheDir = expandUserPath(p.config.CollectionsCacheDir)
-	p.config.RolesCacheDir = expandUserPath(p.config.RolesCacheDir)
+	p.config.CollectionsPath = expandUserPath(p.config.CollectionsPath)
+	p.config.RolesPath = expandUserPath(p.config.RolesPath)
+	p.config.GalaxyCommand = expandUserPath(p.config.GalaxyCommand)
 	p.config.WorkDir = expandUserPath(p.config.WorkDir)
 
 	// Apply HOME expansion to plays
@@ -372,18 +377,23 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	p.galaxyRolesPath = filepath.ToSlash(filepath.Join(p.stagingDir, "galaxy_roles"))
 	p.galaxyCollectionsPath = filepath.ToSlash(filepath.Join(p.stagingDir, "galaxy_collections"))
 
-	// Set default cache directories if not specified
-	if p.config.CollectionsCacheDir == "" {
+	// Defaults for galaxy
+	if p.config.GalaxyCommand == "" {
+		p.config.GalaxyCommand = "ansible-galaxy"
+	}
+
+	// Set default install directories if not specified
+	if p.config.CollectionsPath == "" {
 		usr, err := os.UserHomeDir()
 		if err == nil {
-			p.config.CollectionsCacheDir = filepath.Join(usr, ".packer.d", "ansible_collections_cache")
+			p.config.CollectionsPath = filepath.Join(usr, ".packer.d", "ansible_collections_cache")
 		}
 	}
 
-	if p.config.RolesCacheDir == "" {
+	if p.config.RolesPath == "" {
 		usr, err := os.UserHomeDir()
 		if err == nil {
-			p.config.RolesCacheDir = filepath.Join(usr, ".packer.d", "ansible_roles_cache")
+			p.config.RolesPath = filepath.Join(usr, ".packer.d", "ansible_roles_cache")
 		}
 	}
 

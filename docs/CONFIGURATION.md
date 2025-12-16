@@ -1,6 +1,14 @@
 # Configuration Reference
 
-> **⚠️ BREAKING CHANGE (v4.0.0):** The following configuration options have been REMOVED: `execution_environment`, `ansible_cfg`, `ansible_env_vars`, `ansible_ssh_extra_args`, `extra_arguments`, `navigator_mode`, `roles_path`, `collections_path`, `galaxy_command`. Use `navigator_config` instead. See [Migration Guide](MIGRATION.md) for upgrade instructions.
+> **⚠️ BREAKING CHANGE:** The following configuration options have been REMOVED: `execution_environment`, `ansible_cfg`, `ansible_env_vars`, `ansible_ssh_extra_args`, `extra_arguments`, `navigator_mode`.
+>
+> **⚠️ BREAKING CHANGE (dependencies):** The dependency-install options have been simplified:
+> - `roles_cache_dir` → `roles_path`
+> - `collections_cache_dir` → `collections_path`
+> - `force_update` and `galaxy_force_install` removed (use `galaxy_force` / `galaxy_force_with_deps`)
+> - Added: `galaxy_command`, `galaxy_args`
+>
+> See [Migration Guide](MIGRATION.md) for upgrade instructions.
 
 This document describes the supported configuration surface.
 
@@ -66,11 +74,32 @@ roles:
 
 Related options:
 
-- `collections_cache_dir` (string)
-- `roles_cache_dir` (string)
+- `roles_path` (string)
+- `collections_path` (string)
 - `offline_mode` (bool)
-- `force_update` (bool)
-- `galaxy_force_install` (bool)
+- `galaxy_force` (bool)
+- `galaxy_force_with_deps` (bool)
+- `galaxy_command` (string; defaults to `ansible-galaxy`)
+- `galaxy_args` (list(string))
+
+Example with explicit install destinations and Galaxy overrides:
+
+```hcl
+provisioner "ansible-navigator" {
+  requirements_file = "./requirements.yml"
+
+  roles_path       = "./.ansible/roles"
+  collections_path = "./.ansible/collections"
+
+  galaxy_force           = true
+  galaxy_force_with_deps = true
+
+  galaxy_command = "ansible-galaxy"
+  galaxy_args    = ["--ignore-certs"]
+
+  play { target = "site.yml" }
+}
+```
 
 ## Execution environment options
 

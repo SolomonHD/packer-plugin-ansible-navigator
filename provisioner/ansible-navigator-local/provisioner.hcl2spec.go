@@ -123,7 +123,6 @@ type FlatConfig struct {
 	Command              *string              `mapstructure:"command" cty:"command" hcl:"command"`
 	AnsibleNavigatorPath []string             `mapstructure:"ansible_navigator_path" cty:"ansible_navigator_path" hcl:"ansible_navigator_path"`
 	VersionCheckTimeout  *string              `mapstructure:"version_check_timeout" cty:"version_check_timeout" hcl:"version_check_timeout"`
-	GalaxyForceInstall   *bool                `mapstructure:"galaxy_force_install" cty:"galaxy_force_install" hcl:"galaxy_force_install"`
 	WorkDir              *string              `mapstructure:"work_dir" cty:"work_dir" hcl:"work_dir"`
 	KeepGoing            *bool                `mapstructure:"keep_going" cty:"keep_going" hcl:"keep_going"`
 	StructuredLogging    *bool                `mapstructure:"structured_logging" cty:"structured_logging" hcl:"structured_logging"`
@@ -131,10 +130,13 @@ type FlatConfig struct {
 	VerboseTaskOutput    *bool                `mapstructure:"verbose_task_output" cty:"verbose_task_output" hcl:"verbose_task_output"`
 	Plays                []FlatPlay           `mapstructure:"play" cty:"play" hcl:"play"`
 	RequirementsFile     *string              `mapstructure:"requirements_file" cty:"requirements_file" hcl:"requirements_file"`
-	CollectionsCacheDir  *string              `mapstructure:"collections_cache_dir" cty:"collections_cache_dir" hcl:"collections_cache_dir"`
-	RolesCacheDir        *string              `mapstructure:"roles_cache_dir" cty:"roles_cache_dir" hcl:"roles_cache_dir"`
+	RolesPath            *string              `mapstructure:"roles_path" cty:"roles_path" hcl:"roles_path"`
+	CollectionsPath      *string              `mapstructure:"collections_path" cty:"collections_path" hcl:"collections_path"`
 	OfflineMode          *bool                `mapstructure:"offline_mode" cty:"offline_mode" hcl:"offline_mode"`
-	ForceUpdate          *bool                `mapstructure:"force_update" cty:"force_update" hcl:"force_update"`
+	GalaxyCommand        *string              `mapstructure:"galaxy_command" cty:"galaxy_command" hcl:"galaxy_command"`
+	GalaxyArgs           []string             `mapstructure:"galaxy_args" cty:"galaxy_args" hcl:"galaxy_args"`
+	GalaxyForce          *bool                `mapstructure:"galaxy_force" cty:"galaxy_force" hcl:"galaxy_force"`
+	GalaxyForceWithDeps  *bool                `mapstructure:"galaxy_force_with_deps" cty:"galaxy_force_with_deps" hcl:"galaxy_force_with_deps"`
 	NavigatorConfig      *FlatNavigatorConfig `mapstructure:"navigator_config" cty:"navigator_config" hcl:"navigator_config"`
 }
 
@@ -161,7 +163,6 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"command":                    &hcldec.AttrSpec{Name: "command", Type: cty.String, Required: false},
 		"ansible_navigator_path":     &hcldec.AttrSpec{Name: "ansible_navigator_path", Type: cty.List(cty.String), Required: false},
 		"version_check_timeout":      &hcldec.AttrSpec{Name: "version_check_timeout", Type: cty.String, Required: false},
-		"galaxy_force_install":       &hcldec.AttrSpec{Name: "galaxy_force_install", Type: cty.Bool, Required: false},
 		"work_dir":                   &hcldec.AttrSpec{Name: "work_dir", Type: cty.String, Required: false},
 		"keep_going":                 &hcldec.AttrSpec{Name: "keep_going", Type: cty.Bool, Required: false},
 		"structured_logging":         &hcldec.AttrSpec{Name: "structured_logging", Type: cty.Bool, Required: false},
@@ -169,10 +170,13 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"verbose_task_output":        &hcldec.AttrSpec{Name: "verbose_task_output", Type: cty.Bool, Required: false},
 		"play":                       &hcldec.BlockListSpec{TypeName: "play", Nested: hcldec.ObjectSpec((*FlatPlay)(nil).HCL2Spec())},
 		"requirements_file":          &hcldec.AttrSpec{Name: "requirements_file", Type: cty.String, Required: false},
-		"collections_cache_dir":      &hcldec.AttrSpec{Name: "collections_cache_dir", Type: cty.String, Required: false},
-		"roles_cache_dir":            &hcldec.AttrSpec{Name: "roles_cache_dir", Type: cty.String, Required: false},
+		"roles_path":                 &hcldec.AttrSpec{Name: "roles_path", Type: cty.String, Required: false},
+		"collections_path":           &hcldec.AttrSpec{Name: "collections_path", Type: cty.String, Required: false},
 		"offline_mode":               &hcldec.AttrSpec{Name: "offline_mode", Type: cty.Bool, Required: false},
-		"force_update":               &hcldec.AttrSpec{Name: "force_update", Type: cty.Bool, Required: false},
+		"galaxy_command":             &hcldec.AttrSpec{Name: "galaxy_command", Type: cty.String, Required: false},
+		"galaxy_args":                &hcldec.AttrSpec{Name: "galaxy_args", Type: cty.List(cty.String), Required: false},
+		"galaxy_force":               &hcldec.AttrSpec{Name: "galaxy_force", Type: cty.Bool, Required: false},
+		"galaxy_force_with_deps":     &hcldec.AttrSpec{Name: "galaxy_force_with_deps", Type: cty.Bool, Required: false},
 		"navigator_config":           &hcldec.BlockSpec{TypeName: "navigator_config", Nested: hcldec.ObjectSpec((*FlatNavigatorConfig)(nil).HCL2Spec())},
 	}
 	return s

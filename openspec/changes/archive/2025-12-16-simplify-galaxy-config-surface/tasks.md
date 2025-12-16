@@ -1,0 +1,10 @@
+- [x] Update remote provisioner Config: rename `roles_cache_dir`→`roles_path`, `collections_cache_dir`→`collections_path` and add `galaxy_force`/`galaxy_args`/`galaxy_command`
+- [x] Update local provisioner Config with the same dependency options and names
+- [x] Remove `force_update` and `galaxy_force_install` from both provisioners (no aliases)
+- [x] Update Galaxy invocation logic to consistently use `galaxy_command` + `galaxy_args` for both roles and collections
+- [x] Implement flag mapping and precedence: `galaxy_force_with_deps` (preferred) vs `galaxy_force`
+- [x] Export `roles_path`/`collections_path` consistently via `ANSIBLE_ROLES_PATH` and `ANSIBLE_COLLECTIONS_PATHS`
+- [x] Regenerate HCL2 specs (`make generate`) and confirm new fields appear in generated `*.hcl2spec.go` (validated via `make generate` + grep)
+- [x] Update docs (`docs/CONFIGURATION.md`, examples, migration notes) to reflect the new dependency surface
+- [x] Add/adjust unit tests around Galaxy command construction and environment export for both provisioners (validated via `go test ./...`)
+- [x] Run verification suite: `go test ./...` and `make plugin-check`

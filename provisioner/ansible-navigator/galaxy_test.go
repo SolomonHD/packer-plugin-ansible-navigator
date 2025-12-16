@@ -102,13 +102,8 @@ exit 0
 	ui := newMockUi()
 	cfg := &Config{
 		RequirementsFile: requirementsFile,
+		GalaxyCommand:    stubPath,
 	}
-	// Override the default ansible-galaxy command with our stub
-	oldPath := os.Getenv("PATH")
-	os.Setenv("PATH", tmpDir+":"+oldPath)
-	t.Cleanup(func() { os.Setenv("PATH", oldPath) })
-	// Rename stub to ansible-galaxy so it's found on PATH
-	os.Rename(stubPath, filepath.Join(tmpDir, "ansible-galaxy"))
 	gm := NewGalaxyManager(cfg, ui)
 
 	require.NoError(t, gm.InstallRequirements())
@@ -138,40 +133,40 @@ func TestGalaxyManager_SetupEnvironmentPaths(t *testing.T) {
 	}()
 
 	tests := []struct {
-		name               string
-		collectionCacheDir string
-		rolesCacheDir      string
-		existingCollPath   string
-		existingRolePath   string
-		wantCollPath       string
-		wantRolePath       string
+		name             string
+		collectionsPath  string
+		rolesPath        string
+		existingCollPath string
+		existingRolePath string
+		wantCollPath     string
+		wantRolePath     string
 	}{
 		{
-			name:               "set new paths",
-			collectionCacheDir: "/tmp/collections",
-			rolesCacheDir:      "/tmp/roles",
-			existingCollPath:   "",
-			existingRolePath:   "",
-			wantCollPath:       "/tmp/collections",
-			wantRolePath:       "/tmp/roles",
+			name:             "set new paths",
+			collectionsPath:  "/tmp/collections",
+			rolesPath:        "/tmp/roles",
+			existingCollPath: "",
+			existingRolePath: "",
+			wantCollPath:     "/tmp/collections",
+			wantRolePath:     "/tmp/roles",
 		},
 		{
-			name:               "append to existing paths",
-			collectionCacheDir: "/tmp/collections",
-			rolesCacheDir:      "/tmp/roles",
-			existingCollPath:   "/existing/collections",
-			existingRolePath:   "/existing/roles",
-			wantCollPath:       "/tmp/collections:/existing/collections",
-			wantRolePath:       "/tmp/roles:/existing/roles",
+			name:             "overwrite existing paths (opaque strings)",
+			collectionsPath:  "/tmp/collections",
+			rolesPath:        "/tmp/roles",
+			existingCollPath: "/existing/collections",
+			existingRolePath: "/existing/roles",
+			wantCollPath:     "/tmp/collections",
+			wantRolePath:     "/tmp/roles",
 		},
 		{
-			name:               "empty cache dirs",
-			collectionCacheDir: "",
-			rolesCacheDir:      "",
-			existingCollPath:   "/existing/collections",
-			existingRolePath:   "/existing/roles",
-			wantCollPath:       "/existing/collections",
-			wantRolePath:       "/existing/roles",
+			name:             "empty paths",
+			collectionsPath:  "",
+			rolesPath:        "",
+			existingCollPath: "/existing/collections",
+			existingRolePath: "/existing/roles",
+			wantCollPath:     "/existing/collections",
+			wantRolePath:     "/existing/roles",
 		},
 	}
 
@@ -191,8 +186,9 @@ func TestGalaxyManager_SetupEnvironmentPaths(t *testing.T) {
 
 			ui := newMockUi()
 			config := &Config{
-				CollectionsCacheDir: tt.collectionCacheDir,
-				RolesCacheDir:       tt.rolesCacheDir,
+				CollectionsPath: tt.collectionsPath,
+				RolesPath:       tt.rolesPath,
+				GalaxyCommand:   "ansible-galaxy",
 			}
 			gm := NewGalaxyManager(config, ui)
 
@@ -213,4 +209,57 @@ func TestGalaxyManager_SetupEnvironmentPaths(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGalaxyManager_InstallRequirements_UsesCommandArgsAndForcePrecedence(t *testing.T) {
+	tmpDir := t.TempDir()
+	outputFile := filepath.Join(tmpDir, "galaxy_calls.txt")
+	stubPath := filepath.Join(tmpDir, "ansible-galaxy-stub.sh")
+	requirementsFile := filepath.Join(tmpDir, "requirements.yml")
+
+	stub := `#!/usr/bin/env bash
+set -euo pipefail
+
+echo "$0 $@" >> "${OUTPUT_FILE}"
+exit 0
+`
+	require.NoError(t, os.WriteFile(stubPath, []byte(stub), 0o755))
+
+	// Ensure both roles and collections sections exist so both installs are attempted.
+	require.NoError(t, os.WriteFile(requirementsFile, []byte("roles:\n  - src: test.role\ncollections:\n  - name: community.general\n"), 0o644))
+
+	os.Setenv("OUTPUT_FILE", outputFile)
+	t.Cleanup(func() { _ = os.Unsetenv("OUTPUT_FILE") })
+
+	ui := newMockUi()
+	cfg := &Config{
+		RequirementsFile:    requirementsFile,
+		GalaxyCommand:       stubPath,
+		GalaxyArgs:          []string{"--ignore-certs"},
+		OfflineMode:         true,
+		RolesPath:           "/tmp/roles",
+		CollectionsPath:     "/tmp/collections",
+		GalaxyForce:         true,
+		GalaxyForceWithDeps: true,
+	}
+	gm := NewGalaxyManager(cfg, ui)
+
+	require.NoError(t, gm.InstallRequirements())
+
+	data, err := os.ReadFile(outputFile)
+	require.NoError(t, err)
+	got := string(data)
+
+	// Roles install
+	require.Contains(t, got, " install -r")
+	require.Contains(t, got, " -p /tmp/roles")
+	require.Contains(t, got, " --offline")
+	require.Contains(t, got, " --force-with-deps")
+	// Precedence: do not include --force when --force-with-deps is set.
+	require.NotContains(t, got, " --force ")
+	require.Contains(t, got, " --ignore-certs")
+
+	// Collections install
+	require.Contains(t, got, " collection install -r")
+	require.Contains(t, got, " -p /tmp/collections")
 }

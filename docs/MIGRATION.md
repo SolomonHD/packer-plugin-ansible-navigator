@@ -23,9 +23,10 @@ This guide provides step-by-step instructions for migrating from deprecated opti
 | `ansible_env_vars` | `navigator_config.execution-environment.environment-variables` | ❌ Removed |
 | `ansible_ssh_extra_args` | Play-level options or `navigator_config` | ❌ Removed |
 | `extra_arguments` | `navigator_config` or play-level options | ❌ Removed |
-| `roles_path` | `requirements_file` or `navigator_config` | ❌ Removed |
-| `collections_path` | `requirements_file` or `navigator_config` | ❌ Removed |
-| `galaxy_command` | Unnecessary with `requirements_file` | ❌ Removed |
+| `roles_cache_dir` | `roles_path` | ❌ Renamed (breaking) |
+| `collections_cache_dir` | `collections_path` | ❌ Renamed (breaking) |
+| `force_update` | `galaxy_force` / `galaxy_force_with_deps` | ❌ Removed |
+| `galaxy_force_install` | `galaxy_force` | ❌ Removed |
 
 ## Migration Examples
 
@@ -272,14 +273,14 @@ provisioner "ansible-navigator" {
 }
 ```
 
-### 7. Migrating `roles_path` and `collections_path`
+### 7. Migrating `roles_cache_dir` and `collections_cache_dir`
 
-**Before (deprecated):**
+**Before (removed):**
 
 ```hcl
 provisioner "ansible-navigator" {
-  roles_path = "./roles:/usr/share/ansible/roles"
-  collections_path = "./collections"
+  roles_cache_dir       = "./.ansible/roles"
+  collections_cache_dir = "./.ansible/collections"
   
   play {
     target = "myapp.deploy"
@@ -289,11 +290,13 @@ provisioner "ansible-navigator" {
 
 **After (recommended):**
 
-Use `requirements_file` with a unified requirements file:
+Use the renamed install destination fields:
 
 ```hcl
 provisioner "ansible-navigator" {
   requirements_file = "./requirements.yml"
+  roles_path        = "./.ansible/roles"
+  collections_path  = "./.ansible/collections"
   
   play {
     target = "myapp.deploy"
@@ -301,47 +304,20 @@ provisioner "ansible-navigator" {
 }
 ```
 
-```yaml
-# requirements.yml
----
-collections:
-  - name: community.general
-    version: ">=7.0.0"
+Notes:
 
-roles:
-  - name: myapp.deploy
-    src: ./roles/myapp.deploy
-```
+- `roles_path` and `collections_path` are used as **Galaxy install destinations** and are exported to Ansible via `ANSIBLE_ROLES_PATH` and `ANSIBLE_COLLECTIONS_PATHS`.
+- `requirements_file` remains the only supported dependency declaration mechanism.
 
-Alternatively, if you need custom paths, use `navigator_config`:
+### 8. Migrating `force_update` and `galaxy_force_install`
+
+**Before (removed):**
 
 ```hcl
 provisioner "ansible-navigator" {
-  navigator_config = {
-    ansible = {
-      config = {
-        defaults = {
-          roles_path = "./roles:/usr/share/ansible/roles"
-          collections_path = "./collections"
-        }
-      }
-    }
-  }
-  
-  play {
-    target = "myapp.deploy"
-  }
-}
-```
-
-### 8. Migrating `galaxy_command`
-
-**Before (deprecated):**
-
-```hcl
-provisioner "ansible-navigator" {
-  galaxy_command = "ansible-galaxy-custom"
   requirements_file = "./requirements.yml"
+  force_update      = true
+  galaxy_force_install = true
   
   play {
     target = "site.yml"
@@ -351,11 +327,12 @@ provisioner "ansible-navigator" {
 
 **After (recommended):**
 
-The `galaxy_command` option is generally unnecessary when using `requirements_file`. Simply remove it:
-
 ```hcl
 provisioner "ansible-navigator" {
   requirements_file = "./requirements.yml"
+
+  galaxy_force           = true
+  galaxy_force_with_deps = true
   
   play {
     target = "site.yml"
@@ -363,25 +340,9 @@ provisioner "ansible-navigator" {
 }
 ```
 
-If you need a custom galaxy command, use environment variables:
+Notes:
 
-```hcl
-provisioner "ansible-navigator" {
-  navigator_config = {
-    execution-environment = {
-      environment-variables = {
-        ANSIBLE_GALAXY_COMMAND = "ansible-galaxy-custom"
-      }
-    }
-  }
-  
-  requirements_file = "./requirements.yml"
-  
-  play {
-    target = "site.yml"
-  }
-}
-```
+- `galaxy_force_with_deps` takes precedence over `galaxy_force` (the provisioner passes `--force-with-deps` and omits `--force`).
 
 ## Complete Migration Example
 
