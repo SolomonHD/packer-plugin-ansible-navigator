@@ -70,6 +70,24 @@ type NavigatorConfig struct {
 	CollectionDocCache *CollectionDocCache `mapstructure:"collection_doc_cache"`
 }
 
+// isPluginDebugEnabled returns true iff plugin debug output should be enabled.
+//
+// Spec: plugin debug mode is enabled if and only if navigator_config.logging.level
+// equals "debug" (case-insensitive).
+func isPluginDebugEnabled(nc *NavigatorConfig) bool {
+	if nc == nil || nc.Logging == nil {
+		return false
+	}
+	return strings.EqualFold(nc.Logging.Level, "debug")
+}
+
+func debugf(ui packersdk.Ui, enabled bool, format string, args ...interface{}) {
+	if !enabled {
+		return
+	}
+	ui.Message(fmt.Sprintf("[DEBUG] "+format, args...))
+}
+
 // ExecutionEnvironment represents execution environment settings
 type ExecutionEnvironment struct {
 	// Enable execution environment
@@ -1173,6 +1191,9 @@ func createRolePlaybook(role string, play Play) (string, error) {
 func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string) error {
 	httpAddr := p.generatedData["PackerHTTPAddr"].(string)
 
+	debugEnabled := isPluginDebugEnabled(p.config.NavigatorConfig)
+	debugf(ui, debugEnabled, "Plugin debug mode enabled (gated by navigator_config.logging.level=debug)")
+
 	// Generate and setup ansible-navigator.yml if configured
 	var navigatorConfigPath string
 	if p.config.NavigatorConfig != nil {
@@ -1216,6 +1237,7 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 		}
 
 		ui.Message(fmt.Sprintf("Generated ansible-navigator.yml at %s", navigatorConfigPath))
+		debugf(ui, debugEnabled, "ANSIBLE_NAVIGATOR_CONFIG will be set to %s", navigatorConfigPath)
 
 		// Ensure cleanup on exit (success or failure)
 		defer func() {
@@ -1296,6 +1318,17 @@ func (p *Provisioner) buildRunCommandArgsForPlay(play Play, httpAddr, inventory,
 func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string, httpAddr string, navigatorConfigPath string) error {
 	inventory := p.config.InventoryFile
 
+	debugEnabled := isPluginDebugEnabled(p.config.NavigatorConfig)
+	debugf(ui, debugEnabled, "ansible-navigator command=%q", p.config.Command)
+	if len(p.config.AnsibleNavigatorPath) > 0 {
+		debugf(ui, debugEnabled, "ansible_navigator_path prefixes=%v", p.config.AnsibleNavigatorPath)
+	} else {
+		debugf(ui, debugEnabled, "ansible_navigator_path not set; using existing PATH")
+	}
+	if navigatorConfigPath != "" {
+		debugf(ui, debugEnabled, "ANSIBLE_NAVIGATOR_CONFIG=%s", navigatorConfigPath)
+	}
+
 	for i, play := range p.config.Plays {
 		playName := play.Name
 		if playName == "" {
@@ -1315,14 +1348,17 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 				return fmt.Errorf("Play '%s': failed to resolve playbook path: %s", playName, err)
 			}
 			playbookPath = absPath
+			debugf(ui, debugEnabled, "Resolved playbook path: %s -> %s", play.Target, absPath)
 		} else {
 			// It's a role - generate a temporary playbook
+			debugf(ui, debugEnabled, "Play target treated as role; generating temporary playbook for role=%s", play.Target)
 			ui.Message(fmt.Sprintf("Generating temporary playbook for role: %s", play.Target))
 			tmpPlaybook, err := createRolePlaybook(play.Target, play)
 			if err != nil {
 				return fmt.Errorf("play %q: failed to generate role playbook: %w", playName, err)
 			}
 			playbookPath = tmpPlaybook
+			debugf(ui, debugEnabled, "Generated temporary playbook path=%s", tmpPlaybook)
 			cleanupFunc = func() {
 				os.Remove(tmpPlaybook)
 			}
@@ -1341,6 +1377,7 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 		// Add ANSIBLE_NAVIGATOR_CONFIG if navigator_config was provided
 		if navigatorConfigPath != "" {
 			cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_NAVIGATOR_CONFIG=%s", navigatorConfigPath))
+			debugf(ui, debugEnabled, "Setting ANSIBLE_NAVIGATOR_CONFIG for %s", playName)
 		}
 		if len(envvars) > 0 {
 			cmd.Env = append(cmd.Env, envvars...)

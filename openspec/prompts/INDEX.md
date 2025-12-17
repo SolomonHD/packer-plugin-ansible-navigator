@@ -24,6 +24,8 @@ Optional compatibility step:
 | 03 | navigator-config-add-local-tmp | Add `navigator_config.ansible_config.defaults.local_tmp` | — |
 | 04 | remove-work-dir | Remove `work_dir` from both provisioners | — |
 | 05 | warn-on-skip-version-check-timeout | Warn when `skip_version_check` ignores timeout | — |
+| 06 | plugin-debug-logging-linked-to-navigator-log-level | Gate plugin debug output on `navigator_config.logging.level` | — |
+| 07 | debug-preflight-ee-docker-dind-warnings | DEBUG-only EE/Docker/DinD preflight warnings | 06 |
 
 ## Notes
 
