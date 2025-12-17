@@ -1,0 +1,9 @@
+- [x] Add a single helper mechanism (shared or duplicated per provisioner) to compute `debugEnabled` from `navigator_config.logging.level` (case-insensitive equals `"debug"`).
+- [x] SSH-based provisioner: gate new diagnostic UI messages behind `debugEnabled` and ensure messages use `ui.Message` and `[DEBUG]` prefix.
+- [x] On-target provisioner: gate the same class of diagnostic UI messages behind `debugEnabled` and keep behavior consistent with SSH-based provisioner.
+- [x] Add unit tests proving:
+  - debug is enabled when `navigator_config.logging.level` is `debug` (case-insensitive)
+  - debug is disabled for all other values and for missing logging config
+  - debug messages are emitted only when enabled
+- [x] Update user documentation to explicitly state: `navigator_config.logging.level` controls both ansible-navigator logging and plugin debug output.
+- [x] Run `openspec validate plugin-debug-logging-linked-to-navigator-log-level --strict`.

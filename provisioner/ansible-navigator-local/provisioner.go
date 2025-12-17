@@ -48,6 +48,24 @@ type NavigatorConfig struct {
 	CollectionDocCache *CollectionDocCache `mapstructure:"collection_doc_cache"`
 }
 
+// isPluginDebugEnabled returns true iff plugin debug output should be enabled.
+//
+// Spec: plugin debug mode is enabled if and only if navigator_config.logging.level
+// equals "debug" (case-insensitive).
+func isPluginDebugEnabled(nc *NavigatorConfig) bool {
+	if nc == nil || nc.Logging == nil {
+		return false
+	}
+	return strings.EqualFold(nc.Logging.Level, "debug")
+}
+
+func debugf(ui packersdk.Ui, enabled bool, format string, args ...interface{}) {
+	if !enabled {
+		return
+	}
+	ui.Message(fmt.Sprintf("[DEBUG] "+format, args...))
+}
+
 // ExecutionEnvironment represents execution environment settings
 type ExecutionEnvironment struct {
 	// Enable execution environment
@@ -559,6 +577,18 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 
 // executePlays executes multiple Ansible plays in sequence
 func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator, inventory string, navigatorConfigRemotePath string) error {
+	debugEnabled := isPluginDebugEnabled(p.config.NavigatorConfig)
+	debugf(ui, debugEnabled, "Plugin debug mode enabled (gated by navigator_config.logging.level=debug)")
+	debugf(ui, debugEnabled, "ansible-navigator command=%q", p.config.Command)
+	if len(p.config.AnsibleNavigatorPath) > 0 {
+		debugf(ui, debugEnabled, "ansible_navigator_path prefixes=%v", p.config.AnsibleNavigatorPath)
+	} else {
+		debugf(ui, debugEnabled, "ansible_navigator_path not set; using existing PATH")
+	}
+	if navigatorConfigRemotePath != "" {
+		debugf(ui, debugEnabled, "ANSIBLE_NAVIGATOR_CONFIG=%s", navigatorConfigRemotePath)
+	}
+
 	for i, play := range p.config.Plays {
 		playName := play.Name
 		if playName == "" {
@@ -573,22 +603,29 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 		// Determine if target is a playbook file or a role FQDN
 		if strings.HasSuffix(play.Target, ".yml") || strings.HasSuffix(play.Target, ".yaml") {
 			// It's a playbook file - upload to remote
+			if absPath, err := filepath.Abs(play.Target); err == nil {
+				debugf(ui, debugEnabled, "Resolved playbook path: %s -> %s", play.Target, absPath)
+			}
 			ui.Message(fmt.Sprintf("Uploading playbook: %s", play.Target))
 			remotePath := filepath.ToSlash(filepath.Join(p.stagingDir, filepath.Base(play.Target)))
+			debugf(ui, debugEnabled, "Remote playbook path=%s", remotePath)
 			if err := p.uploadFile(ui, comm, remotePath, play.Target); err != nil {
 				return fmt.Errorf("Play '%s': failed to upload playbook: %s", playName, err)
 			}
 			playbookPath = remotePath
 		} else {
 			// It's a role FQDN - generate temporary playbook locally then upload
+			debugf(ui, debugEnabled, "Play target treated as role; generating temporary playbook for role=%s", play.Target)
 			ui.Message(fmt.Sprintf("Generating temporary playbook for role: %s", play.Target))
 			tmpPlaybook, err := p.createRolePlaybook(play.Target, play)
 			if err != nil {
 				return fmt.Errorf("play %q: failed to generate role playbook: %w", playName, err)
 			}
+			debugf(ui, debugEnabled, "Generated temporary playbook path=%s", tmpPlaybook)
 
 			// Upload generated playbook to remote
 			remotePath := filepath.ToSlash(filepath.Join(p.stagingDir, filepath.Base(tmpPlaybook)))
+			debugf(ui, debugEnabled, "Remote generated playbook path=%s", remotePath)
 			if err := p.uploadFile(ui, comm, remotePath, tmpPlaybook); err != nil {
 				os.Remove(tmpPlaybook)
 				return fmt.Errorf("Play '%s': failed to upload generated playbook: %s", playName, err)
@@ -749,6 +786,8 @@ func (p *Provisioner) executeAnsiblePlaybook(
 	ctx := context.TODO()
 	env_vars := ""
 
+	debugEnabled := isPluginDebugEnabled(p.config.NavigatorConfig)
+
 	// Build environment variables for collections and roles paths
 	galaxyManager := NewGalaxyManager(&p.config, ui, comm, p.stagingDir, p.galaxyRolesPath, p.galaxyCollectionsPath)
 	envPaths := galaxyManager.SetupEnvironmentPaths()
@@ -759,6 +798,7 @@ func (p *Provisioner) executeAnsiblePlaybook(
 	// Add ANSIBLE_NAVIGATOR_CONFIG if provided
 	if navigatorConfigRemotePath != "" {
 		env_vars += fmt.Sprintf("ANSIBLE_NAVIGATOR_CONFIG=%s ", navigatorConfigRemotePath)
+		debugf(ui, debugEnabled, "Setting ANSIBLE_NAVIGATOR_CONFIG=%s", navigatorConfigRemotePath)
 	}
 
 	// Add standard Ansible environment variables
@@ -768,6 +808,7 @@ func (p *Provisioner) executeAnsiblePlaybook(
 	pathPrefix := ""
 	if len(p.config.AnsibleNavigatorPath) > 0 {
 		pathPrefix = buildPathPrefixForRemoteShell(p.config.AnsibleNavigatorPath) + " "
+		debugf(ui, debugEnabled, "Remote shell will prefix PATH with %v", p.config.AnsibleNavigatorPath)
 	}
 
 	// Deterministic ordering:

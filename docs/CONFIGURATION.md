@@ -124,16 +124,30 @@ provisioner "ansible-navigator" {
 - `log_output_path` (string; write a summary JSON file)
 - `verbose_task_output` (bool)
 
+**Plugin debug output (no separate option):** set `navigator_config.logging.level = "debug"` (case-insensitive).
+
+This single setting controls both:
+
+- ansible-navigator logging behavior, and
+- the plugin’s additional diagnostic output (messages prefixed with `[DEBUG]`).
+
 ## Navigator configuration: `navigator_config` (optional, recommended for ansible-navigator v3+)
 
 `navigator_config` is an HCL block that maps to a typed configuration struct. When set, the provisioner generates a temporary `ansible-navigator.yml` file and sets `ANSIBLE_NAVIGATOR_CONFIG`.
 
 When you configure `ansible_config.defaults` and/or `ansible_config.ssh_connection`, the plugin generates an **ansible.cfg** (INI) file and references it from the generated `ansible-navigator.yml` via `ansible.config.path`.
 
+`navigator_config.logging.level` also controls plugin debug output: when set to `"debug"`, the plugin emits a small set of additional diagnostic messages prefixed with `[DEBUG]`.
+
 ```hcl
 provisioner "ansible-navigator" {
   navigator_config {
     mode = "stdout"
+
+    # When set to "debug", enables additional plugin diagnostics (prefixed with [DEBUG])
+    logging {
+      level = "debug"
+    }
 
     execution_environment {
       enabled     = true
