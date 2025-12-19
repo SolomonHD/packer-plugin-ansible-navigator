@@ -1,0 +1,139 @@
+# documentation Specification Deltas
+
+## ADDED Requirements
+
+### Requirement: Galaxy Authentication Documentation
+
+The documentation SHALL provide comprehensive guidance on authenticating to private Ansible Galaxy sources, including git repositories, Private Automation Hub, and custom Galaxy servers, with clear explanation of the architectural boundary between plugin configuration and external authentication setup.
+
+#### Scenario: Public Galaxy documented as default
+
+- **WHEN** a user consults [`docs/GALAXY_AUTHENTICATION.md`](packer/plugins/packer-plugin-ansible-navigator/docs/GALAXY_AUTHENTICATION.md:1)
+- **THEN** the documentation SHALL explain that public Galaxy (galaxy.ansible.com) works by default with no additional configuration
+- **AND** it SHALL include an example using [`requirements_file`](packer/plugins/packer-plugin-ansible-navigator/openspec/specs/remote-provisioner-capabilities/spec.md:64) with public collections
+
+#### Scenario: Private GitHub SSH authentication documented
+
+- **WHEN** a user needs to install collections from private GitHub repositories using SSH
+- **THEN** [`docs/GALAXY_AUTHENTICATION.md`](packer/plugins/packer-plugin-ansible-navigator/docs/GALAXY_AUTHENTICATION.md:1) SHALL document:
+  - SSH key prerequisites (key generation, adding to GitHub)
+  - SSH agent configuration for local development
+  - SSH agent setup for CI/CD environments
+  - Example requirements.yml with SSH URLs (git+ssh://)
+  - Troubleshooting for "Permission denied (publickey)" errors
+
+#### Scenario: Private GitHub HTTPS token authentication documented
+
+- **WHEN** a user needs to install collections from private GitHub repositories using HTTPS with tokens
+- **THEN** [`docs/GALAXY_AUTHENTICATION.md`](packer/plugins/packer-plugin-ansible-navigator/docs/GALAXY_AUTHENTICATION.md:1) SHALL document:
+  - Git credential helper setup (store, cache, osxkeychain)
+  - Environment variable patterns (`GIT_ASKPASS`, `GIT_USERNAME`, `GIT_PASSWORD`)
+  - Example requirements.yml with HTTPS URLs
+  - Secure token handling (emphasize NOT embedding in version control)
+  - CI/CD secrets injection patterns (GitHub Actions, GitLab CI, Jenkins)
+
+#### Scenario: Private Automation Hub documented
+
+- **WHEN** a user needs to install collections from Private Automation Hub or Red Hat Automation Hub
+- **THEN** [`docs/GALAXY_AUTHENTICATION.md`](packer/plugins/packer-plugin-ansible-navigator/docs/GALAXY_AUTHENTICATION.md:1) SHALL document:
+  - Configuration via [`ansible.cfg`](packer/plugins/packer-plugin-ansible-navigator/openspec/specs/remote-provisioner-capabilities/spec.md:100) `[galaxy_server.*]` sections
+  - Example using HCL [`ansible_cfg`](packer/plugins/packer-plugin-ansible-navigator/openspec/specs/remote-provisioner-capabilities/spec.md:100) block to define server configuration
+  - Token/API key configuration patterns
+  - Handling self-signed certificates (`verify_ssl = false` or adding CA certificates)
+
+#### Scenario: Custom Galaxy server documented
+
+- **WHEN** a user needs to install collections from a custom Galaxy server
+- **THEN** [`docs/GALAXY_AUTHENTICATION.md`](packer/plugins/packer-plugin-ansible-navigator/docs/GALAXY_AUTHENTICATION.md:1) SHALL document:
+  - Using [`galaxy_args`](packer/plugins/packer-plugin-ansible-navigator/openspec/specs/remote-provisioner-capabilities/spec.md:77) to pass `--server`, `--api-key`, `--ignore-certs`
+  - Example HCL configuration with [`galaxy_args`](packer/plugins/packer-plugin-ansible-navigator/openspec/specs/remote-provisioner-capabilities/spec.md:77)
+  - Combining with [`ansible.cfg`](packer/plugins/packer-plugin-ansible-navigator/openspec/specs/remote-provisioner-capabilities/spec.md:100) for multiple server configuration
+
+#### Scenario: Configuration boundary clearly explained
+
+- **WHEN** a user reads [`docs/GALAXY_AUTHENTICATION.md`](packer/plugins/packer-plugin-ansible-navigator/docs/GALAXY_AUTHENTICATION.md:1)
+- **THEN** the documentation SHALL clearly explain:
+  - What the plugin handles: invoking [`ansible-galaxy`](packer/plugins/packer-plugin-ansible-navigator/provisioner/ansible-navigator/galaxy.go:1) with [`requirements_file`](packer/plugins/packer-plugin-ansible-navigator/openspec/specs/remote-provisioner-capabilities/spec.md:64), passing [`galaxy_args`](packer/plugins/packer-plugin-ansible-navigator/openspec/specs/remote-provisioner-capabilities/spec.md:77), and managing install paths
+  - What must be configured externally: git credentials, SSH keys, [`ansible.cfg`](packer/plugins/packer-plugin-ansible-navigator/openspec/specs/remote-provisioner-capabilities/spec.md:100) Galaxy server definitions
+  - That the plugin delegates all authentication to [`ansible-galaxy`](packer/plugins/packer-plugin-ansible-navigator/provisioner/ansible-navigator/galaxy.go:1) and git
+
+#### Scenario: CI/CD integration patterns documented
+
+- **WHEN** a user consults [`docs/GALAXY_AUTHENTICATION.md`](packer/plugins/packer-plugin-ansible-navigator/docs/GALAXY_AUTHENTICATION.md:1) for CI/CD guidance
+- **THEN** the documentation SHALL include examples for:
+  - GitHub Actions (using secrets, SSH key setup)
+  - GitLab CI (CI/CD variables, SSH_PRIVATE_KEY)
+  - Jenkins (credentials binding)
+- **AND** examples SHALL demonstrate ssh-agent setup and environment variable injection
+- **AND** examples SHALL emphasize secure practices (secrets as CI variables, not in templates)
+
+#### Scenario: Secure practices emphasized
+
+- **WHEN** documentation shows authentication examples
+- **THEN** it SHALL explicitly warn against:
+  - Embedding tokens or passwords in Packer templates committed to version control
+  - Hardcoding credentials in requirements.yml files
+- **AND** it SHALL recommend secure alternatives:
+  - Using CI/CD secret variables
+  - Using git credential helpers
+  - Using SSH keys with ssh-agent
+
+## MODIFIED Requirements
+
+### Requirement: Documentation Index and Navigation
+
+The [`docs/README.md`](packer/plugins/packer-plugin-ansible-navigator/docs/README.md:1) documentation index SHALL link to the Galaxy authentication guide and SHALL help users discover authentication guidance when needed.
+
+#### Scenario: Galaxy authentication guide linked from index
+
+- **WHEN** a user views [`docs/README.md`](packer/plugins/packer-plugin-ansible-navigator/docs/README.md:1)
+- **THEN** it SHALL include a link to [`docs/GALAXY_AUTHENTICATION.md`](packer/plugins/packer-plugin-ansible-navigator/docs/GALAXY_AUTHENTICATION.md:1) in the "Detailed Guides" section
+- **AND** the link description SHALL indicate it covers authentication for private collections, Private Automation Hub, and custom Galaxy servers
+
+#### Scenario: Existing navigation preserved
+
+- **WHEN** the documentation index is updated
+- **THEN** all existing links SHALL remain functional
+- **AND** the new link SHALL be logically ordered with other detailed guides
+
+### Requirement: Authentication Failure Troubleshooting
+
+The [`docs/TROUBLESHOOTING.md`](packer/plugins/packer-plugin-ansible-navigator/docs/TROUBLESHOOTING.md:1) guide SHALL include a dedicated section on authentication failures with common error messages and resolutions.
+
+#### Scenario: Authentication failures section exists
+
+- **WHEN** a user consults [`docs/TROUBLESHOOTING.md`](packer/plugins/packer-plugin-ansible-navigator/docs/TROUBLESHOOTING.md:1) for authentication issues
+- **THEN** there SHALL be a section titled "Authentication failures" or similar
+- **AND** the section SHALL be logically placed after the "Dependencies not installed" section
+
+#### Scenario: HTTP 401 Unauthorized documented
+
+- **WHEN** a user encounters "HTTP Error 401: Unauthorized" from ansible-galaxy
+- **THEN** [`docs/TROUBLESHOOTING.md`](packer/plugins/packer-plugin-ansible-navigator/docs/TROUBLESHOOTING.md:1) SHALL document:
+  - This error occurs when accessing Private Automation Hub or custom Galaxy servers without valid credentials
+  - Resolution steps: verify API token, check [`ansible.cfg`](packer/plugins/packer-plugin-ansible-navigator/openspec/specs/remote-provisioner-capabilities/spec.md:100) server configuration
+  - Cross-reference to [`docs/GALAXY_AUTHENTICATION.md`](packer/plugins/packer-plugin-ansible-navigator/docs/GALAXY_AUTHENTICATION.md:1) Private Automation Hub section
+
+#### Scenario: Git SSH Permission denied documented
+
+- **WHEN** a user encounters "Permission denied (publickey)" from git
+- **THEN** [`docs/TROUBLESHOOTING.md`](packer/plugins/packer-plugin-ansible-navigator/docs/TROUBLESHOOTING.md:1) SHALL document:
+  - This error occurs when SSH keys are not configured or ssh-agent is not running
+  - Resolution steps: verify SSH key is added to GitHub/GitLab, start ssh-agent, add key to agent
+  - Cross-reference to [`docs/GALAXY_AUTHENTICATION.md`](packer/plugins/packer-plugin-ansible-navigator/docs/GALAXY_AUTHENTICATION.md:1) Private GitHub SSH section
+
+#### Scenario: Git HTTPS Authentication failed documented
+
+- **WHEN** a user encounters "fatal: Authentication failed" from git
+- **THEN** [`docs/TROUBLESHOOTING.md`](packer/plugins/packer-plugin-ansible-navigator/docs/TROUBLESHOOTING.md:1) SHALL document:
+  - This error occurs when git credential helper is not configured or token is invalid
+  - Resolution steps: verify token, check git credential helper setup, check environment variables
+  - Cross-reference to [`docs/GALAXY_AUTHENTICATION.md`](packer/plugins/packer-plugin-ansible-navigator/docs/GALAXY_AUTHENTICATION.md:1) Private GitHub HTTPS section
+
+#### Scenario: Generic installation failure documented
+
+- **WHEN** a user encounters "Could not find/install packages" errors
+- **THEN** [`docs/TROUBLESHOOTING.md`](packer/plugins/packer-plugin-ansible-navigator/docs/TROUBLESHOOTING.md:1) SHALL document:
+  - This may be caused by authentication issues if collections are from private sources
+  - Resolution: check if collections require authentication, consult [`docs/GALAXY_AUTHENTICATION.md`](packer/plugins/packer-plugin-ansible-navigator/docs/GALAXY_AUTHENTICATION.md:1)
+  - Alternative causes: network issues, wrong collection name, offline mode enabled
