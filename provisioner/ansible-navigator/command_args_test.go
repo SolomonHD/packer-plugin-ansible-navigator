@@ -6,6 +6,7 @@
 package ansiblenavigator
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -54,6 +55,52 @@ func TestProvisioner_buildRunCommandArgsForPlay_ExtraArgsAndOrdering(t *testing.
 	require.NotEqual(t, -1, aIdx)
 	require.NotEqual(t, -1, bIdx)
 	require.Less(t, aIdx, bIdx)
+}
+
+func TestProvisioner_buildRunCommandArgsForPlay_ProvisionerExtraVars_JSONSinglePair(t *testing.T) {
+	p := &Provisioner{}
+	p.config.PackerBuilderType = "docker"
+	p.config.PackerBuildName = "example-build"
+	p.config.NavigatorConfig = &NavigatorConfig{Mode: "stdout"}
+
+	// createCmdArgs relies on generatedData for a few conditionals.
+	p.generatedData = map[string]interface{}{
+		"ConnType": "ssh",
+	}
+
+	play := Play{Target: "site.yml"}
+	cmdArgs, _ := p.buildRunCommandArgsForPlay(play, "127.0.0.1:8080", "/tmp/inventory.ini", "/tmp/site.yml", "/tmp/key")
+
+	// Exactly one --extra-vars pair for provisioner-generated extra vars.
+	extraVarsIdx := -1
+	extraVarsCount := 0
+	for i, a := range cmdArgs {
+		if a == "--extra-vars" {
+			extraVarsCount++
+			extraVarsIdx = i
+		}
+	}
+	require.Equal(t, 1, extraVarsCount)
+	require.GreaterOrEqual(t, extraVarsIdx, 0)
+	require.Less(t, extraVarsIdx+1, len(cmdArgs))
+
+	var parsed map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(cmdArgs[extraVarsIdx+1]), &parsed))
+	require.Equal(t, "docker", parsed["packer_builder_type"])
+	require.Equal(t, "example-build", parsed["packer_build_name"])
+	require.Equal(t, "127.0.0.1:8080", parsed["packer_http_addr"])
+	require.Equal(t, "/tmp/key", parsed["ansible_ssh_private_key_file"])
+
+	// No standalone -e/--extra-vars flags.
+	for i := 0; i < len(cmdArgs); i++ {
+		if cmdArgs[i] == "-e" || cmdArgs[i] == "--extra-vars" {
+			require.Less(t, i+1, len(cmdArgs), "flag %q at index %d must have an argument", cmdArgs[i], i)
+			require.NotEmpty(t, cmdArgs[i+1], "flag %q at index %d must have a non-empty argument", cmdArgs[i], i)
+		}
+	}
+
+	// Playbook path remains last.
+	require.Equal(t, "/tmp/site.yml", cmdArgs[len(cmdArgs)-1])
 }
 
 func indexOfSequence(haystack []string, needle []string) int {

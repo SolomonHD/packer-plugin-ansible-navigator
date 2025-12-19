@@ -1090,22 +1090,59 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 func (p *Provisioner) createCmdArgs(httpAddr, inventory, privKeyFile string) (args []string, envVars []string) {
 	args = []string{}
 
+	// Provisioner-generated extra vars MUST be conveyed via a single JSON object
+	// passed through exactly one -e/--extra-vars argument pair to avoid malformed
+	// argument construction and positional argument shifting.
+	extraVars := make(map[string]interface{})
+
 	if p.config.PackerBuildName != "" {
 		// HCL configs don't currently have the PakcerBuildName. Don't
 		// cause weirdness with a half-set variable
-		args = append(args, "-e", fmt.Sprintf("packer_build_name=%q", p.config.PackerBuildName))
+		extraVars["packer_build_name"] = p.config.PackerBuildName
 	}
-
-	args = append(args, "-e", fmt.Sprintf("packer_builder_type=%s", p.config.PackerBuilderType))
+	extraVars["packer_builder_type"] = p.config.PackerBuilderType
 
 	// expose packer_http_addr extra variable
 	if httpAddr != commonsteps.HttpAddrNotImplemented {
-		args = append(args, "-e", fmt.Sprintf("packer_http_addr=%s", httpAddr))
+		extraVars["packer_http_addr"] = httpAddr
 	}
+
+	// Add password to ansible call.
+	ansiblePasswordSet := false
+	if p.config.UseProxy.False() && p.generatedData["ConnType"] == "winrm" {
+		if password, ok := p.generatedData["Password"]; ok {
+			extraVars["ansible_password"] = fmt.Sprint(password)
+			ansiblePasswordSet = true
+		}
+	}
+
+	if !ansiblePasswordSet && len(privKeyFile) > 0 {
+		// "-e ansible_ssh_private_key_file" is preferable to "--private-key"
+		// because it is a higher priority variable and therefore won't get
+		// overridden by dynamic variables. See #5852 for more details.
+		extraVars["ansible_ssh_private_key_file"] = privKeyFile
+	}
+
+	// If using SSH password auth, disable host key checking unless user overrides.
+	// (This mirrors the previous behavior, but uses JSON extra-vars.)
+	if ansiblePasswordSet && p.generatedData["ConnType"] == "ssh" {
+		if _, ok := extraVars["ansible_host_key_checking"]; !ok {
+			extraVars["ansible_host_key_checking"] = false
+		}
+	}
+
+	// Marshal extra vars to JSON for a single, safe --extra-vars argument.
+	extraVarsJSON, err := json.Marshal(extraVars)
+	if err != nil {
+		// Should never happen for map[string]interface{} composed of strings/bools.
+		// Fall back to an empty object to avoid crashing.
+		extraVarsJSON = []byte("{}")
+	}
+	args = append(args, "--extra-vars", string(extraVarsJSON))
 
 	if p.generatedData["ConnType"] == "ssh" && len(privKeyFile) > 0 {
 		// Add ssh extra args to set IdentitiesOnly
-		args = append(args, "--ssh-extra-args", "'-o IdentitiesOnly=yes'")
+		args = append(args, "--ssh-extra-args", "-o IdentitiesOnly=yes")
 	}
 
 	// Add limit if specified
@@ -1113,23 +1150,6 @@ func (p *Provisioner) createCmdArgs(httpAddr, inventory, privKeyFile string) (ar
 		args = append(args, "--limit", p.config.Limit)
 	}
 
-	// Add password to ansible call.
-	if !checkArg("ansible_password", args) && p.config.UseProxy.False() && p.generatedData["ConnType"] == "winrm" {
-		args = append(args, "-e", fmt.Sprintf("ansible_password=%s", p.generatedData["Password"]))
-	}
-
-	if !checkArg("ansible_password", args) && len(privKeyFile) > 0 {
-		// "-e ansible_ssh_private_key_file" is preferable to "--private-key"
-		// because it is a higher priority variable and therefore won't get
-		// overridden by dynamic variables. See #5852 for more details.
-		args = append(args, "-e", fmt.Sprintf("ansible_ssh_private_key_file=%s", privKeyFile))
-	}
-
-	if checkArg("ansible_password", args) && p.generatedData["ConnType"] == "ssh" {
-		if !checkArg("ansible_host_key_checking", args) {
-			args = append(args, "-e", "ansible_host_key_checking=False")
-		}
-	}
 	// This must be the last arg appended to args (the play target is appended later).
 	args = append(args, "-i", inventory)
 	return args, envVars

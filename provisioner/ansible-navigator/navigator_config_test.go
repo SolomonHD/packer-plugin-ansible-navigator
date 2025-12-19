@@ -72,6 +72,90 @@ func TestGenerateNavigatorConfigYAML_AutomaticEEDefaults(t *testing.T) {
 	}
 }
 
+func TestGenerateNavigatorConfigYAML_AutomaticEEHomeXDGDefaults_WhenNotSetOrPassed(t *testing.T) {
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled: true,
+			Image:   "quay.io/ansible/creator-ee:latest",
+		},
+	}
+
+	yamlStr, err := generateNavigatorConfigYAML(config)
+	if err != nil {
+		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+	}
+
+	// Defaults only when user did not set or pass-through.
+	for _, expected := range []string{
+		"HOME: /tmp",
+		"XDG_CACHE_HOME: /tmp/.cache",
+		"XDG_CONFIG_HOME: /tmp/.config",
+	} {
+		if !strings.Contains(yamlStr, expected) {
+			t.Fatalf("expected %q in YAML, got: %s", expected, yamlStr)
+		}
+	}
+}
+
+func TestGenerateNavigatorConfigYAML_DoesNotSetHomeXDGDefaults_WhenPassedThrough(t *testing.T) {
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled: true,
+			Image:   "quay.io/ansible/creator-ee:latest",
+			EnvironmentVariables: &EnvironmentVariablesConfig{
+				Pass: []string{"HOME", "XDG_CACHE_HOME", "XDG_CONFIG_HOME"},
+			},
+		},
+	}
+
+	yamlStr, err := generateNavigatorConfigYAML(config)
+	if err != nil {
+		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+	}
+
+	// Ensure we did not inject defaults for values the user intends to pass-through.
+	for _, forbidden := range []string{
+		"HOME: /tmp",
+		"XDG_CACHE_HOME: /tmp/.cache",
+		"XDG_CONFIG_HOME: /tmp/.config",
+	} {
+		if strings.Contains(yamlStr, forbidden) {
+			t.Fatalf("did not expect %q in YAML when passed-through, got: %s", forbidden, yamlStr)
+		}
+	}
+}
+
+func TestGenerateNavigatorConfigYAML_DoesNotOverrideHomeXDG_WhenUserSetsValues(t *testing.T) {
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled: true,
+			Image:   "quay.io/ansible/creator-ee:latest",
+			EnvironmentVariables: &EnvironmentVariablesConfig{
+				Set: map[string]string{
+					"HOME":            "/custom/home",
+					"XDG_CACHE_HOME":  "/custom/cache",
+					"XDG_CONFIG_HOME": "/custom/config",
+				},
+			},
+		},
+	}
+
+	yamlStr, err := generateNavigatorConfigYAML(config)
+	if err != nil {
+		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+	}
+
+	for _, expected := range []string{
+		"HOME: /custom/home",
+		"XDG_CACHE_HOME: /custom/cache",
+		"XDG_CONFIG_HOME: /custom/config",
+	} {
+		if !strings.Contains(yamlStr, expected) {
+			t.Fatalf("expected %q in YAML, got: %s", expected, yamlStr)
+		}
+	}
+}
+
 // Test that user-provided values are not overridden
 func TestGenerateNavigatorConfigYAML_UserValuesPreserved(t *testing.T) {
 	config := &NavigatorConfig{

@@ -405,7 +405,7 @@ The local provisioner SHALL support generating ansible-navigator.yml configurati
 - **THEN** validation SHALL fail
 - **AND** the error message SHALL state that `ansible_config.config` is mutually exclusive with `ansible_config.defaults` and `ansible_config.ssh_connection`
 
-#### Scenario: Automatic EE defaults when execution environment enabled
+#### Scenario: Automatic EE defaults are injected per-key when execution environment enabled
 
 - **GIVEN** a configuration with:
 
@@ -414,14 +414,17 @@ The local provisioner SHALL support generating ansible-navigator.yml configurati
     execution_environment {
       enabled = true
       image   = "quay.io/ansible/creator-ee:latest"
+      environment_variables {
+        set = {
+          CUSTOM_VAR = "custom"
+        }
+      }
     }
   }
   ```
 
-- **AND** the user has NOT specified `ansible_config.defaults.remote_tmp`
-- **AND** the user has NOT specified `execution_environment.environment_variables`
 - **WHEN** the provisioner generates the ansible-navigator.yml file
-- **THEN** it SHALL automatically include execution-environment temp dir environment variables:
+- **THEN** it SHALL ensure execution-environment environment-variables include safe defaults **per missing key**, at minimum:
 
   ```yaml
   execution-environment:
@@ -431,75 +434,33 @@ The local provisioner SHALL support generating ansible-navigator.yml configurati
         ANSIBLE_LOCAL_TMP: "/tmp/.ansible-local"
   ```
 
-- **AND** it SHALL configure Ansible temp directory defaults via an ansible.cfg referenced by `ansible.config.path` (NOT by emitting `defaults` under `ansible.config`)
+- **AND** it SHALL NOT remove or overwrite unrelated user-provided keys (e.g., `CUSTOM_VAR`)
 
-#### Scenario: User-provided values override automatic defaults
+#### Scenario: Automatic EE HOME/XDG defaults when not explicitly set or passed through
 
-- **GIVEN** a configuration with `execution_environment.enabled = true`
-- **AND** the user has explicitly specified temp directory settings in navigator_config
+- **GIVEN** a configuration with `navigator_config.execution_environment.enabled = true`
+- **AND** the user has NOT provided values for any of the following via `execution_environment.environment_variables.set`:
+  - `HOME`
+  - `XDG_CACHE_HOME`
+  - `XDG_CONFIG_HOME`
+- **AND** the user has NOT requested pass-through of any of the following via `execution_environment.environment_variables.pass`:
+  - `HOME`
+  - `XDG_CACHE_HOME`
+  - `XDG_CONFIG_HOME`
 - **WHEN** the provisioner generates the ansible-navigator.yml file
-- **THEN** it SHALL use the user-specified values
-- **AND** it SHALL NOT apply automatic defaults
-- **AND** the user's configuration SHALL take full precedence
+- **THEN** it SHALL set the following defaults under `execution-environment.environment-variables.set`:
+  - `HOME=/tmp`
+  - `XDG_CACHE_HOME=/tmp/.cache`
+  - `XDG_CONFIG_HOME=/tmp/.config`
 
-#### Scenario: No config file generation when navigator_config not specified
+#### Scenario: User-provided env var values are not overridden
 
-- **GIVEN** a configuration without `navigator_config`
-- **WHEN** the provisioner prepares for execution
-- **THEN** it SHALL NOT generate an ansible-navigator.yml file
-- **AND** it SHALL NOT set the ANSIBLE_NAVIGATOR_CONFIG environment variable
-- **AND** ansible-navigator SHALL use its normal configuration search order on the target
-
-#### Scenario: Execution environment pull policy generates correct nested structure
-
-- **GIVEN** a configuration with `execution_environment.pull_policy = "missing"`
-- **WHEN** the ansible-navigator.yml YAML is generated
-- **THEN** the YAML SHALL contain:
-
-  ```yaml
-  execution-environment:
-    pull:
-      policy: missing
-  ```
-
-- **AND** it SHALL NOT contain the flat structure `pull-policy: missing`
-- **AND** the generated YAML SHALL pass ansible-navigator's built-in schema validation
-- **AND** ansible-navigator SHALL accept the config file without "Additional properties" errors
-
-#### Scenario: Complex nested structure preserved (except ansible.config)
-
-- **GIVEN** a configuration with deeply nested navigator_config:
-
-  ```hcl
-  navigator_config {
-    ansible_config {
-      defaults {
-        remote_tmp        = "/tmp/.ansible/tmp"
-        host_key_checking = false
-      }
-      ssh_connection {
-        pipelining  = true
-        ssh_timeout = 30
-      }
-    }
-    execution_environment {
-      enabled     = true
-      image       = "custom:latest"
-      pull_policy = "always"
-      environment_variables {
-        set = {
-          ANSIBLE_REMOTE_TMP = "/custom/tmp"
-          CUSTOM_VAR         = "value"
-        }
-      }
-    }
-  }
-  ```
-
-- **WHEN** the YAML file is generated
-- **THEN** the nested structure SHALL be preserved for execution-environment and other supported ansible-navigator.yml sections
-- **AND** `ansible.config` SHALL remain schema-compliant (help/path/cmdline only)
-- **AND** the Ansible defaults and ssh_connection settings SHALL be represented via a generated ansible.cfg referenced by `ansible.config.path`
+- **GIVEN** a configuration with `navigator_config.execution_environment.enabled = true`
+- **AND** the user has explicitly set one or more env var values under `execution_environment.environment_variables.set`
+- **WHEN** the provisioner generates the ansible-navigator.yml file
+- **THEN** the provisioner SHALL preserve the user's values
+- **AND** it SHALL NOT overwrite user-set `HOME` or `XDG_*` values
+- **AND** it SHALL NOT overwrite user-set `ANSIBLE_*` values
 
 ### Requirement: Navigator Config Nested Structure Support
 
@@ -970,4 +931,23 @@ When: the provisioner runs the EE preflight checks
 Then: the checks SHALL be fast and non-blocking
 Then: the checks SHALL NOT run potentially slow/hanging docker commands such as `docker info`
 Then: the checks SHALL NOT change execution behavior beyond emitting debug UI messages
+
+### Requirement: REQ-EXTRA-VARS-001 Provisioner-generated extra-vars are passed as a single JSON object (local)
+
+The on-target provisioner SHALL pass provisioner-generated Ansible extra vars (including Packer-derived variables and automatically added variables like `ansible_ssh_private_key_file`) in a form that cannot produce malformed `-e` / `--extra-vars` usage and cannot shift positional arguments.
+
+#### Scenario: JSON extra-vars cannot produce a standalone -e
+
+- **GIVEN** the provisioner constructs the `ansible-navigator run` argument list
+- **WHEN** the provisioner includes provisioner-generated extra vars
+- **THEN** it SHALL encode those extra vars as a single JSON object
+- **AND** it SHALL pass that JSON object via exactly one `-e`/`--extra-vars` argument pair
+- **AND** the argument list SHALL NOT contain a standalone `-e`/`--extra-vars` flag without an argument
+
+#### Scenario: Playbook path is always last and not displaced by extra-vars
+
+- **GIVEN** a play whose target resolves to a playbook path
+- **WHEN** the provisioner constructs the final `ansible-navigator run` command arguments
+- **THEN** the playbook path argument SHALL be last
+- **AND** no extra-vars value (including any JSON string) SHALL appear in the final command position
 

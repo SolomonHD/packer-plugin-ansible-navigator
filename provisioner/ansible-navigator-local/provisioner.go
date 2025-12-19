@@ -10,6 +10,7 @@ package ansiblenavigatorlocal
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -666,16 +667,22 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 func (p *Provisioner) buildPluginArgsForPlay(play Play, inventory string) []string {
 	args := make([]string, 0)
 
-	// Keep existing behavior: expose packer_* variables as a single --extra-vars string.
-	args = append(args,
-		"--extra-vars",
-		fmt.Sprintf(
-			"packer_build_name=%s packer_builder_type=%s packer_http_addr=%s -o IdentitiesOnly=yes",
-			p.config.PackerBuildName,
-			p.config.PackerBuilderType,
-			p.generatedData["PackerHTTPAddr"],
-		),
-	)
+	// Provisioner-generated extra vars MUST be conveyed via a single JSON object
+	// passed through exactly one -e/--extra-vars argument pair.
+	extraVars := make(map[string]interface{})
+	if p.config.PackerBuildName != "" {
+		extraVars["packer_build_name"] = p.config.PackerBuildName
+	}
+	extraVars["packer_builder_type"] = p.config.PackerBuilderType
+	if httpAddr, ok := p.generatedData["PackerHTTPAddr"]; ok {
+		extraVars["packer_http_addr"] = fmt.Sprint(httpAddr)
+	}
+	extraVarsJSON, err := json.Marshal(extraVars)
+	if err != nil {
+		// Should never happen for map[string]interface{} composed of strings.
+		extraVarsJSON = []byte("{}")
+	}
+	args = append(args, "--extra-vars", string(extraVarsJSON))
 
 	if play.Become {
 		args = append(args, "--become")
