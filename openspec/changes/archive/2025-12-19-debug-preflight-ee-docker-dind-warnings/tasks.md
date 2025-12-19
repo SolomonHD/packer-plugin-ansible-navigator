@@ -1,0 +1,21 @@
+- [x] Remote provisioner: add a debug-only preflight step that runs immediately before invoking `ansible-navigator run`.
+  - Implemented in [`ee_preflight.go`](packer/plugins/packer-plugin-ansible-navigator/provisioner/ansible-navigator/ee_preflight.go:1) and called from [`Provisioner.executePlays()`](packer/plugins/packer-plugin-ansible-navigator/provisioner/ansible-navigator/provisioner.go:1318).
+- [x] Local provisioner: add an equivalent debug-only preflight step that runs on the target immediately before invoking `ansible-navigator run`.
+  - Implemented by embedding a gated shell snippet immediately before the `ansible-navigator run` remote command in [`Provisioner.executeAnsiblePlaybook()`](packer/plugins/packer-plugin-ansible-navigator/provisioner/ansible-navigator-local/provisioner.go:778).
+- [x] Implement preflight checks (debug-only, EE-enabled only): report `DOCKER_HOST` as unset/value (avoid leaking secrets).
+- [x] Implement preflight checks (debug-only, EE-enabled only): report whether `/var/run/docker.sock` exists and is a socket.
+- [x] Implement preflight checks (debug-only, EE-enabled only): report whether `docker` is available in PATH.
+- [x] Implement preflight checks (debug-only, EE-enabled only): detect `dockerd` process presence and emit a `[DEBUG][WARN]` advisory (warning-only).
+- [x] Ensure preflight checks are fast/non-blocking and do not change execution behavior.
+  - No docker CLI calls are executed; remote provisioner dockerd detection uses a short timeout; local provisioner uses `ps`/`grep` only.
+- [x] Add unit tests for both provisioners: gating (no output when debug is disabled or EE is disabled).
+  - Remote: [`ee_preflight_test.go`](packer/plugins/packer-plugin-ansible-navigator/provisioner/ansible-navigator/ee_preflight_test.go:1)
+  - Local: [`ee_preflight_test.go`](packer/plugins/packer-plugin-ansible-navigator/provisioner/ansible-navigator-local/ee_preflight_test.go:1)
+- [x] Add unit tests for both provisioners: behavior when docker client is missing.
+  - Remote: asserts "docker client: missing in PATH" output.
+  - Local: executes the generated preflight shell snippet in a constrained PATH.
+- [x] Add unit tests for both provisioners: behavior when `dockerd` is detected (warning-only).
+  - Remote: asserts `[DEBUG][WARN]` advisory is emitted.
+  - Local: executes the generated preflight shell snippet with a stub `ps` that reports `dockerd`.
+- [x] Run `go test ./...` and ensure all tests pass.
+- [x] Run `make plugin-check`.

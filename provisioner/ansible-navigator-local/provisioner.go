@@ -805,10 +805,14 @@ func (p *Provisioner) executeAnsiblePlaybook(
 	env_vars += "ANSIBLE_FORCE_COLOR=1 PYTHONUNBUFFERED=1"
 
 	// Build PATH override if ansible_navigator_path is set
-	pathPrefix := ""
+	pathPrefixAssignment := ""
 	if len(p.config.AnsibleNavigatorPath) > 0 {
-		pathPrefix = buildPathPrefixForRemoteShell(p.config.AnsibleNavigatorPath) + " "
+		pathPrefixAssignment = buildPathPrefixForRemoteShell(p.config.AnsibleNavigatorPath)
 		debugf(ui, debugEnabled, "Remote shell will prefix PATH with %v", p.config.AnsibleNavigatorPath)
+	}
+	pathPrefix := ""
+	if pathPrefixAssignment != "" {
+		pathPrefix = pathPrefixAssignment + " "
 	}
 
 	// Deterministic ordering:
@@ -824,14 +828,28 @@ func (p *Provisioner) executeAnsiblePlaybook(
 	runArgs = append(runArgs, p.buildPluginArgsForPlay(play, inventory)...)
 	runArgs = append(runArgs, playbookFile)
 
-	command := fmt.Sprintf(
-		"cd %s && %s%s %s %s",
-		shellEscapePOSIX(p.stagingDir),
-		pathPrefix,
-		env_vars,
-		shellEscapePOSIX(p.config.Command),
-		strings.Join(shellEscapeAllPOSIX(runArgs), " "),
-	)
+	command := ""
+	if debugEnabled && isExecutionEnvironmentEnabled(p.config.NavigatorConfig) {
+		preflight := buildEEDockerPreflightShell(pathPrefixAssignment)
+		command = fmt.Sprintf(
+			"cd %s && %s; %s%s %s %s",
+			shellEscapePOSIX(p.stagingDir),
+			preflight,
+			pathPrefix,
+			env_vars,
+			shellEscapePOSIX(p.config.Command),
+			strings.Join(shellEscapeAllPOSIX(runArgs), " "),
+		)
+	} else {
+		command = fmt.Sprintf(
+			"cd %s && %s%s %s %s",
+			shellEscapePOSIX(p.stagingDir),
+			pathPrefix,
+			env_vars,
+			shellEscapePOSIX(p.config.Command),
+			strings.Join(shellEscapeAllPOSIX(runArgs), " "),
+		)
+	}
 	ui.Message(fmt.Sprintf("Executing Ansible Navigator: %s", command))
 	cmd := &packersdk.RemoteCmd{
 		Command: command,
