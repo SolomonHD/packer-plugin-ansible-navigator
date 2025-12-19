@@ -35,7 +35,39 @@ provisioner "ansible-navigator" {
 }
 ```
 
-## 3) Modern configuration with navigator_config (recommended for ansible-navigator v3+)
+## 3) Minimal execution environment + requirements.yml + collection role target
+
+`requirements.yml`:
+
+```yaml
+collections:
+  - name: devsec.hardening
+```
+
+Packer HCL:
+
+```hcl
+provisioner "ansible-navigator" {
+  requirements_file = "./requirements.yml"
+
+  navigator_config {
+    mode = "stdout"
+
+    execution_environment {
+      enabled = true
+      image   = "quay.io/ansible/creator-ee:latest"
+    }
+  }
+
+  # Use a collection role FQDN target (not a playbook path)
+  play {
+    target = "devsec.hardening.os_hardening"
+    become = true
+  }
+}
+```
+
+## 4) Modern configuration with navigator_config (recommended for ansible-navigator v3+)
 
 ```hcl
 provisioner "ansible-navigator" {
@@ -60,7 +92,7 @@ provisioner "ansible-navigator" {
 }
 ```
 
-## 4) Advanced navigator_config with custom environment variables
+## 5) Advanced navigator_config with custom environment variables
 
 ```hcl
 provisioner "ansible-navigator" {

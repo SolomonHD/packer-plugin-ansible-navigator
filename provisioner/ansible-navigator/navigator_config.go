@@ -8,9 +8,27 @@ package ansiblenavigator
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
+
+func envVarIsSetOrPassed(env *EnvironmentVariablesConfig, key string) bool {
+	if env == nil {
+		return false
+	}
+	if env.Set != nil {
+		if _, ok := env.Set[key]; ok {
+			return true
+		}
+	}
+	for _, p := range env.Pass {
+		if strings.EqualFold(p, key) {
+			return true
+		}
+	}
+	return false
+}
 
 // applyAutomaticEEDefaults applies safe defaults for execution environments.
 //
@@ -51,11 +69,22 @@ func applyAutomaticEEDefaults(config *NavigatorConfig) {
 		config.ExecutionEnvironment.EnvironmentVariables.Set = make(map[string]string)
 	}
 
-	if _, hasRemoteTmp := config.ExecutionEnvironment.EnvironmentVariables.Set["ANSIBLE_REMOTE_TMP"]; !hasRemoteTmp {
-		config.ExecutionEnvironment.EnvironmentVariables.Set["ANSIBLE_REMOTE_TMP"] = "/tmp/.ansible/tmp"
+	// Safe EE defaults (per missing key): only set when user did not explicitly set or pass-through.
+	env := config.ExecutionEnvironment.EnvironmentVariables
+	if !envVarIsSetOrPassed(env, "ANSIBLE_REMOTE_TMP") {
+		env.Set["ANSIBLE_REMOTE_TMP"] = "/tmp/.ansible/tmp"
 	}
-	if _, hasLocalTmp := config.ExecutionEnvironment.EnvironmentVariables.Set["ANSIBLE_LOCAL_TMP"]; !hasLocalTmp {
-		config.ExecutionEnvironment.EnvironmentVariables.Set["ANSIBLE_LOCAL_TMP"] = "/tmp/.ansible-local"
+	if !envVarIsSetOrPassed(env, "ANSIBLE_LOCAL_TMP") {
+		env.Set["ANSIBLE_LOCAL_TMP"] = "/tmp/.ansible-local"
+	}
+	if !envVarIsSetOrPassed(env, "HOME") {
+		env.Set["HOME"] = "/tmp"
+	}
+	if !envVarIsSetOrPassed(env, "XDG_CACHE_HOME") {
+		env.Set["XDG_CACHE_HOME"] = "/tmp/.cache"
+	}
+	if !envVarIsSetOrPassed(env, "XDG_CONFIG_HOME") {
+		env.Set["XDG_CONFIG_HOME"] = "/tmp/.config"
 	}
 }
 

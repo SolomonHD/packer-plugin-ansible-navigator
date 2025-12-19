@@ -286,3 +286,55 @@ func TestProvisionerProvision_PlayExtraArgs_AppliedBeforeGeneratedArgsAndTarget(
 	require.Less(t, idxDiff, idxInv)
 	require.Less(t, idxInv, idxPlay)
 }
+
+func TestProvisionerProvision_ProvisionerExtraVars_JSONSinglePairAndTargetLast(t *testing.T) {
+	var p Provisioner
+	config := testConfig()
+
+	playbookFile, err := os.CreateTemp("", "playbook-*.yml")
+	require.NoError(t, err)
+	defer os.Remove(playbookFile.Name())
+
+	config["play"] = []map[string]interface{}{{"target": playbookFile.Name()}}
+	if err := p.Prepare(config); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	// These are normally populated by Packer; set them in the unit test so the
+	// generated JSON extra-vars are meaningful.
+	p.config.PackerBuilderType = "docker"
+	p.config.PackerBuildName = "example-build"
+
+	comm := &communicatorMock{}
+	ui := packersdk.TestUi(t)
+
+	if err := p.Provision(context.Background(), ui, comm, map[string]interface{}{"PackerHTTPAddr": "127.0.0.1:8080"}); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	invRemote := filepath.ToSlash(filepath.Join(p.stagingDir, "inventory.ini"))
+	playRemote := filepath.ToSlash(filepath.Join(p.stagingDir, filepath.Base(playbookFile.Name())))
+
+	var cmd string
+	for _, c := range comm.startCommand {
+		if strings.Contains(c, "ansible-navigator") && strings.Contains(c, " run") {
+			cmd = c
+			break
+		}
+	}
+	require.NotEmpty(t, cmd)
+
+	// Verify JSON-based extra-vars are used (single argument following --extra-vars).
+	require.Contains(t, cmd, "--extra-vars")
+	require.Contains(t, cmd, `--extra-vars '{"packer_build_name":"example-build"`)
+	require.Contains(t, cmd, `"packer_builder_type":"docker"`)
+	require.Contains(t, cmd, `"packer_http_addr":"127.0.0.1:8080"}'`)
+
+	// Legacy malformed extra-vars string should not appear.
+	require.NotContains(t, cmd, "-o IdentitiesOnly=yes")
+	require.NotContains(t, cmd, "--extra-vars packer_build_name=")
+
+	// Target should be last (and inventory should still be present).
+	require.Contains(t, cmd, "-i "+invRemote)
+	require.True(t, strings.HasSuffix(cmd, playRemote), "expected command to end with play target %q; got: %q", playRemote, cmd)
+}
