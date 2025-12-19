@@ -1383,6 +1383,11 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 			cmd.Env = append(cmd.Env, envvars...)
 		}
 
+		// DEBUG-only EE/docker preflight diagnostics (no behavior changes)
+		if debugEnabled && isExecutionEnvironmentEnabled(p.config.NavigatorConfig) {
+			emitEEDockerPreflight(ui, debugEnabled, p.config.AnsibleNavigatorPath)
+		}
+
 		err := p.executeAnsibleCommand(ui, cmd, playName)
 
 		// Cleanup temporary playbook if it was generated
