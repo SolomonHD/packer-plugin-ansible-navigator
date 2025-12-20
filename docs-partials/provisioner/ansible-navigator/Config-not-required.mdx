@@ -186,6 +186,10 @@
   
   Default: `false`
 
+- `show_extra_vars` (bool) - Display extra vars JSON content in output for debugging.
+  When enabled, logs the extra vars JSON passed to ansible-navigator with sensitive values redacted.
+  Default: false
+
 - `navigator_config` (\*NavigatorConfig) - Modern declarative ansible-navigator configuration via typed structs.
   When provided, the plugin generates a temporary ansible-navigator.yml file.
   This replaces the previous map[string]interface{} approach to ensure RPC serializability.

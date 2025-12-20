@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	packersdk "github.com/hashicorp/packer-plugin-sdk/packer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,7 +34,8 @@ func TestProvisioner_buildRunCommandArgsForPlay_ExtraArgsAndOrdering(t *testing.
 		VarsFiles:  []string{"vars/first.yml", "vars/second.yml"},
 	}
 
-	cmdArgs, _ := p.buildRunCommandArgsForPlay(play, "127.0.0.1:8080", "/tmp/inventory.ini", "/tmp/site.yml", "/tmp/key")
+	ui := &packersdk.BasicUi{}
+	cmdArgs, _ := p.buildRunCommandArgsForPlay(ui, play, "127.0.0.1:8080", "/tmp/inventory.ini", "/tmp/site.yml", "/tmp/key")
 
 	require.GreaterOrEqual(t, len(cmdArgs), 1)
 	require.Equal(t, "run", cmdArgs[0])
@@ -68,8 +70,9 @@ func TestProvisioner_buildRunCommandArgsForPlay_ProvisionerExtraVars_JSONSingleP
 		"ConnType": "ssh",
 	}
 
+	ui := &packersdk.BasicUi{}
 	play := Play{Target: "site.yml"}
-	cmdArgs, _ := p.buildRunCommandArgsForPlay(play, "127.0.0.1:8080", "/tmp/inventory.ini", "/tmp/site.yml", "/tmp/key")
+	cmdArgs, _ := p.buildRunCommandArgsForPlay(ui, play, "127.0.0.1:8080", "/tmp/inventory.ini", "/tmp/site.yml", "/tmp/key")
 
 	// Exactly one --extra-vars pair for provisioner-generated extra vars.
 	extraVarsIdx := -1

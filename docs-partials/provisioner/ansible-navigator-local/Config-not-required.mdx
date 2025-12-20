@@ -66,6 +66,10 @@
 
 - `galaxy_force_with_deps` (bool) - When true, pass --force-with-deps to ansible-galaxy.
 
+- `show_extra_vars` (bool) - Display extra vars JSON content in output for debugging.
+  When enabled, logs the extra vars JSON passed to ansible-navigator with sensitive values redacted.
+  Default: false
+
 - `navigator_config` (\*NavigatorConfig) - Modern declarative ansible-navigator configuration via YAML file generation.
   Maps directly to ansible-navigator.yml schema structure.
   Supports full ansible-navigator.yml structure including:
