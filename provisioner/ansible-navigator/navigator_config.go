@@ -37,7 +37,10 @@ func envVarIsSetOrPassed(env *EnvironmentVariablesConfig, key string) bool {
 // tries to write under non-writable default paths like "/.ansible/tmp".
 //
 // It also configures collections path mounting and environment variables when
-// collectionsPath is provided.
+// collectionsPath is provided. The collectionsPath parameter should be the parent
+// directory containing the ansible_collections/ subdirectory (e.g., ~/.packer.d/ansible_collections_cache).
+// ansible-galaxy installs collections to <collectionsPath>/ansible_collections/<namespace>/<collection>,
+// and this function mounts the entire collectionsPath directory into the container.
 func applyAutomaticEEDefaults(config *NavigatorConfig, collectionsPath string) {
 	if config == nil {
 		return
