@@ -18,7 +18,7 @@ func TestGenerateNavigatorConfigYAML_AutomaticEEHomeXDGDefaults_WhenNotSetOrPass
 		},
 	}
 
-	yamlStr, err := generateNavigatorConfigYAML(config)
+	yamlStr, err := generateNavigatorConfigYAML(config, "")
 	if err != nil {
 		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
 	}
@@ -45,7 +45,7 @@ func TestGenerateNavigatorConfigYAML_DoesNotSetHomeXDGDefaults_WhenPassedThrough
 		},
 	}
 
-	yamlStr, err := generateNavigatorConfigYAML(config)
+	yamlStr, err := generateNavigatorConfigYAML(config, "")
 	if err != nil {
 		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestGenerateNavigatorConfigYAML_DoesNotOverrideHomeXDG_WhenUserSetsValues(t
 		},
 	}
 
-	yamlStr, err := generateNavigatorConfigYAML(config)
+	yamlStr, err := generateNavigatorConfigYAML(config, "")
 	if err != nil {
 		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestGenerateNavigatorConfigYAML_AnsibleConfigPathSchemaCompliant(t *testing
 		},
 	}
 
-	yamlStr, err := generateNavigatorConfigYAML(config)
+	yamlStr, err := generateNavigatorConfigYAML(config, "")
 	if err != nil {
 		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
 	}

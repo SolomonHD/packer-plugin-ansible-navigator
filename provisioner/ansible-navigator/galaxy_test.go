@@ -117,13 +117,13 @@ exit 0
 
 func TestGalaxyManager_SetupEnvironmentPaths(t *testing.T) {
 	// Save original environment
-	origCollPath := os.Getenv("ANSIBLE_COLLECTIONS_PATHS")
+	origCollPath := os.Getenv("ANSIBLE_COLLECTIONS_PATH")
 	origRolePath := os.Getenv("ANSIBLE_ROLES_PATH")
 	defer func() {
 		if origCollPath != "" {
-			os.Setenv("ANSIBLE_COLLECTIONS_PATHS", origCollPath)
+			os.Setenv("ANSIBLE_COLLECTIONS_PATH", origCollPath)
 		} else {
-			os.Unsetenv("ANSIBLE_COLLECTIONS_PATHS")
+			os.Unsetenv("ANSIBLE_COLLECTIONS_PATH")
 		}
 		if origRolePath != "" {
 			os.Setenv("ANSIBLE_ROLES_PATH", origRolePath)
@@ -174,9 +174,9 @@ func TestGalaxyManager_SetupEnvironmentPaths(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set up environment
 			if tt.existingCollPath != "" {
-				os.Setenv("ANSIBLE_COLLECTIONS_PATHS", tt.existingCollPath)
+				os.Setenv("ANSIBLE_COLLECTIONS_PATH", tt.existingCollPath)
 			} else {
-				os.Unsetenv("ANSIBLE_COLLECTIONS_PATHS")
+				os.Unsetenv("ANSIBLE_COLLECTIONS_PATH")
 			}
 			if tt.existingRolePath != "" {
 				os.Setenv("ANSIBLE_ROLES_PATH", tt.existingRolePath)
@@ -198,9 +198,9 @@ func TestGalaxyManager_SetupEnvironmentPaths(t *testing.T) {
 				return
 			}
 
-			gotCollPath := os.Getenv("ANSIBLE_COLLECTIONS_PATHS")
+			gotCollPath := os.Getenv("ANSIBLE_COLLECTIONS_PATH")
 			if gotCollPath != tt.wantCollPath {
-				t.Errorf("ANSIBLE_COLLECTIONS_PATHS = %v, want %v", gotCollPath, tt.wantCollPath)
+				t.Errorf("ANSIBLE_COLLECTIONS_PATH = %v, want %v", gotCollPath, tt.wantCollPath)
 			}
 
 			gotRolePath := os.Getenv("ANSIBLE_ROLES_PATH")

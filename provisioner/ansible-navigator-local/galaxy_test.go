@@ -49,7 +49,7 @@ func TestGalaxyManager_SetupEnvironmentPaths_ReturnsExpectedEnvVars(t *testing.T
 	got := gm.SetupEnvironmentPaths()
 
 	require.Contains(t, got, "ANSIBLE_ROLES_PATH=/tmp/roles")
-	require.Contains(t, got, "ANSIBLE_COLLECTIONS_PATHS=/tmp/collections")
+	require.Contains(t, got, "ANSIBLE_COLLECTIONS_PATH=/tmp/collections")
 }
 
 func TestGalaxyManager_InstallRequirements_UsesConfiguredCommandArgsAndForcePrecedence(t *testing.T) {

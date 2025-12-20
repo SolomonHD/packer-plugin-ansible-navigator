@@ -3,7 +3,7 @@
 // You may obtain a copy of the License at
 // http://www.apache.org/licenses/LICENSE-2.0
 
-//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play,PathEntry,NavigatorConfig,ExecutionEnvironment,EnvironmentVariablesConfig,AnsibleConfig,AnsibleConfigDefaults,AnsibleConfigConnection,LoggingConfig,PlaybookArtifact,CollectionDocCache
+//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play,PathEntry,NavigatorConfig,ExecutionEnvironment,EnvironmentVariablesConfig,VolumeMount,AnsibleConfig,AnsibleConfigDefaults,AnsibleConfigConnection,LoggingConfig,PlaybookArtifact,CollectionDocCache
 //go:generate packer-sdc struct-markdown
 
 package ansiblenavigator
@@ -98,6 +98,18 @@ type ExecutionEnvironment struct {
 	PullPolicy string `mapstructure:"pull_policy"`
 	// Environment variables to pass to the execution environment
 	EnvironmentVariables *EnvironmentVariablesConfig `mapstructure:"environment_variables"`
+	// Volume mounts for the execution environment container
+	VolumeMounts []VolumeMount `mapstructure:"volume_mounts"`
+}
+
+// VolumeMount represents a volume mount for the execution environment
+type VolumeMount struct {
+	// Source path on the host
+	Src string `mapstructure:"src"`
+	// Destination path in the container
+	Dest string `mapstructure:"dest"`
+	// Mount options (e.g., "ro" for read-only)
+	Options string `mapstructure:"options"`
 }
 
 // EnvironmentVariablesConfig represents environment variable configuration
@@ -1291,9 +1303,14 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 	// Generate and setup ansible-navigator.yml if configured
 	var navigatorConfigPath string
 	if p.config.NavigatorConfig != nil {
-		// Ensure automatic execution-environment defaults are applied before we
-		// generate ansible.cfg and ansible-navigator.yml.
-		applyAutomaticEEDefaults(p.config.NavigatorConfig)
+		// Resolve collections path with proper default
+		collectionsPath := p.config.CollectionsPath
+		if collectionsPath != "" {
+			// Append ansible_collections to the path if it doesn't already end with it
+			if !strings.HasSuffix(collectionsPath, "ansible_collections") {
+				collectionsPath = filepath.Join(collectionsPath, "ansible_collections")
+			}
+		}
 
 		// If ansible_config.defaults / ansible_config.ssh_connection are provided
 		// (explicitly or via EE defaults), generate an ansible.cfg file and reference
@@ -1320,7 +1337,7 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 			}
 		}
 
-		yamlContent, err := generateNavigatorConfigYAML(p.config.NavigatorConfig)
+		yamlContent, err := generateNavigatorConfigYAML(p.config.NavigatorConfig, collectionsPath)
 		if err != nil {
 			return fmt.Errorf("failed to generate navigator_config YAML: %w", err)
 		}

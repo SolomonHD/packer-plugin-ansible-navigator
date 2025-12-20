@@ -1,5 +1,79 @@
 # Migration Guide
 
+## v6.1.0: Collections Mount and Environment Variable Updates
+
+### Overview
+
+Version 6.1.0 fixes collections support in execution environments and updates the collections path environment variable to use the non-deprecated singular form.
+
+### Changes
+
+#### 1. Automatic Collections Mounting (No Action Required)
+
+Starting with v6.1.0, collections are automatically mounted into execution environment containers when `navigator_config.execution_environment.enabled = true`. No manual volume mount configuration is needed.
+
+**What this means:**
+
+- Collections installed from `requirements_file` to `~/.packer.d/ansible_collections_cache/ansible_collections` are automatically mounted as read-only volumes in the EE container
+- `ANSIBLE_COLLECTIONS_PATH` is automatically set inside the container to point to the mounted collections
+- Collection roles now work correctly inside execution environments without additional configuration
+
+**Before (v6.0.0 and earlier - broken):**
+
+```hcl
+provisioner "ansible-navigator" {
+  requirements_file = "./requirements.yml"
+  
+  navigator_config {
+    execution_environment {
+      enabled = true
+      image = "quay.io/ansible/creator-ee:latest"
+    }
+  }
+  
+  play {
+    target = "namespace.collection.role_name"
+    # This would fail with "unable to find role"
+  }
+}
+```
+
+**After (v6.1.0+ - works):**
+
+```hcl
+provisioner "ansible-navigator" {
+  requirements_file = "./requirements.yml"
+  
+  navigator_config {
+    execution_environment {
+      enabled = true
+      image = "quay.io/ansible/creator-ee:latest"
+    }
+  }
+  
+  play {
+    target = "namespace.collection.role_name"
+    # Collections are automatically mounted - works correctly
+  }
+}
+```
+
+#### 2. Environment Variable Name Change (Internal Only)
+
+The plugin now uses `ANSIBLE_COLLECTIONS_PATH` (singular) instead of the deprecated `ANSIBLE_COLLECTIONS_PATHS` (plural) to eliminate Ansible deprecation warnings.
+
+**User Impact**: None - this is an internal change. Your HCL configurations do not need any updates.
+
+### Migration Steps
+
+1. **Upgrade to v6.1.0+**
+2. **Remove any manual volume mount workarounds** if you were using them
+3. **Test your collection-based playbooks with execution environments**
+
+No HCL configuration changes required - collections mounting is now automatic.
+
+---
+
 ## v4.2.0: Navigator Config Structure Updates
 
 ### Overview

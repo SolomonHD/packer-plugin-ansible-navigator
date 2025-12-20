@@ -3,7 +3,7 @@
 // You may obtain a copy of the License at
 // http://www.apache.org/licenses/LICENSE-2.0
 
-//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play,PathEntry,NavigatorConfig,ExecutionEnvironment,EnvironmentVariablesConfig,AnsibleConfig,AnsibleConfigDefaults,AnsibleConfigConnection,LoggingConfig,PlaybookArtifact,CollectionDocCache
+//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play,PathEntry,NavigatorConfig,ExecutionEnvironment,EnvironmentVariablesConfig,VolumeMount,AnsibleConfig,AnsibleConfigDefaults,AnsibleConfigConnection,LoggingConfig,PlaybookArtifact,CollectionDocCache
 //go:generate packer-sdc struct-markdown
 
 package ansiblenavigatorlocal
@@ -77,6 +77,18 @@ type ExecutionEnvironment struct {
 	PullPolicy string `mapstructure:"pull_policy"`
 	// Environment variables to pass to the execution environment
 	EnvironmentVariables *EnvironmentVariablesConfig `mapstructure:"environment_variables"`
+	// Volume mounts for the execution environment container
+	VolumeMounts []VolumeMount `mapstructure:"volume_mounts"`
+}
+
+// VolumeMount represents a volume mount for the execution environment
+type VolumeMount struct {
+	// Source path on the host
+	Src string `mapstructure:"src"`
+	// Destination path in the container
+	Dest string `mapstructure:"dest"`
+	// Mount options (e.g., "ro" for read-only)
+	Options string `mapstructure:"options"`
 }
 
 // EnvironmentVariablesConfig represents environment variable configuration
@@ -511,7 +523,8 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 	// Generate and upload ansible-navigator.yml if configured
 	var navigatorConfigRemotePath string
 	if p.config.NavigatorConfig != nil {
-		applyAutomaticEEDefaults(p.config.NavigatorConfig)
+		// For local provisioner, collections are in the staging directory on the target
+		collectionsPath := p.galaxyCollectionsPath
 
 		// If ansible_config.defaults / ansible_config.ssh_connection are provided
 		// (explicitly or via EE defaults), generate an ansible.cfg file, upload it
@@ -543,7 +556,7 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 			}
 		}
 
-		yamlContent, err := generateNavigatorConfigYAML(p.config.NavigatorConfig)
+		yamlContent, err := generateNavigatorConfigYAML(p.config.NavigatorConfig, collectionsPath)
 		if err != nil {
 			return fmt.Errorf("Error generating navigator_config YAML: %s", err)
 		}

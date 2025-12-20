@@ -199,13 +199,13 @@ func (gm *GalaxyManager) executeGalaxyCommand(args []string, target string) erro
 	return nil
 }
 
-// SetupEnvironmentPaths configures ANSIBLE_COLLECTIONS_PATHS and ANSIBLE_ROLES_PATH
+// SetupEnvironmentPaths configures ANSIBLE_COLLECTIONS_PATH and ANSIBLE_ROLES_PATH
 func (gm *GalaxyManager) SetupEnvironmentPaths() error {
 	// Treat roles_path/collections_path as opaque strings.
 	// They are used both for Galaxy install destinations (-p) and Ansible discovery (env vars).
 	if gm.config.CollectionsPath != "" {
-		if err := os.Setenv("ANSIBLE_COLLECTIONS_PATHS", gm.config.CollectionsPath); err != nil {
-			return fmt.Errorf("failed to set ANSIBLE_COLLECTIONS_PATHS: %w", err)
+		if err := os.Setenv("ANSIBLE_COLLECTIONS_PATH", gm.config.CollectionsPath); err != nil {
+			return fmt.Errorf("failed to set ANSIBLE_COLLECTIONS_PATH: %w", err)
 		}
 	}
 	if gm.config.RolesPath != "" {
