@@ -50,18 +50,25 @@ func TestProvisioner_buildRunCommandArgsForPlay_ExtraArgsAndOrdering(t *testing.
 	require.Len(t, cmdArgs, len(cmdArgs))
 
 	// Ensure enforced --mode then play.extra_args
-	require.GreaterOrEqual(t, len(cmdArgs), 5)
-	require.Equal(t, []string{"run", "--mode", "stdout", "--check", "--diff"}, cmdArgs[:5])
+	require.GreaterOrEqual(t, len(cmdArgs), 4)
+	require.Equal(t, []string{"run", "--mode=stdout", "--check", "--diff"}, cmdArgs[:4])
 
 	// Ensure play target is last and inventory is immediately before it.
-	require.GreaterOrEqual(t, len(cmdArgs), 3)
-	require.Equal(t, "-i", cmdArgs[len(cmdArgs)-3])
-	require.Equal(t, "/tmp/inventory.ini", cmdArgs[len(cmdArgs)-2])
+	require.GreaterOrEqual(t, len(cmdArgs), 2)
+	require.Equal(t, "-i=/tmp/inventory.ini", cmdArgs[len(cmdArgs)-2])
 	require.Equal(t, "/tmp/site.yml", cmdArgs[len(cmdArgs)-1])
 
 	// Ensure sorted extra_vars ordering (a before b).
-	aIdx := indexOfSequence(cmdArgs, []string{"-e", "a=1"})
-	bIdx := indexOfSequence(cmdArgs, []string{"-e", "b=2"})
+	aIdx := -1
+	bIdx := -1
+	for i, arg := range cmdArgs {
+		if arg == "-e=a=1" {
+			aIdx = i
+		}
+		if arg == "-e=b=2" {
+			bIdx = i
+		}
+	}
 	require.NotEqual(t, -1, aIdx)
 	require.NotEqual(t, -1, bIdx)
 	require.Less(t, aIdx, bIdx)
@@ -88,23 +95,23 @@ func TestProvisioner_buildRunCommandArgsForPlay_ProvisionerExtraVars_JSONSingleP
 		defer os.Remove(extraVarsFilePath)
 	}
 
-	// Exactly one --extra-vars pair for provisioner-generated extra vars.
+	// Exactly one --extra-vars=@file argument for provisioner-generated extra vars.
 	extraVarsIdx := -1
 	extraVarsCount := 0
+	var extraVarsArg string
 	for i, a := range cmdArgs {
-		if a == "--extra-vars" {
+		if strings.HasPrefix(a, "--extra-vars=@") {
 			extraVarsCount++
 			extraVarsIdx = i
+			extraVarsArg = a
 		}
 	}
 	require.Equal(t, 1, extraVarsCount)
 	require.GreaterOrEqual(t, extraVarsIdx, 0)
-	require.Less(t, extraVarsIdx+1, len(cmdArgs))
 
 	// Verify file-based approach with @ prefix
-	extraVarsArg := cmdArgs[extraVarsIdx+1]
-	require.True(t, strings.HasPrefix(extraVarsArg, "@"), "extra-vars argument should start with @ (file-based)")
-	actualFilePath := strings.TrimPrefix(extraVarsArg, "@")
+	require.True(t, strings.HasPrefix(extraVarsArg, "--extra-vars=@"), "extra-vars argument should be --extra-vars=@file")
+	actualFilePath := strings.TrimPrefix(extraVarsArg, "--extra-vars=@")
 
 	// Verify file exists and contains valid JSON
 	require.FileExists(t, actualFilePath)
@@ -119,11 +126,11 @@ func TestProvisioner_buildRunCommandArgsForPlay_ProvisionerExtraVars_JSONSingleP
 	require.Equal(t, "127.0.0.1:8080", parsed["packer_http_addr"])
 	require.Equal(t, "/tmp/key", parsed["ansible_ssh_private_key_file"])
 
-	// No standalone -e/--extra-vars flags.
-	for i := 0; i < len(cmdArgs); i++ {
-		if cmdArgs[i] == "-e" || cmdArgs[i] == "--extra-vars" {
-			require.Less(t, i+1, len(cmdArgs), "flag %q at index %d must have an argument", cmdArgs[i], i)
-			require.NotEmpty(t, cmdArgs[i+1], "flag %q at index %d must have a non-empty argument", cmdArgs[i], i)
+	// All flags should use --flag=value or -f=value format (no standalone flags)
+	for i, arg := range cmdArgs {
+		// Check that flags are not using the old separate-elements format
+		if arg == "-e" || arg == "--extra-vars" || arg == "-i" || arg == "--mode" || arg == "--tags" {
+			require.Failf(t, "Found standalone flag", "argument %d: %q should use --flag=value format instead of separate elements", i, arg)
 		}
 	}
 

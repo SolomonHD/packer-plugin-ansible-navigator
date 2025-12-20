@@ -1207,7 +1207,7 @@ func (p *Provisioner) createCmdArgs(ui packersdk.Ui, httpAddr, inventory, privKe
 	}
 
 	// Pass file path with @ prefix (Ansible's file-based extra-vars syntax)
-	args = append(args, "--extra-vars", fmt.Sprintf("@%s", extraVarsFilePath))
+	args = append(args, fmt.Sprintf("--extra-vars=@%s", extraVarsFilePath))
 
 	// Log extra vars if ShowExtraVars is enabled
 	if p.config.ShowExtraVars {
@@ -1216,16 +1216,16 @@ func (p *Provisioner) createCmdArgs(ui packersdk.Ui, httpAddr, inventory, privKe
 
 	if p.generatedData["ConnType"] == "ssh" && len(privKeyFile) > 0 {
 		// Add ssh extra args to set IdentitiesOnly
-		args = append(args, "--ssh-extra-args", "-o IdentitiesOnly=yes")
+		args = append(args, "--ssh-extra-args=-o IdentitiesOnly=yes")
 	}
 
 	// Add limit if specified
 	if p.config.Limit != "" {
-		args = append(args, "--limit", p.config.Limit)
+		args = append(args, fmt.Sprintf("--limit=%s", p.config.Limit))
 	}
 
 	// This must be the last arg appended to args (the play target is appended later).
-	args = append(args, "-i", inventory)
+	args = append(args, fmt.Sprintf("-i=%s", inventory))
 	return args, envVars, extraVarsFilePath, nil
 }
 
@@ -1373,13 +1373,13 @@ func (p *Provisioner) buildRunCommandArgsForPlay(ui packersdk.Ui, play Play, htt
 		playArgs = append(playArgs, "--become")
 	}
 	if play.BecomeUser != "" {
-		playArgs = append(playArgs, "--become-user", play.BecomeUser)
+		playArgs = append(playArgs, fmt.Sprintf("--become-user=%s", play.BecomeUser))
 	}
 	for _, tag := range play.Tags {
-		playArgs = append(playArgs, "--tags", tag)
+		playArgs = append(playArgs, fmt.Sprintf("--tags=%s", tag))
 	}
 	for _, tag := range play.SkipTags {
-		playArgs = append(playArgs, "--skip-tags", tag)
+		playArgs = append(playArgs, fmt.Sprintf("--skip-tags=%s", tag))
 	}
 	if len(play.ExtraVars) > 0 {
 		keys := make([]string, 0, len(play.ExtraVars))
@@ -1388,11 +1388,11 @@ func (p *Provisioner) buildRunCommandArgsForPlay(ui packersdk.Ui, play Play, htt
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
-			playArgs = append(playArgs, "-e", fmt.Sprintf("%s=%s", k, play.ExtraVars[k]))
+			playArgs = append(playArgs, fmt.Sprintf("-e=%s=%s", k, play.ExtraVars[k]))
 		}
 	}
 	for _, varsFile := range play.VarsFiles {
-		playArgs = append(playArgs, "-e", fmt.Sprintf("@%s", varsFile))
+		playArgs = append(playArgs, fmt.Sprintf("-e=@%s", varsFile))
 	}
 
 	// Deterministic ordering:
@@ -1402,7 +1402,7 @@ func (p *Provisioner) buildRunCommandArgsForPlay(ui packersdk.Ui, play Play, htt
 	//   4) play target (playbook path)
 	cmdArgs = []string{"run"}
 	if p.config.NavigatorConfig != nil && p.config.NavigatorConfig.Mode != "" {
-		cmdArgs = append(cmdArgs, "--mode", p.config.NavigatorConfig.Mode)
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--mode=%s", p.config.NavigatorConfig.Mode))
 	}
 	cmdArgs = append(cmdArgs, play.ExtraArgs...)
 	cmdArgs = append(cmdArgs, playArgs...)
