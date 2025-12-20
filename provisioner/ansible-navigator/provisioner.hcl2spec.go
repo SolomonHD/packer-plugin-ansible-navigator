@@ -158,6 +158,7 @@ type FlatConfig struct {
 	GalaxyForceWithDeps     *bool                `mapstructure:"galaxy_force_with_deps" cty:"galaxy_force_with_deps" hcl:"galaxy_force_with_deps"`
 	UseProxy                *bool                `mapstructure:"use_proxy" cty:"use_proxy" hcl:"use_proxy"`
 	WinRMUseHTTP            *bool                `mapstructure:"ansible_winrm_use_http" cty:"ansible_winrm_use_http" hcl:"ansible_winrm_use_http"`
+	ShowExtraVars           *bool                `mapstructure:"show_extra_vars" cty:"show_extra_vars" hcl:"show_extra_vars"`
 	NavigatorConfig         *FlatNavigatorConfig `mapstructure:"navigator_config" cty:"navigator_config" hcl:"navigator_config"`
 }
 
@@ -217,6 +218,7 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"galaxy_force_with_deps":     &hcldec.AttrSpec{Name: "galaxy_force_with_deps", Type: cty.Bool, Required: false},
 		"use_proxy":                  &hcldec.AttrSpec{Name: "use_proxy", Type: cty.Bool, Required: false},
 		"ansible_winrm_use_http":     &hcldec.AttrSpec{Name: "ansible_winrm_use_http", Type: cty.Bool, Required: false},
+		"show_extra_vars":            &hcldec.AttrSpec{Name: "show_extra_vars", Type: cty.Bool, Required: false},
 		"navigator_config":           &hcldec.BlockSpec{TypeName: "navigator_config", Nested: hcldec.ObjectSpec((*FlatNavigatorConfig)(nil).HCL2Spec())},
 	}
 	return s

@@ -241,6 +241,11 @@ type Config struct {
 	// When true, pass --force-with-deps to ansible-galaxy.
 	GalaxyForceWithDeps bool `mapstructure:"galaxy_force_with_deps"`
 
+	// Display extra vars JSON content in output for debugging.
+	// When enabled, logs the extra vars JSON passed to ansible-navigator with sensitive values redacted.
+	// Default: false
+	ShowExtraVars bool `mapstructure:"show_extra_vars"`
+
 	// Modern declarative ansible-navigator configuration via YAML file generation.
 	// Maps directly to ansible-navigator.yml schema structure.
 	// Supports full ansible-navigator.yml structure including:
@@ -664,7 +669,31 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 	return nil
 }
 
-func (p *Provisioner) buildPluginArgsForPlay(play Play, inventory string) []string {
+// logExtraVarsJSON logs the extra vars JSON with sensitive values redacted
+func logExtraVarsJSON(ui packersdk.Ui, extraVars map[string]interface{}) {
+	// Create a copy for sanitization
+	sanitized := make(map[string]interface{})
+	for k, v := range extraVars {
+		// Redact sensitive keys
+		if k == "ansible_password" || strings.Contains(strings.ToLower(k), "password") {
+			sanitized[k] = "*****"
+		} else {
+			// Note: ansible_ssh_private_key_file path is shown (path is not secret, content is)
+			sanitized[k] = v
+		}
+	}
+
+	// Marshal to formatted JSON
+	jsonBytes, err := json.MarshalIndent(sanitized, "", "  ")
+	if err != nil {
+		ui.Message(fmt.Sprintf("[Extra Vars] Failed to format JSON: %v", err))
+		return
+	}
+
+	ui.Message(fmt.Sprintf("[Extra Vars] JSON content:\n%s", string(jsonBytes)))
+}
+
+func (p *Provisioner) buildPluginArgsForPlay(ui packersdk.Ui, play Play, inventory string) []string {
 	args := make([]string, 0)
 
 	// Provisioner-generated extra vars MUST be conveyed via a single JSON object
@@ -683,6 +712,11 @@ func (p *Provisioner) buildPluginArgsForPlay(play Play, inventory string) []stri
 		extraVarsJSON = []byte("{}")
 	}
 	args = append(args, "--extra-vars", string(extraVarsJSON))
+
+	// Log extra vars if ShowExtraVars is enabled
+	if p.config.ShowExtraVars {
+		logExtraVarsJSON(ui, extraVars)
+	}
 
 	if play.Become {
 		args = append(args, "--become")
@@ -832,7 +866,7 @@ func (p *Provisioner) executeAnsiblePlaybook(
 		runArgs = append(runArgs, "--mode", p.config.NavigatorConfig.Mode)
 	}
 	runArgs = append(runArgs, play.ExtraArgs...)
-	runArgs = append(runArgs, p.buildPluginArgsForPlay(play, inventory)...)
+	runArgs = append(runArgs, p.buildPluginArgsForPlay(ui, play, inventory)...)
 	runArgs = append(runArgs, playbookFile)
 
 	command := ""

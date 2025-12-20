@@ -385,6 +385,11 @@ type Config struct {
 	// Default: `false`
 	WinRMUseHTTP bool `mapstructure:"ansible_winrm_use_http"`
 
+	// Display extra vars JSON content in output for debugging.
+	// When enabled, logs the extra vars JSON passed to ansible-navigator with sensitive values redacted.
+	// Default: false
+	ShowExtraVars bool `mapstructure:"show_extra_vars"`
+
 	// Modern declarative ansible-navigator configuration via typed structs.
 	// When provided, the plugin generates a temporary ansible-navigator.yml file.
 	// This replaces the previous map[string]interface{} approach to ensure RPC serializability.
@@ -1087,7 +1092,31 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 	return nil
 }
 
-func (p *Provisioner) createCmdArgs(httpAddr, inventory, privKeyFile string) (args []string, envVars []string) {
+// logExtraVarsJSON logs the extra vars JSON with sensitive values redacted
+func logExtraVarsJSON(ui packersdk.Ui, extraVars map[string]interface{}) {
+	// Create a copy for sanitization
+	sanitized := make(map[string]interface{})
+	for k, v := range extraVars {
+		// Redact sensitive keys
+		if k == "ansible_password" || strings.Contains(strings.ToLower(k), "password") {
+			sanitized[k] = "*****"
+		} else {
+			// Note: ansible_ssh_private_key_file path is shown (path is not secret, content is)
+			sanitized[k] = v
+		}
+	}
+
+	// Marshal to formatted JSON
+	jsonBytes, err := json.MarshalIndent(sanitized, "", "  ")
+	if err != nil {
+		ui.Message(fmt.Sprintf("[Extra Vars] Failed to format JSON: %v", err))
+		return
+	}
+
+	ui.Message(fmt.Sprintf("[Extra Vars] JSON content:\n%s", string(jsonBytes)))
+}
+
+func (p *Provisioner) createCmdArgs(ui packersdk.Ui, httpAddr, inventory, privKeyFile string) (args []string, envVars []string) {
 	args = []string{}
 
 	// Provisioner-generated extra vars MUST be conveyed via a single JSON object
@@ -1139,6 +1168,11 @@ func (p *Provisioner) createCmdArgs(httpAddr, inventory, privKeyFile string) (ar
 		extraVarsJSON = []byte("{}")
 	}
 	args = append(args, "--extra-vars", string(extraVarsJSON))
+
+	// Log extra vars if ShowExtraVars is enabled
+	if p.config.ShowExtraVars {
+		logExtraVarsJSON(ui, extraVars)
+	}
 
 	if p.generatedData["ConnType"] == "ssh" && len(privKeyFile) > 0 {
 		// Add ssh extra args to set IdentitiesOnly
@@ -1283,9 +1317,9 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 	return p.executePlays(ui, comm, privKeyFile, httpAddr, navigatorConfigPath)
 }
 
-func (p *Provisioner) buildRunCommandArgsForPlay(play Play, httpAddr, inventory, playbookPath, privKeyFile string) (cmdArgs []string, envvars []string) {
+func (p *Provisioner) buildRunCommandArgsForPlay(ui packersdk.Ui, play Play, httpAddr, inventory, playbookPath, privKeyFile string) (cmdArgs []string, envvars []string) {
 	// Build command arguments (excluding play target; appended last for deterministic ordering)
-	baseArgs, envvars := p.createCmdArgs(httpAddr, inventory, privKeyFile)
+	baseArgs, envvars := p.createCmdArgs(ui, httpAddr, inventory, privKeyFile)
 
 	// Play-level flags (deterministic order)
 	playArgs := make([]string, 0)
@@ -1384,7 +1418,7 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 			}
 		}
 
-		cmdArgs, envvars := p.buildRunCommandArgsForPlay(play, httpAddr, inventory, playbookPath, privKeyFile)
+		cmdArgs, envvars := p.buildRunCommandArgsForPlay(ui, play, httpAddr, inventory, playbookPath, privKeyFile)
 
 		cmd := exec.Command(p.config.Command, cmdArgs...)
 
