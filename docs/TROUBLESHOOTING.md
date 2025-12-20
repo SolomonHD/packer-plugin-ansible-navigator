@@ -284,6 +284,69 @@ ERROR! Could not find/install packages: namespace.collection_name
    }
    ```
 
+## Collections not found inside execution environment
+
+### Error: "unable to find role" or "collection not found" when using EE
+
+**Symptom**: Collections work fine with `execution_environment.enabled = false`, but fail when EE is enabled:
+```
+ERROR! the role 'namespace.collection.role_name' was not found
+```
+
+**Root Cause** (before v6.1.0): Collections installed on the host were not mounted into the execution environment container.
+
+**Resolution**:
+
+Starting with v6.1.0, collections are automatically mounted when using execution environments. No manual configuration needed:
+
+```hcl
+provisioner "ansible-navigator" {
+  requirements_file = "./requirements.yml"
+  
+  navigator_config {
+    execution_environment {
+      enabled = true
+      image = "quay.io/ansible/creator-ee:latest"
+    }
+  }
+  
+  play {
+    # Collections from requirements.yml are automatically mounted and available
+    target = "namespace.collection.role_name"
+  }
+}
+```
+
+**What happens automatically:**
+
+- Collections installed to `~/.packer.d/ansible_collections_cache/ansible_collections` are mounted read-only into the container
+- `ANSIBLE_COLLECTIONS_PATH` is set inside the container to point to the mounted collections
+- No manual volume configuration needed
+
+**For v6.0.0 and earlier**, you had to manually configure volume mounts. If you're on an older version, upgrade to v6.1.0+ or use manual mounts:
+
+```hcl
+provisioner "ansible-navigator" {
+  navigator_config {
+    execution_environment {
+      enabled = true
+      image = "quay.io/ansible/creator-ee:latest"
+      # Manual mount (not needed in v6.1.0+)
+      volume_mounts {
+        src = "/home/user/.packer.d/ansible_collections_cache/ansible_collections"
+        dest = "/tmp/.packer_ansible/collections"
+        options = "ro"
+      }
+      environment_variables {
+        set = {
+          ANSIBLE_COLLECTIONS_PATH = "/tmp/.packer_ansible/collections"
+        }
+      }
+    }
+  }
+}
+```
+
 ---
 
 [← Back to docs index](README.md)

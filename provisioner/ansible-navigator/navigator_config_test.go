@@ -7,6 +7,7 @@ package ansiblenavigator
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -24,7 +25,7 @@ func TestGenerateNavigatorConfigYAML_Basic(t *testing.T) {
 		},
 	}
 
-	yaml, err := generateNavigatorConfigYAML(config)
+	yaml, err := generateNavigatorConfigYAML(config, "")
 	if err != nil {
 		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
 	}
@@ -49,7 +50,7 @@ func TestGenerateNavigatorConfigYAML_AutomaticEEDefaults(t *testing.T) {
 		},
 	}
 
-	yaml, err := generateNavigatorConfigYAML(config)
+	yaml, err := generateNavigatorConfigYAML(config, "")
 	if err != nil {
 		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
 	}
@@ -80,7 +81,7 @@ func TestGenerateNavigatorConfigYAML_AutomaticEEHomeXDGDefaults_WhenNotSetOrPass
 		},
 	}
 
-	yamlStr, err := generateNavigatorConfigYAML(config)
+	yamlStr, err := generateNavigatorConfigYAML(config, "")
 	if err != nil {
 		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
 	}
@@ -108,7 +109,7 @@ func TestGenerateNavigatorConfigYAML_DoesNotSetHomeXDGDefaults_WhenPassedThrough
 		},
 	}
 
-	yamlStr, err := generateNavigatorConfigYAML(config)
+	yamlStr, err := generateNavigatorConfigYAML(config, "")
 	if err != nil {
 		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
 	}
@@ -140,7 +141,7 @@ func TestGenerateNavigatorConfigYAML_DoesNotOverrideHomeXDG_WhenUserSetsValues(t
 		},
 	}
 
-	yamlStr, err := generateNavigatorConfigYAML(config)
+	yamlStr, err := generateNavigatorConfigYAML(config, "")
 	if err != nil {
 		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
 	}
@@ -175,7 +176,7 @@ func TestGenerateNavigatorConfigYAML_UserValuesPreserved(t *testing.T) {
 		},
 	}
 
-	yaml, err := generateNavigatorConfigYAML(config)
+	yaml, err := generateNavigatorConfigYAML(config, "")
 	if err != nil {
 		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
 	}
@@ -204,7 +205,7 @@ func TestGenerateNavigatorConfigYAML_AnsibleConfigPathSchemaCompliant(t *testing
 		},
 	}
 
-	yamlStr, err := generateNavigatorConfigYAML(config)
+	yamlStr, err := generateNavigatorConfigYAML(config, "")
 	if err != nil {
 		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
 	}
@@ -258,7 +259,7 @@ func TestGeneratorNavigatorConfigYAML_EmptyConfig(t *testing.T) {
 
 	// Empty config is technically allowed by generateNavigatorConfigYAML
 	// The validation that it must have at least one field happens in Config.Validate()
-	yaml, err := generateNavigatorConfigYAML(config)
+	yaml, err := generateNavigatorConfigYAML(config, "")
 	if err != nil {
 		t.Fatalf("generateNavigatorConfigYAML should not error on empty config: %v", err)
 	}
@@ -271,7 +272,7 @@ func TestGeneratorNavigatorConfigYAML_EmptyConfig(t *testing.T) {
 
 // Test error when config is nil
 func TestGenerateNavigatorConfigYAML_NilConfig(t *testing.T) {
-	_, err := generateNavigatorConfigYAML(nil)
+	_, err := generateNavigatorConfigYAML(nil, "")
 	if err == nil {
 		t.Fatal("Expected error for nil config, got nil")
 	}
@@ -291,7 +292,7 @@ func TestGenerateNavigatorConfigYAML_ValidYAML(t *testing.T) {
 		},
 	}
 
-	yamlStr, err := generateNavigatorConfigYAML(config)
+	yamlStr, err := generateNavigatorConfigYAML(config, "")
 	if err != nil {
 		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
 	}
@@ -383,7 +384,7 @@ func TestGenerateNavigatorConfigYAML_EEDisabled(t *testing.T) {
 		},
 	}
 
-	yaml, err := generateNavigatorConfigYAML(config)
+	yaml, err := generateNavigatorConfigYAML(config, "")
 	if err != nil {
 		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
 	}
@@ -427,7 +428,7 @@ func TestGenerateNavigatorConfigYAML_ComplexConfig(t *testing.T) {
 		},
 	}
 
-	yamlStr, err := generateNavigatorConfigYAML(config)
+	yamlStr, err := generateNavigatorConfigYAML(config, "")
 	if err != nil {
 		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
 	}
@@ -453,5 +454,130 @@ func TestGenerateNavigatorConfigYAML_ComplexConfig(t *testing.T) {
 	err = yaml.Unmarshal([]byte(yamlStr), &parsed)
 	if err != nil {
 		t.Fatalf("Generated YAML is not valid: %v", err)
+	}
+}
+
+// Test volume mount added when EE is enabled and collections path provided
+func TestGenerateNavigatorConfigYAML_VolumeMountWithCollections(t *testing.T) {
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled: true,
+			Image:   "quay.io/ansible/creator-ee:latest",
+		},
+	}
+
+	// Use a real home directory path
+	testCollectionsPath := filepath.Join(os.TempDir(), "test_collections")
+
+	yamlStr, err := generateNavigatorConfigYAML(config, testCollectionsPath)
+	if err != nil {
+		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+	}
+
+	// Verify volume mount is present
+	if !strings.Contains(yamlStr, "volume-mounts:") {
+		t.Errorf("Expected volume-mounts in YAML when collections path provided with EE, got: %s", yamlStr)
+	}
+
+	if !strings.Contains(yamlStr, "src:") {
+		t.Errorf("Expected src in volume mount, got: %s", yamlStr)
+	}
+
+	if !strings.Contains(yamlStr, "dest: /tmp/.packer_ansible/collections") {
+		t.Errorf("Expected dest: /tmp/.packer_ansible/collections in volume mount, got: %s", yamlStr)
+	}
+
+	if !strings.Contains(yamlStr, "options: ro") {
+		t.Errorf("Expected options: ro in volume mount, got: %s", yamlStr)
+	}
+
+	// Verify ANSIBLE_COLLECTIONS_PATH environment variable
+	if !strings.Contains(yamlStr, "ANSIBLE_COLLECTIONS_PATH: /tmp/.packer_ansible/collections") {
+		t.Errorf("Expected ANSIBLE_COLLECTIONS_PATH env var in YAML, got: %s", yamlStr)
+	}
+}
+
+// Test no volume mount when EE is disabled
+func TestGenerateNavigatorConfigYAML_NoVolumeMountWhenEEDisabled(t *testing.T) {
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled: false,
+		},
+	}
+
+	testCollectionsPath := filepath.Join(os.TempDir(), "test_collections")
+
+	yamlStr, err := generateNavigatorConfigYAML(config, testCollectionsPath)
+	if err != nil {
+		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+	}
+
+	// Verify no volume mount is added when EE is disabled
+	if strings.Contains(yamlStr, "volume-mounts") {
+		t.Errorf("Did not expect volume-mounts when EE is disabled, got: %s", yamlStr)
+	}
+
+	// Verify ANSIBLE_COLLECTIONS_PATH is not added when EE is disabled
+	if strings.Contains(yamlStr, "ANSIBLE_COLLECTIONS_PATH") {
+		t.Errorf("Did not expect ANSIBLE_COLLECTIONS_PATH when EE is disabled, got: %s", yamlStr)
+	}
+}
+
+// Test no volume mount when collections path is empty
+func TestGenerateNavigatorConfigYAML_NoVolumeMountWhenNoCollections(t *testing.T) {
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled: true,
+			Image:   "quay.io/ansible/creator-ee:latest",
+		},
+	}
+
+	yamlStr, err := generateNavigatorConfigYAML(config, "")
+	if err != nil {
+		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+	}
+
+	// Verify no volume mount is added when collections path is empty
+	if strings.Contains(yamlStr, "volume-mounts") {
+		t.Errorf("Did not expect volume-mounts when collections path is empty, got: %s", yamlStr)
+	}
+
+	// Verify ANSIBLE_COLLECTIONS_PATH is not added when collections path is empty
+	if strings.Contains(yamlStr, "ANSIBLE_COLLECTIONS_PATH") {
+		t.Errorf("Did not expect ANSIBLE_COLLECTIONS_PATH when collections path is empty, got: %s", yamlStr)
+	}
+}
+
+// Test that user-provided volume mounts are preserved
+func TestGenerateNavigatorConfigYAML_UserVolumeMountsPreserved(t *testing.T) {
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled: true,
+			Image:   "quay.io/ansible/creator-ee:latest",
+			VolumeMounts: []VolumeMount{
+				{
+					Src:     "/host/custom",
+					Dest:    "/container/custom",
+					Options: "rw",
+				},
+			},
+		},
+	}
+
+	testCollectionsPath := filepath.Join(os.TempDir(), "test_collections")
+
+	yamlStr, err := generateNavigatorConfigYAML(config, testCollectionsPath)
+	if err != nil {
+		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+	}
+
+	// Verify user mount is preserved
+	if !strings.Contains(yamlStr, "/host/custom") {
+		t.Errorf("Expected user-provided mount /host/custom to be preserved, got: %s", yamlStr)
+	}
+
+	// Verify collections mount is added
+	if !strings.Contains(yamlStr, "/tmp/.packer_ansible/collections") {
+		t.Errorf("Expected automatic collections mount to be added, got: %s", yamlStr)
 	}
 }
