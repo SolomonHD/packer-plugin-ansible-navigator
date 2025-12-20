@@ -139,6 +139,7 @@ type FlatConfig struct {
 	GalaxyArgs           []string             `mapstructure:"galaxy_args" cty:"galaxy_args" hcl:"galaxy_args"`
 	GalaxyForce          *bool                `mapstructure:"galaxy_force" cty:"galaxy_force" hcl:"galaxy_force"`
 	GalaxyForceWithDeps  *bool                `mapstructure:"galaxy_force_with_deps" cty:"galaxy_force_with_deps" hcl:"galaxy_force_with_deps"`
+	ShowExtraVars        *bool                `mapstructure:"show_extra_vars" cty:"show_extra_vars" hcl:"show_extra_vars"`
 	NavigatorConfig      *FlatNavigatorConfig `mapstructure:"navigator_config" cty:"navigator_config" hcl:"navigator_config"`
 }
 
@@ -179,6 +180,7 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"galaxy_args":                &hcldec.AttrSpec{Name: "galaxy_args", Type: cty.List(cty.String), Required: false},
 		"galaxy_force":               &hcldec.AttrSpec{Name: "galaxy_force", Type: cty.Bool, Required: false},
 		"galaxy_force_with_deps":     &hcldec.AttrSpec{Name: "galaxy_force_with_deps", Type: cty.Bool, Required: false},
+		"show_extra_vars":            &hcldec.AttrSpec{Name: "show_extra_vars", Type: cty.Bool, Required: false},
 		"navigator_config":           &hcldec.BlockSpec{TypeName: "navigator_config", Nested: hcldec.ObjectSpec((*FlatNavigatorConfig)(nil).HCL2Spec())},
 	}
 	return s
