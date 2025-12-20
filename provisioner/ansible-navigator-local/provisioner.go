@@ -236,7 +236,7 @@ type Config struct {
 	// Defaults to ~/.packer.d/ansible_roles_cache if not specified.
 	RolesPath string `mapstructure:"roles_path"`
 	// Destination directory for installed collections.
-	// This value is passed to ansible-galaxy as the collections install path and exported to Ansible via ANSIBLE_COLLECTIONS_PATHS.
+	// This value is passed to ansible-galaxy as the collections install path and exported to Ansible via ANSIBLE_COLLECTIONS_PATH.
 	// Defaults to ~/.packer.d/ansible_collections_cache if not specified.
 	CollectionsPath string `mapstructure:"collections_path"`
 	// When true, skip network operations for both collections and roles.

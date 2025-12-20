@@ -242,7 +242,7 @@ type Config struct {
 	// Defaults to ~/.packer.d/ansible_roles_cache if not specified.
 	RolesPath string `mapstructure:"roles_path"`
 	// Destination directory for installed collections.
-	// This value is passed to ansible-galaxy as the collections install path and exported to Ansible via ANSIBLE_COLLECTIONS_PATHS.
+	// This value is passed to ansible-galaxy as the collections install path and exported to Ansible via ANSIBLE_COLLECTIONS_PATH.
 	// Defaults to ~/.packer.d/ansible_collections_cache if not specified.
 	CollectionsPath string `mapstructure:"collections_path"`
 	// When true, skip network operations for both collections and roles.
@@ -1303,14 +1303,11 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 	// Generate and setup ansible-navigator.yml if configured
 	var navigatorConfigPath string
 	if p.config.NavigatorConfig != nil {
-		// Resolve collections path with proper default
+		// Pass collections path directly to navigator config generation.
+		// The path should point to the directory that contains the ansible_collections/ subdirectory.
+		// ansible-galaxy installs to <collections_path>/ansible_collections/<namespace>/<collection>,
+		// and Ansible expects ANSIBLE_COLLECTIONS_PATH to point to the parent directory.
 		collectionsPath := p.config.CollectionsPath
-		if collectionsPath != "" {
-			// Append ansible_collections to the path if it doesn't already end with it
-			if !strings.HasSuffix(collectionsPath, "ansible_collections") {
-				collectionsPath = filepath.Join(collectionsPath, "ansible_collections")
-			}
-		}
 
 		// If ansible_config.defaults / ansible_config.ssh_connection are provided
 		// (explicitly or via EE defaults), generate an ansible.cfg file and reference
