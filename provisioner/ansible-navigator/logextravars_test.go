@@ -7,6 +7,7 @@ package ansiblenavigator
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 
@@ -129,7 +130,11 @@ func TestShowExtraVars_DisabledByDefault(t *testing.T) {
 	}
 
 	ui := newMockUi().(*mockUi)
-	_, _ = p.createCmdArgs(ui, "127.0.0.1:8080", "/tmp/inventory.ini", "/tmp/key")
+	_, _, extraVarsFilePath, err := p.createCmdArgs(ui, "127.0.0.1:8080", "/tmp/inventory.ini", "/tmp/key")
+	require.NoError(t, err)
+	if extraVarsFilePath != "" {
+		defer os.Remove(extraVarsFilePath)
+	}
 
 	// Should not have received any extra vars messages
 	for _, msg := range ui.messageMessages {
@@ -150,7 +155,11 @@ func TestShowExtraVars_EnabledWhenConfigured(t *testing.T) {
 	}
 
 	ui := newMockUi().(*mockUi)
-	_, _ = p.createCmdArgs(ui, "127.0.0.1:8080", "/tmp/inventory.ini", "/tmp/key")
+	_, _, extraVarsFilePath, err := p.createCmdArgs(ui, "127.0.0.1:8080", "/tmp/inventory.ini", "/tmp/key")
+	require.NoError(t, err)
+	if extraVarsFilePath != "" {
+		defer os.Remove(extraVarsFilePath)
+	}
 
 	// Should have received an extra vars message
 	foundExtraVarsMsg := false

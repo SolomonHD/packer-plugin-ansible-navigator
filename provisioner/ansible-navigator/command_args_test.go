@@ -7,6 +7,8 @@ package ansiblenavigator
 
 import (
 	"encoding/json"
+	"os"
+	"strings"
 	"testing"
 
 	packersdk "github.com/hashicorp/packer-plugin-sdk/packer"
@@ -35,7 +37,13 @@ func TestProvisioner_buildRunCommandArgsForPlay_ExtraArgsAndOrdering(t *testing.
 	}
 
 	ui := &packersdk.BasicUi{}
-	cmdArgs, _ := p.buildRunCommandArgsForPlay(ui, play, "127.0.0.1:8080", "/tmp/inventory.ini", "/tmp/site.yml", "/tmp/key")
+	cmdArgs, _, extraVarsFilePath, err := p.buildRunCommandArgsForPlay(ui, play, "127.0.0.1:8080", "/tmp/inventory.ini", "/tmp/site.yml", "/tmp/key")
+	require.NoError(t, err)
+
+	// Clean up temp file created by test
+	if extraVarsFilePath != "" {
+		defer os.Remove(extraVarsFilePath)
+	}
 
 	require.GreaterOrEqual(t, len(cmdArgs), 1)
 	require.Equal(t, "run", cmdArgs[0])
@@ -72,7 +80,13 @@ func TestProvisioner_buildRunCommandArgsForPlay_ProvisionerExtraVars_JSONSingleP
 
 	ui := &packersdk.BasicUi{}
 	play := Play{Target: "site.yml"}
-	cmdArgs, _ := p.buildRunCommandArgsForPlay(ui, play, "127.0.0.1:8080", "/tmp/inventory.ini", "/tmp/site.yml", "/tmp/key")
+	cmdArgs, _, extraVarsFilePath, err := p.buildRunCommandArgsForPlay(ui, play, "127.0.0.1:8080", "/tmp/inventory.ini", "/tmp/site.yml", "/tmp/key")
+	require.NoError(t, err)
+
+	// Clean up temp file created by test
+	if extraVarsFilePath != "" {
+		defer os.Remove(extraVarsFilePath)
+	}
 
 	// Exactly one --extra-vars pair for provisioner-generated extra vars.
 	extraVarsIdx := -1
@@ -87,8 +101,19 @@ func TestProvisioner_buildRunCommandArgsForPlay_ProvisionerExtraVars_JSONSingleP
 	require.GreaterOrEqual(t, extraVarsIdx, 0)
 	require.Less(t, extraVarsIdx+1, len(cmdArgs))
 
+	// Verify file-based approach with @ prefix
+	extraVarsArg := cmdArgs[extraVarsIdx+1]
+	require.True(t, strings.HasPrefix(extraVarsArg, "@"), "extra-vars argument should start with @ (file-based)")
+	actualFilePath := strings.TrimPrefix(extraVarsArg, "@")
+
+	// Verify file exists and contains valid JSON
+	require.FileExists(t, actualFilePath)
+	fileContent, err2 := os.ReadFile(actualFilePath)
+	require.NoError(t, err2)
+
+	// Parse and verify JSON content
 	var parsed map[string]interface{}
-	require.NoError(t, json.Unmarshal([]byte(cmdArgs[extraVarsIdx+1]), &parsed))
+	require.NoError(t, json.Unmarshal(fileContent, &parsed))
 	require.Equal(t, "docker", parsed["packer_builder_type"])
 	require.Equal(t, "example-build", parsed["packer_build_name"])
 	require.Equal(t, "127.0.0.1:8080", parsed["packer_http_addr"])
