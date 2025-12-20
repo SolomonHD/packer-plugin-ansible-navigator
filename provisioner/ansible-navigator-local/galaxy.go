@@ -182,14 +182,14 @@ func (gm *GalaxyManager) executeGalaxyCommand(args []string, target string) erro
 	return nil
 }
 
-// SetupEnvironmentPaths configures ANSIBLE_COLLECTIONS_PATHS and ANSIBLE_ROLES_PATH
+// SetupEnvironmentPaths configures ANSIBLE_COLLECTIONS_PATH and ANSIBLE_ROLES_PATH
 // Returns environment variable strings to be prepended to commands
 func (gm *GalaxyManager) SetupEnvironmentPaths() []string {
 	envVars := []string{}
 
 	// Set collections path
 	if gm.config.CollectionsPath != "" {
-		envVars = append(envVars, fmt.Sprintf("ANSIBLE_COLLECTIONS_PATHS=%s", gm.config.CollectionsPath))
+		envVars = append(envVars, fmt.Sprintf("ANSIBLE_COLLECTIONS_PATH=%s", gm.config.CollectionsPath))
 	}
 
 	// Set roles path

@@ -8,6 +8,7 @@ package ansiblenavigator
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -34,7 +35,10 @@ func envVarIsSetOrPassed(env *EnvironmentVariablesConfig, key string) bool {
 //
 // This is primarily to avoid permission errors inside containers when Ansible
 // tries to write under non-writable default paths like "/.ansible/tmp".
-func applyAutomaticEEDefaults(config *NavigatorConfig) {
+//
+// It also configures collections path mounting and environment variables when
+// collectionsPath is provided.
+func applyAutomaticEEDefaults(config *NavigatorConfig, collectionsPath string) {
 	if config == nil {
 		return
 	}
@@ -86,16 +90,55 @@ func applyAutomaticEEDefaults(config *NavigatorConfig) {
 	if !envVarIsSetOrPassed(env, "XDG_CONFIG_HOME") {
 		env.Set["XDG_CONFIG_HOME"] = "/tmp/.config"
 	}
+
+	// Configure collections path for execution environment
+	if collectionsPath != "" {
+		// Expand tilde to get absolute path for volume mount
+		absCollectionsPath := expandUserPath(collectionsPath)
+		// Ensure we have an absolute path
+		if !filepath.IsAbs(absCollectionsPath) {
+			var err error
+			absCollectionsPath, err = filepath.Abs(absCollectionsPath)
+			if err != nil {
+				// Fallback to unexpanded path if Abs() fails
+				absCollectionsPath = collectionsPath
+			}
+		}
+
+		// Add ANSIBLE_COLLECTIONS_PATH environment variable pointing to container path
+		containerCollectionsPath := "/tmp/.packer_ansible/collections"
+		if !envVarIsSetOrPassed(env, "ANSIBLE_COLLECTIONS_PATH") {
+			env.Set["ANSIBLE_COLLECTIONS_PATH"] = containerCollectionsPath
+		}
+
+		// Add volume mount for collections (read-only)
+		// Check if this mount already exists to avoid duplicates
+		mountExists := false
+		for _, mount := range config.ExecutionEnvironment.VolumeMounts {
+			if mount.Src == absCollectionsPath || mount.Dest == containerCollectionsPath {
+				mountExists = true
+				break
+			}
+		}
+		if !mountExists {
+			config.ExecutionEnvironment.VolumeMounts = append(config.ExecutionEnvironment.VolumeMounts,
+				VolumeMount{
+					Src:     absCollectionsPath,
+					Dest:    containerCollectionsPath,
+					Options: "ro",
+				})
+		}
+	}
 }
 
 // generateNavigatorConfigYAML converts the NavigatorConfig struct to YAML format
 // and applies automatic defaults when execution-environment.enabled = true
-func generateNavigatorConfigYAML(config *NavigatorConfig) (string, error) {
+func generateNavigatorConfigYAML(config *NavigatorConfig, collectionsPath string) (string, error) {
 	if config == nil {
 		return "", fmt.Errorf("navigator_config cannot be nil")
 	}
 
-	applyAutomaticEEDefaults(config)
+	applyAutomaticEEDefaults(config, collectionsPath)
 
 	// Convert to YAML-friendly structure with proper field names
 	yamlConfig := convertToYAMLStructure(config)
@@ -141,6 +184,19 @@ func convertToYAMLStructure(config *NavigatorConfig) map[string]interface{} {
 			if len(envVarsMap) > 0 {
 				eeMap["environment-variables"] = envVarsMap
 			}
+		}
+		if len(config.ExecutionEnvironment.VolumeMounts) > 0 {
+			volumeMounts := make([]map[string]interface{}, 0, len(config.ExecutionEnvironment.VolumeMounts))
+			for _, mount := range config.ExecutionEnvironment.VolumeMounts {
+				mountMap := make(map[string]interface{})
+				mountMap["src"] = mount.Src
+				mountMap["dest"] = mount.Dest
+				if mount.Options != "" {
+					mountMap["options"] = mount.Options
+				}
+				volumeMounts = append(volumeMounts, mountMap)
+			}
+			eeMap["volume-mounts"] = volumeMounts
 		}
 		ansibleNavigator["execution-environment"] = eeMap
 	}

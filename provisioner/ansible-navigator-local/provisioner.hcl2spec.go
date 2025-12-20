@@ -218,6 +218,7 @@ type FlatExecutionEnvironment struct {
 	Image                *string                         `mapstructure:"image" cty:"image" hcl:"image"`
 	PullPolicy           *string                         `mapstructure:"pull_policy" cty:"pull_policy" hcl:"pull_policy"`
 	EnvironmentVariables *FlatEnvironmentVariablesConfig `mapstructure:"environment_variables" cty:"environment_variables" hcl:"environment_variables"`
+	VolumeMounts         []FlatVolumeMount               `mapstructure:"volume_mounts" cty:"volume_mounts" hcl:"volume_mounts"`
 }
 
 // FlatMapstructure returns a new FlatExecutionEnvironment.
@@ -236,6 +237,7 @@ func (*FlatExecutionEnvironment) HCL2Spec() map[string]hcldec.Spec {
 		"image":                 &hcldec.AttrSpec{Name: "image", Type: cty.String, Required: false},
 		"pull_policy":           &hcldec.AttrSpec{Name: "pull_policy", Type: cty.String, Required: false},
 		"environment_variables": &hcldec.BlockSpec{TypeName: "environment_variables", Nested: hcldec.ObjectSpec((*FlatEnvironmentVariablesConfig)(nil).HCL2Spec())},
+		"volume_mounts":         &hcldec.BlockListSpec{TypeName: "volume_mounts", Nested: hcldec.ObjectSpec((*FlatVolumeMount)(nil).HCL2Spec())},
 	}
 	return s
 }
@@ -358,6 +360,33 @@ func (*FlatPlaybookArtifact) HCL2Spec() map[string]hcldec.Spec {
 		"enable":  &hcldec.AttrSpec{Name: "enable", Type: cty.Bool, Required: false},
 		"replay":  &hcldec.AttrSpec{Name: "replay", Type: cty.String, Required: false},
 		"save_as": &hcldec.AttrSpec{Name: "save_as", Type: cty.String, Required: false},
+	}
+	return s
+}
+
+// FlatVolumeMount is an auto-generated flat version of VolumeMount.
+// Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
+type FlatVolumeMount struct {
+	Src     *string `mapstructure:"src" cty:"src" hcl:"src"`
+	Dest    *string `mapstructure:"dest" cty:"dest" hcl:"dest"`
+	Options *string `mapstructure:"options" cty:"options" hcl:"options"`
+}
+
+// FlatMapstructure returns a new FlatVolumeMount.
+// FlatVolumeMount is an auto-generated flat version of VolumeMount.
+// Where the contents a fields with a `mapstructure:,squash` tag are bubbled up.
+func (*VolumeMount) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec.Spec } {
+	return new(FlatVolumeMount)
+}
+
+// HCL2Spec returns the hcl spec of a VolumeMount.
+// This spec is used by HCL to read the fields of VolumeMount.
+// The decoded values from this spec will then be applied to a FlatVolumeMount.
+func (*FlatVolumeMount) HCL2Spec() map[string]hcldec.Spec {
+	s := map[string]hcldec.Spec{
+		"src":     &hcldec.AttrSpec{Name: "src", Type: cty.String, Required: false},
+		"dest":    &hcldec.AttrSpec{Name: "dest", Type: cty.String, Required: false},
+		"options": &hcldec.AttrSpec{Name: "options", Type: cty.String, Required: false},
 	}
 	return s
 }

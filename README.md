@@ -263,22 +263,25 @@ navigator_config {
 }
 ```
 
-### Automatic ansible.cfg generation (execution environments)
+### Automatic ansible.cfg generation and collections mounting (execution environments)
 
-When using execution environments, Ansible inside the container can fail if it tries to write temp files under `/.ansible/tmp` as a non-root user.
+When using execution environments, the plugin automatically:
+
+1. ** Sets safe temp directories** to avoid `/.ansible/tmp` permission errors
+2. **Mounts collections as volumes** so they're accessible inside the container
+3. **Configures `ANSIBLE_COLLECTIONS_PATH`** to point to the mounted collections
 
 **Recommended approach using navigator_config:**
 
 ```hcl
 provisioner "ansible-navigator" {
+  # Install collections before running plays
+  requirements_file = "./requirements.yml"
+  
   navigator_config {
     execution_environment {
       enabled = true
       image = "quay.io/ansible/creator-ee:latest"
-      environment_variables {
-        ANSIBLE_REMOTE_TMP = "/tmp/.ansible/tmp"
-        ANSIBLE_LOCAL_TMP  = "/tmp/.ansible-local"
-      }
     }
     ansible_config {
       defaults {
@@ -286,8 +289,19 @@ provisioner "ansible-navigator" {
       }
     }
   }
+  
+  play {
+    # Collections are automatically mounted and accessible
+    target = "community.general.some_role"
+  }
 }
 ```
+
+**What happens automatically:**
+
+- Collections installed to `~/.packer.d/ansible_collections_cache/ansible_collections` are mounted read-only into the container at `/tmp/.packer_ansible/collections`
+- `ANSIBLE_COLLECTIONS_PATH` is set inside the container to `/tmp/.packer_ansible/collections`
+- Temp directories are configured to use `/tmp/.ansible/tmp` to avoid permission errors
 
 > **⚠️ BREAKING CHANGE (v4.0.0):** The following options have been REMOVED: `execution_environment`, `ansible_cfg`, `ansible_env_vars`, `ansible_ssh_extra_args`, `extra_arguments`, `navigator_mode`, `roles_path`, `collections_path`, `galaxy_command`. Use `navigator_config` instead. See [Migration Guide](docs/MIGRATION.md) for upgrade instructions.
 
