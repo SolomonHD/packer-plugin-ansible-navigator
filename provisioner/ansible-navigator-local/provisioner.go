@@ -693,11 +693,55 @@ func logExtraVarsJSON(ui packersdk.Ui, extraVars map[string]interface{}) {
 	ui.Message(fmt.Sprintf("[Extra Vars] JSON content:\n%s", string(jsonBytes)))
 }
 
-func (p *Provisioner) buildPluginArgsForPlay(ui packersdk.Ui, play Play, inventory string) []string {
-	args := make([]string, 0)
+// createExtraVarsFile writes provisioner-generated extra vars to a temporary JSON file
+// and returns the file path. For local provisioner, this file will be uploaded to the
+// staging directory on the target. The caller is responsible for cleanup (which happens
+// automatically when the staging directory is removed).
+//
+// This file-based approach prevents shell interpretation errors when ansible-navigator
+// invokes ansible-playbook inside execution environment containers. Inline JSON passed
+// via --extra-vars "{...}" gets shell-interpreted inside the container, causing brace
+// expansion to split the argument.
+func createExtraVarsFile(extraVars map[string]interface{}) (string, error) {
+	// Marshal extra vars to JSON
+	extraVarsJSON, err := json.MarshalIndent(extraVars, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal extra vars to JSON: %w", err)
+	}
+
+	// Create temporary file with unique name
+	tmpFile, err := os.CreateTemp("", "packer-extravars-*.json")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temporary extra vars file: %w", err)
+	}
+
+	// Write JSON content
+	if _, err := tmpFile.Write(extraVarsJSON); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+		return "", fmt.Errorf("failed to write extra vars to file: %w", err)
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		os.Remove(tmpFile.Name())
+		return "", fmt.Errorf("failed to close extra vars file: %w", err)
+	}
+
+	return tmpFile.Name(), nil
+}
+
+// buildPluginArgsForPlay constructs ansible-navigator arguments and returns
+// the local path to the temporary extra vars file (to be uploaded to staging directory).
+// The file should be cleaned up by the caller (or automatically via staging directory cleanup).
+func (p *Provisioner) buildPluginArgsForPlay(ui packersdk.Ui, play Play, inventory string) (args []string, extraVarsLocalPath string, err error) {
+	args = make([]string, 0)
 
 	// Provisioner-generated extra vars MUST be conveyed via a single JSON object
-	// passed through exactly one -e/--extra-vars argument pair.
+	// passed through exactly one -e/--extra-vars argument pair to avoid malformed
+	// argument construction and positional argument shifting.
+	//
+	// To prevent shell interpretation errors in execution environments, we write
+	// the JSON to a temporary file and pass it via @filepath syntax.
 	extraVars := make(map[string]interface{})
 	if p.config.PackerBuildName != "" {
 		extraVars["packer_build_name"] = p.config.PackerBuildName
@@ -706,12 +750,15 @@ func (p *Provisioner) buildPluginArgsForPlay(ui packersdk.Ui, play Play, invento
 	if httpAddr, ok := p.generatedData["PackerHTTPAddr"]; ok {
 		extraVars["packer_http_addr"] = fmt.Sprint(httpAddr)
 	}
-	extraVarsJSON, err := json.Marshal(extraVars)
+
+	// Create temp file with extra vars
+	extraVarsLocalPath, err = createExtraVarsFile(extraVars)
 	if err != nil {
-		// Should never happen for map[string]interface{} composed of strings.
-		extraVarsJSON = []byte("{}")
+		return nil, "", fmt.Errorf("failed to create extra vars file: %w", err)
 	}
-	args = append(args, "--extra-vars", string(extraVarsJSON))
+
+	// NOTE: The actual --extra-vars argument with @filepath will be added by the caller
+	// after uploading the file to the staging directory on the remote target.
 
 	// Log extra vars if ShowExtraVars is enabled
 	if p.config.ShowExtraVars {
@@ -743,7 +790,7 @@ func (p *Provisioner) buildPluginArgsForPlay(ui packersdk.Ui, play Play, invento
 
 	args = append(args, "-c", "local", "-i", inventory)
 
-	return args
+	return args, extraVarsLocalPath, nil
 }
 
 // shellEscapePOSIX returns a POSIX-shell-safe representation of s.
@@ -856,6 +903,25 @@ func (p *Provisioner) executeAnsiblePlaybook(
 		pathPrefix = pathPrefixAssignment + " "
 	}
 
+	// Build plugin args and get local extra vars file path
+	pluginArgs, extraVarsLocalPath, err := p.buildPluginArgsForPlay(ui, play, inventory)
+	if err != nil {
+		return fmt.Errorf("failed to build plugin args: %w", err)
+	}
+
+	// Upload extra vars file to staging directory
+	extraVarsRemotePath := ""
+	if extraVarsLocalPath != "" {
+		defer os.Remove(extraVarsLocalPath) // Clean up local temp file
+
+		extraVarsRemotePath = filepath.ToSlash(filepath.Join(p.stagingDir, filepath.Base(extraVarsLocalPath)))
+		debugf(ui, debugEnabled, "Uploading extra vars file: %s -> %s", extraVarsLocalPath, extraVarsRemotePath)
+		if err := p.uploadFile(ui, comm, extraVarsRemotePath, extraVarsLocalPath); err != nil {
+			return fmt.Errorf("failed to upload extra vars file: %w", err)
+		}
+		debugf(ui, debugEnabled, "Extra vars file uploaded to staging directory")
+	}
+
 	// Deterministic ordering:
 	//   1) ansible-navigator run (+ enforced --mode)
 	//   2) play.extra_args (verbatim)
@@ -866,7 +932,13 @@ func (p *Provisioner) executeAnsiblePlaybook(
 		runArgs = append(runArgs, "--mode", p.config.NavigatorConfig.Mode)
 	}
 	runArgs = append(runArgs, play.ExtraArgs...)
-	runArgs = append(runArgs, p.buildPluginArgsForPlay(ui, play, inventory)...)
+
+	// Add the extra-vars file reference BEFORE other plugin args
+	if extraVarsRemotePath != "" {
+		runArgs = append(runArgs, "--extra-vars", fmt.Sprintf("@%s", extraVarsRemotePath))
+	}
+
+	runArgs = append(runArgs, pluginArgs...)
 	runArgs = append(runArgs, playbookFile)
 
 	command := ""

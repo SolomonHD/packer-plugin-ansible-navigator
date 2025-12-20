@@ -1116,12 +1116,52 @@ func logExtraVarsJSON(ui packersdk.Ui, extraVars map[string]interface{}) {
 	ui.Message(fmt.Sprintf("[Extra Vars] JSON content:\n%s", string(jsonBytes)))
 }
 
-func (p *Provisioner) createCmdArgs(ui packersdk.Ui, httpAddr, inventory, privKeyFile string) (args []string, envVars []string) {
+// createExtraVarsFile writes provisioner-generated extra vars to a temporary JSON file
+// and returns the file path. The caller is responsible for cleanup.
+//
+// This file-based approach prevents shell interpretation errors when ansible-navigator
+// invokes ansible-playbook inside execution environment containers. Inline JSON passed
+// via --extra-vars "{...}" gets shell-interpreted inside the container, causing brace
+// expansion to split the argument.
+func createExtraVarsFile(extraVars map[string]interface{}) (string, error) {
+	// Marshal extra vars to JSON
+	extraVarsJSON, err := json.MarshalIndent(extraVars, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal extra vars to JSON: %w", err)
+	}
+
+	// Create temporary file with unique name
+	tmpFile, err := os.CreateTemp("", "packer-extravars-*.json")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temporary extra vars file: %w", err)
+	}
+
+	// Write JSON content
+	if _, err := tmpFile.Write(extraVarsJSON); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+		return "", fmt.Errorf("failed to write extra vars to file: %w", err)
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		os.Remove(tmpFile.Name())
+		return "", fmt.Errorf("failed to close extra vars file: %w", err)
+	}
+
+	return tmpFile.Name(), nil
+}
+
+// createCmdArgs constructs ansible-navigator command arguments and returns
+// the file path to the temporary extra vars file (which must be cleaned up by the caller).
+func (p *Provisioner) createCmdArgs(ui packersdk.Ui, httpAddr, inventory, privKeyFile string) (args []string, envVars []string, extraVarsFilePath string, err error) {
 	args = []string{}
 
 	// Provisioner-generated extra vars MUST be conveyed via a single JSON object
 	// passed through exactly one -e/--extra-vars argument pair to avoid malformed
 	// argument construction and positional argument shifting.
+	//
+	// To prevent shell interpretation errors in execution environments, we write
+	// the JSON to a temporary file and pass it via @filepath syntax.
 	extraVars := make(map[string]interface{})
 
 	if p.config.PackerBuildName != "" {
@@ -1160,14 +1200,14 @@ func (p *Provisioner) createCmdArgs(ui packersdk.Ui, httpAddr, inventory, privKe
 		}
 	}
 
-	// Marshal extra vars to JSON for a single, safe --extra-vars argument.
-	extraVarsJSON, err := json.Marshal(extraVars)
+	// Write extra vars to temporary file to prevent shell interpretation issues
+	extraVarsFilePath, err = createExtraVarsFile(extraVars)
 	if err != nil {
-		// Should never happen for map[string]interface{} composed of strings/bools.
-		// Fall back to an empty object to avoid crashing.
-		extraVarsJSON = []byte("{}")
+		return nil, nil, "", fmt.Errorf("failed to create extra vars file: %w", err)
 	}
-	args = append(args, "--extra-vars", string(extraVarsJSON))
+
+	// Pass file path with @ prefix (Ansible's file-based extra-vars syntax)
+	args = append(args, "--extra-vars", fmt.Sprintf("@%s", extraVarsFilePath))
 
 	// Log extra vars if ShowExtraVars is enabled
 	if p.config.ShowExtraVars {
@@ -1186,7 +1226,7 @@ func (p *Provisioner) createCmdArgs(ui packersdk.Ui, httpAddr, inventory, privKe
 
 	// This must be the last arg appended to args (the play target is appended later).
 	args = append(args, "-i", inventory)
-	return args, envVars
+	return args, envVars, extraVarsFilePath, nil
 }
 
 // createRolePlaybook generates a temporary playbook file for executing an Ansible role.
@@ -1317,9 +1357,15 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 	return p.executePlays(ui, comm, privKeyFile, httpAddr, navigatorConfigPath)
 }
 
-func (p *Provisioner) buildRunCommandArgsForPlay(ui packersdk.Ui, play Play, httpAddr, inventory, playbookPath, privKeyFile string) (cmdArgs []string, envvars []string) {
+// buildRunCommandArgsForPlay constructs the full command arguments for a play
+// and returns the command args, environment variables, and path to the temp extra vars file.
+// The caller is responsible for cleaning up the extra vars file.
+func (p *Provisioner) buildRunCommandArgsForPlay(ui packersdk.Ui, play Play, httpAddr, inventory, playbookPath, privKeyFile string) (cmdArgs []string, envvars []string, extraVarsFilePath string, err error) {
 	// Build command arguments (excluding play target; appended last for deterministic ordering)
-	baseArgs, envvars := p.createCmdArgs(ui, httpAddr, inventory, privKeyFile)
+	baseArgs, envvars, extraVarsFilePath, err := p.createCmdArgs(ui, httpAddr, inventory, privKeyFile)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("failed to create command args: %w", err)
+	}
 
 	// Play-level flags (deterministic order)
 	playArgs := make([]string, 0)
@@ -1363,7 +1409,7 @@ func (p *Provisioner) buildRunCommandArgsForPlay(ui packersdk.Ui, play Play, htt
 	cmdArgs = append(cmdArgs, baseArgs...)
 	cmdArgs = append(cmdArgs, playbookPath)
 
-	return cmdArgs, envvars
+	return cmdArgs, envvars, extraVarsFilePath, nil
 }
 
 // executePlays executes multiple Ansible plays in sequence.
@@ -1418,7 +1464,24 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 			}
 		}
 
-		cmdArgs, envvars := p.buildRunCommandArgsForPlay(ui, play, httpAddr, inventory, playbookPath, privKeyFile)
+		cmdArgs, envvars, extraVarsFilePath, err := p.buildRunCommandArgsForPlay(ui, play, httpAddr, inventory, playbookPath, privKeyFile)
+		if err != nil {
+			if cleanupFunc != nil {
+				cleanupFunc()
+			}
+			return fmt.Errorf("play %q: failed to build command args: %w", playName, err)
+		}
+
+		// Ensure cleanup of temp extra vars file (even on error)
+		defer func() {
+			if extraVarsFilePath != "" {
+				if err := os.Remove(extraVarsFilePath); err != nil {
+					ui.Message(fmt.Sprintf("Warning: failed to remove temporary extra vars file %s: %v", extraVarsFilePath, err))
+				} else {
+					debugf(ui, debugEnabled, "Cleaned up temporary extra vars file: %s", extraVarsFilePath)
+				}
+			}
+		}()
 
 		cmd := exec.Command(p.config.Command, cmdArgs...)
 
@@ -1442,15 +1505,15 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 			emitEEDockerPreflight(ui, debugEnabled, p.config.AnsibleNavigatorPath)
 		}
 
-		err := p.executeAnsibleCommand(ui, cmd, playName)
+		execErr := p.executeAnsibleCommand(ui, cmd, playName)
 
 		// Cleanup temporary playbook if it was generated
 		if cleanupFunc != nil {
 			cleanupFunc()
 		}
 
-		if err != nil {
-			ui.Error(fmt.Sprintf("Play '%s' failed: %v", playName, err))
+		if execErr != nil {
+			ui.Error(fmt.Sprintf("Play '%s' failed: %v", playName, execErr))
 			// If keep_going is false, return immediately on error
 			if !p.config.KeepGoing {
 				return fmt.Errorf("Play '%s' failed with exit code 2", playName)
