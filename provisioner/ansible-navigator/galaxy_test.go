@@ -251,8 +251,8 @@ exit 0
 	got := string(data)
 
 	// Roles install
-	require.Contains(t, got, " install -r")
-	require.Contains(t, got, " -p /tmp/roles")
+	require.Contains(t, got, " install -r=")
+	require.Contains(t, got, " -p=/tmp/roles")
 	require.Contains(t, got, " --offline")
 	require.Contains(t, got, " --force-with-deps")
 	// Precedence: do not include --force when --force-with-deps is set.
@@ -260,6 +260,6 @@ exit 0
 	require.Contains(t, got, " --ignore-certs")
 
 	// Collections install
-	require.Contains(t, got, " collection install -r")
-	require.Contains(t, got, " -p /tmp/collections")
+	require.Contains(t, got, " collection install -r=")
+	require.Contains(t, got, " -p=/tmp/collections")
 }

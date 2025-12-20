@@ -31,8 +31,8 @@ func TestGalaxyManager_InstallRequirements_RunsRolesAndCollectionsInstalls(t *te
 	require.Len(t, comm.startCommand, 2)
 
 	remoteReq := filepath.ToSlash(filepath.Join(stagingDir, filepath.Base(reqFile)))
-	require.Contains(t, comm.startCommand[0], "cd "+stagingDir+" && ansible-galaxy install -r "+remoteReq)
-	require.Contains(t, comm.startCommand[1], "cd "+stagingDir+" && ansible-galaxy collection install -r "+remoteReq)
+	require.Contains(t, comm.startCommand[0], "cd "+stagingDir+" && ansible-galaxy install -r="+remoteReq)
+	require.Contains(t, comm.startCommand[1], "cd "+stagingDir+" && ansible-galaxy collection install -r="+remoteReq)
 }
 
 func TestGalaxyManager_SetupEnvironmentPaths_ReturnsExpectedEnvVars(t *testing.T) {
@@ -85,6 +85,6 @@ func TestGalaxyManager_InstallRequirements_UsesConfiguredCommandArgsAndForcePrec
 	// Precedence: do not include --force when --force-with-deps is set.
 	require.NotContains(t, joined, " --force ")
 	require.Contains(t, joined, " --ignore-certs")
-	require.Contains(t, joined, " -p /tmp/roles")
-	require.Contains(t, joined, " -p /tmp/collections")
+	require.Contains(t, joined, " -p=/tmp/roles")
+	require.Contains(t, joined, " -p=/tmp/collections")
 }

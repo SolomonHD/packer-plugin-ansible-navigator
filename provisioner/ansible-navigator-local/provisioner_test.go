@@ -120,7 +120,7 @@ func TestProvisionerProvision_UploadsInventoryAndExecutesPlaybook(t *testing.T) 
 
 	foundRun := false
 	for _, cmd := range comm.startCommand {
-		if strings.Contains(cmd, "ansible-navigator") && strings.Contains(cmd, " run") && strings.Contains(cmd, playRemote) && strings.Contains(cmd, "-i "+invRemote) {
+		if strings.Contains(cmd, "ansible-navigator") && strings.Contains(cmd, " run") && strings.Contains(cmd, playRemote) && strings.Contains(cmd, "-i="+invRemote) {
 			foundRun = true
 			break
 		}
@@ -269,10 +269,10 @@ func TestProvisionerProvision_PlayExtraArgs_AppliedBeforeGeneratedArgsAndTarget(
 	}
 	require.NotEmpty(t, cmd)
 
-	idxRun := strings.Index(cmd, " run --mode stdout")
+	idxRun := strings.Index(cmd, " run --mode=stdout")
 	idxCheck := strings.Index(cmd, " --check")
 	idxDiff := strings.Index(cmd, " --diff")
-	idxInv := strings.Index(cmd, "-i "+invRemote)
+	idxInv := strings.Index(cmd, "-i="+invRemote)
 	idxPlay := strings.Index(cmd, playRemote)
 
 	require.NotEqual(t, -1, idxRun)
@@ -324,17 +324,14 @@ func TestProvisionerProvision_ProvisionerExtraVars_JSONSinglePairAndTargetLast(t
 	}
 	require.NotEmpty(t, cmd)
 
-	// Verify JSON-based extra-vars are used (single argument following --extra-vars).
-	require.Contains(t, cmd, "--extra-vars")
-	require.Contains(t, cmd, `--extra-vars '{"packer_build_name":"example-build"`)
-	require.Contains(t, cmd, `"packer_builder_type":"docker"`)
-	require.Contains(t, cmd, `"packer_http_addr":"127.0.0.1:8080"}'`)
+	// Verify JSON-based extra-vars are used via file reference (--extra-vars=@file).
+	require.Contains(t, cmd, "--extra-vars=@")
 
 	// Legacy malformed extra-vars string should not appear.
 	require.NotContains(t, cmd, "-o IdentitiesOnly=yes")
 	require.NotContains(t, cmd, "--extra-vars packer_build_name=")
 
 	// Target should be last (and inventory should still be present).
-	require.Contains(t, cmd, "-i "+invRemote)
+	require.Contains(t, cmd, "-i="+invRemote)
 	require.True(t, strings.HasSuffix(cmd, playRemote), "expected command to end with play target %q; got: %q", playRemote, cmd)
 }

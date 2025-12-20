@@ -99,7 +99,7 @@ func (gm *GalaxyManager) installFromFile(filePath string) error {
 // installRolesFromFile installs roles from a requirements file
 func (gm *GalaxyManager) installRolesFromFile(remoteFilePath string) error {
 	gm.ui.Message("Installing roles from requirements file...")
-	args := []string{"install", "-r", remoteFilePath}
+	args := []string{"install", fmt.Sprintf("-r=%s", remoteFilePath)}
 
 	// Add roles path
 	rolesPath := gm.galaxyRolesPath
@@ -107,7 +107,7 @@ func (gm *GalaxyManager) installRolesFromFile(remoteFilePath string) error {
 		rolesPath = gm.config.RolesPath
 	}
 	if rolesPath != "" {
-		args = append(args, "-p", filepath.ToSlash(rolesPath))
+		args = append(args, fmt.Sprintf("-p=%s", filepath.ToSlash(rolesPath)))
 	}
 
 	// Add offline option
@@ -131,7 +131,7 @@ func (gm *GalaxyManager) installRolesFromFile(remoteFilePath string) error {
 // installCollectionsFromFile installs collections from a requirements file
 func (gm *GalaxyManager) installCollectionsFromFile(remoteFilePath string) error {
 	gm.ui.Message("Installing collections from requirements file...")
-	args := []string{"collection", "install", "-r", remoteFilePath}
+	args := []string{"collection", "install", fmt.Sprintf("-r=%s", remoteFilePath)}
 
 	// Add collections path
 	collectionsPath := gm.galaxyCollectionsPath
@@ -139,7 +139,7 @@ func (gm *GalaxyManager) installCollectionsFromFile(remoteFilePath string) error
 		collectionsPath = gm.config.CollectionsPath
 	}
 	if collectionsPath != "" {
-		args = append(args, "-p", filepath.ToSlash(collectionsPath))
+		args = append(args, fmt.Sprintf("-p=%s", filepath.ToSlash(collectionsPath)))
 	}
 
 	// Add offline option

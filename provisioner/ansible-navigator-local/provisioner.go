@@ -770,7 +770,7 @@ func (p *Provisioner) buildPluginArgsForPlay(ui packersdk.Ui, play Play, invento
 	}
 
 	for _, tag := range play.Tags {
-		args = append(args, "--tags", tag)
+		args = append(args, fmt.Sprintf("--tags=%s", tag))
 	}
 
 	if len(play.ExtraVars) > 0 {
@@ -780,15 +780,15 @@ func (p *Provisioner) buildPluginArgsForPlay(ui packersdk.Ui, play Play, invento
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
-			args = append(args, "-e", fmt.Sprintf("%s=%s", k, play.ExtraVars[k]))
+			args = append(args, fmt.Sprintf("-e=%s=%s", k, play.ExtraVars[k]))
 		}
 	}
 
 	for _, varsFile := range play.VarsFiles {
-		args = append(args, "-e", fmt.Sprintf("@%s", varsFile))
+		args = append(args, fmt.Sprintf("-e=@%s", varsFile))
 	}
 
-	args = append(args, "-c", "local", "-i", inventory)
+	args = append(args, "-c=local", fmt.Sprintf("-i=%s", inventory))
 
 	return args, extraVarsLocalPath, nil
 }
@@ -929,13 +929,13 @@ func (p *Provisioner) executeAnsiblePlaybook(
 	//   4) play target (playbook path)
 	runArgs := []string{"run"}
 	if p.config.NavigatorConfig != nil && p.config.NavigatorConfig.Mode != "" {
-		runArgs = append(runArgs, "--mode", p.config.NavigatorConfig.Mode)
+		runArgs = append(runArgs, fmt.Sprintf("--mode=%s", p.config.NavigatorConfig.Mode))
 	}
 	runArgs = append(runArgs, play.ExtraArgs...)
 
 	// Add the extra-vars file reference BEFORE other plugin args
 	if extraVarsRemotePath != "" {
-		runArgs = append(runArgs, "--extra-vars", fmt.Sprintf("@%s", extraVarsRemotePath))
+		runArgs = append(runArgs, fmt.Sprintf("--extra-vars=@%s", extraVarsRemotePath))
 	}
 
 	runArgs = append(runArgs, pluginArgs...)
