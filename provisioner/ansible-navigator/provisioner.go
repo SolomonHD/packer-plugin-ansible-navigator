@@ -527,6 +527,33 @@ type Config struct {
 	//   }
 	NavigatorConfig *NavigatorConfig `mapstructure:"navigator_config"`
 	userWasEmpty    bool
+
+	// SSH tunnel mode enables direct SSH tunneling through a bastion host
+	// as an alternative to the Packer SSH proxy adapter. When enabled, the plugin
+	// establishes SSH tunnels through the bastion to reach targets directly.
+	// Mutually exclusive with use_proxy.
+	SSHTunnelMode bool `mapstructure:"ssh_tunnel_mode"`
+
+	// Bastion (jump host) address for SSH tunneling mode.
+	// Required when ssh_tunnel_mode is true.
+	// Example: "bastion.example.com"
+	BastionHost string `mapstructure:"bastion_host"`
+
+	// SSH port on the bastion host. Defaults to 22.
+	BastionPort int `mapstructure:"bastion_port"`
+
+	// SSH username for authenticating to the bastion host.
+	// Required when ssh_tunnel_mode is true.
+	BastionUser string `mapstructure:"bastion_user"`
+
+	// Path to the SSH private key file for bastion authentication.
+	// Either this or bastion_password must be provided when ssh_tunnel_mode is true.
+	// Supports HOME expansion (~ and ~/path).
+	BastionPrivateKeyFile string `mapstructure:"bastion_private_key_file"`
+
+	// Password for bastion authentication.
+	// Either this or bastion_private_key_file must be provided when ssh_tunnel_mode is true.
+	BastionPassword string `mapstructure:"bastion_password"`
 }
 
 // Validate performs comprehensive validation of the Config
@@ -538,6 +565,45 @@ func (c *Config) Validate() error {
 		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
 			"command must be only the executable name or path (no arguments). "+
 				"Found whitespace in: %q. Use extra_arguments or play-level options for additional flags", c.Command))
+	}
+
+	// Validate SSH tunnel mode configuration
+	if c.SSHTunnelMode {
+		// Mutual exclusivity with use_proxy
+		if c.UseProxy.True() {
+			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+				"ssh_tunnel_mode and use_proxy cannot both be true"))
+		}
+
+		// Required fields when ssh_tunnel_mode is true
+		if c.BastionHost == "" {
+			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+				"bastion_host is required when ssh_tunnel_mode is true"))
+		}
+
+		if c.BastionUser == "" {
+			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+				"bastion_user is required when ssh_tunnel_mode is true"))
+		}
+
+		// Require either key file or password
+		if c.BastionPrivateKeyFile == "" && c.BastionPassword == "" {
+			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+				"either bastion_private_key_file or bastion_password must be provided when ssh_tunnel_mode is true"))
+		}
+
+		// Validate bastion_port range
+		if c.BastionPort < 1 || c.BastionPort > 65535 {
+			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+				"bastion_port must be between 1 and 65535, got %d", c.BastionPort))
+		}
+
+		// Validate bastion_private_key_file exists if specified
+		if c.BastionPrivateKeyFile != "" {
+			if err := validateFileConfig(c.BastionPrivateKeyFile, "bastion_private_key_file", true); err != nil {
+				errs = packersdk.MultiErrorAppend(errs, err)
+			}
+		}
 	}
 
 	// Validate play configuration
@@ -709,6 +775,7 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	p.config.CollectionsPath = expandUserPath(p.config.CollectionsPath)
 	p.config.RolesPath = expandUserPath(p.config.RolesPath)
 	p.config.GalaxyCommand = expandUserPath(p.config.GalaxyCommand)
+	p.config.BastionPrivateKeyFile = expandUserPath(p.config.BastionPrivateKeyFile)
 
 	// Apply HOME expansion to plays
 	for i := range p.config.Plays {
@@ -720,6 +787,11 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 
 	if p.config.HostAlias == "" {
 		p.config.HostAlias = "default"
+	}
+
+	// Set default bastion port
+	if p.config.BastionPort == 0 {
+		p.config.BastionPort = 22
 	}
 
 	// Detect explicit timeout setting before defaulting
@@ -1044,6 +1116,172 @@ func (p *Provisioner) setupAdapter(ui packersdk.Ui, comm packersdk.Communicator)
 	return k.privKeyFile, nil
 }
 
+// setupSSHTunnel establishes an SSH tunnel through a bastion host to the target machine.
+// It creates a local port forward that Ansible can use to reach the target.
+// Returns the local port number, a cleanup closer, and an error if setup fails.
+func (p *Provisioner) setupSSHTunnel(ui packersdk.Ui, targetHost string, targetPort int) (int, io.Closer, error) {
+	ui.Message("Setting up SSH tunnel through bastion...")
+
+	// Parse bastion authentication methods
+	var authMethods []ssh.AuthMethod
+
+	// Try private key authentication first if specified
+	if p.config.BastionPrivateKeyFile != "" {
+		keyBytes, err := os.ReadFile(p.config.BastionPrivateKeyFile)
+		if err != nil {
+			return 0, nil, fmt.Errorf("failed to read bastion private key file: %w", err)
+		}
+
+		signer, err := ssh.ParsePrivateKey(keyBytes)
+		if err != nil {
+			return 0, nil, fmt.Errorf("failed to parse bastion private key: %w", err)
+		}
+
+		authMethods = append(authMethods, ssh.PublicKeys(signer))
+	}
+
+	// Add password authentication if specified
+	if p.config.BastionPassword != "" {
+		authMethods = append(authMethods, ssh.Password(p.config.BastionPassword))
+	}
+
+	// Configure SSH client for bastion connection
+	bastionConfig := &ssh.ClientConfig{
+		User:            p.config.BastionUser,
+		Auth:            authMethods,
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // Accept any host key
+		Timeout:         30 * time.Second,
+	}
+
+	// Connect to bastion host
+	bastionAddr := fmt.Sprintf("%s:%d", p.config.BastionHost, p.config.BastionPort)
+	ui.Message(fmt.Sprintf("Connecting to bastion host %s...", bastionAddr))
+
+	bastionClient, err := ssh.Dial("tcp", bastionAddr, bastionConfig)
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to connect to bastion host %s: %w", bastionAddr, err)
+	}
+
+	// Allocate local port for tunnel
+	var localPort int
+	var localListener net.Listener
+
+	port := p.config.LocalPort
+	tries := 1
+	if port != 0 {
+		tries = 10
+	}
+
+	// Try to allocate a local port
+	for i := 0; i < tries; i++ {
+		addr := fmt.Sprintf("127.0.0.1:%d", port)
+		l, err := net.Listen("tcp", addr)
+		if err != nil {
+			ui.Say(fmt.Sprintf("Port %d unavailable: %v", port, err))
+			port++
+			continue
+		}
+
+		// Extract the actual port (may be system-assigned if port was 0)
+		_, portStr, err := net.SplitHostPort(l.Addr().String())
+		if err != nil {
+			l.Close()
+			ui.Say(fmt.Sprintf("Failed to parse local address: %v", err))
+			port++
+			continue
+		}
+
+		localPort, err = strconv.Atoi(portStr)
+		if err != nil {
+			l.Close()
+			ui.Say(fmt.Sprintf("Failed to parse port number: %v", err))
+			port++
+			continue
+		}
+
+		localListener = l
+		break
+	}
+
+	if localListener == nil {
+		bastionClient.Close()
+		return 0, nil, fmt.Errorf("failed to allocate local port for tunnel")
+	}
+
+	ui.Message(fmt.Sprintf("Tunnel listening on 127.0.0.1:%d", localPort))
+	ui.Message(fmt.Sprintf("Forwarding to %s:%d through bastion", targetHost, targetPort))
+
+	// Create cleanup closer
+	closer := &tunnelCloser{
+		listener:      localListener,
+		bastionClient: bastionClient,
+		ui:            ui,
+	}
+
+	// Start forwarding goroutine
+	go func() {
+		for {
+			localConn, err := localListener.Accept()
+			if err != nil {
+				// Listener was closed
+				return
+			}
+
+			// Handle this connection in a goroutine
+			go func(local net.Conn) {
+				defer local.Close()
+
+				// Dial the target through the bastion
+				targetAddr := fmt.Sprintf("%s:%d", targetHost, targetPort)
+				remoteConn, err := bastionClient.Dial("tcp", targetAddr)
+				if err != nil {
+					ui.Error(fmt.Sprintf("Failed to establish tunnel to target %s: %v", targetAddr, err))
+					return
+				}
+				defer remoteConn.Close()
+
+				// Copy data bidirectionally
+				done := make(chan struct{}, 2)
+				go func() {
+					io.Copy(remoteConn, local)
+					done <- struct{}{}
+				}()
+				go func() {
+					io.Copy(local, remoteConn)
+					done <- struct{}{}
+				}()
+				<-done
+			}(localConn)
+		}
+	}()
+
+	return localPort, closer, nil
+}
+
+// tunnelCloser implements io.Closer for SSH tunnel cleanup
+type tunnelCloser struct {
+	listener      net.Listener
+	bastionClient *ssh.Client
+	ui            packersdk.Ui
+}
+
+func (tc *tunnelCloser) Close() error {
+	tc.ui.Message("Closing SSH tunnel...")
+
+	// Close the listener first to stop accepting new connections
+	if tc.listener != nil {
+		tc.listener.Close()
+	}
+
+	// Close the bastion SSH client
+	if tc.bastionClient != nil {
+		tc.bastionClient.Close()
+	}
+
+	tc.ui.Message("SSH tunnel closed")
+	return nil
+}
+
 const DefaultSSHInventoryFilev2 = "{{ .HostAlias }} ansible_host={{ .Host }} ansible_user={{ .User }} ansible_port={{ .Port }}\n"
 const DefaultSSHInventoryFilev1 = "{{ .HostAlias }} ansible_ssh_host={{ .Host }} ansible_ssh_user={{ .User }} ansible_ssh_port={{ .Port }}\n"
 const DefaultWinRMInventoryFilev2 = "{{ .HostAlias}} ansible_host={{ .Host }} ansible_connection=winrm ansible_winrm_transport=basic ansible_shell_type=powershell ansible_user={{ .User}} ansible_port={{ .Port }}\n"
@@ -1138,7 +1376,89 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 	}
 
 	privKeyFile := ""
-	if !p.config.UseProxy.False() {
+
+	// Check if SSH tunnel mode is enabled
+	if p.config.SSHTunnelMode {
+		// Extract target host and port from generatedData
+		targetHost, ok := generatedData["Host"].(string)
+		if !ok || targetHost == "" {
+			return fmt.Errorf("SSH tunnel mode requires a valid target host")
+		}
+
+		targetPort, ok := generatedData["Port"].(int)
+		if !ok || targetPort == 0 {
+			return fmt.Errorf("SSH tunnel mode requires a valid target port")
+		}
+
+		ui.Message("Using SSH tunnel mode - bypassing Packer SSH proxy adapter")
+
+		// Establish SSH tunnel
+		localPort, tunnel, err := p.setupSSHTunnel(ui, targetHost, targetPort)
+		if err != nil {
+			return fmt.Errorf("failed to setup SSH tunnel: %w", err)
+		}
+
+		// Store the local port for inventory generation
+		p.config.LocalPort = localPort
+
+		// Override generatedData to point to the tunnel
+		p.generatedData["Host"] = "127.0.0.1"
+		p.generatedData["Port"] = localPort
+
+		ui.Message(fmt.Sprintf("SSH tunnel established: localhost:%d -> %s:%d (via bastion %s:%d)",
+			localPort, targetHost, targetPort, p.config.BastionHost, p.config.BastionPort))
+
+		// Debug logging for tunnel inventory integration
+		debugEnabled := isPluginDebugEnabled(p.config.NavigatorConfig)
+		debugf(ui, debugEnabled, "SSH tunnel mode active: inventory will use tunnel endpoint")
+		debugf(ui, debugEnabled, "Tunnel connection: 127.0.0.1:%d", localPort)
+		debugf(ui, debugEnabled, "Target user: %s", p.config.User)
+
+		// Log target SSH key if available
+		if sshKeyFile, ok := p.generatedData["SSHPrivateKeyFile"].(string); ok && sshKeyFile != "" {
+			debugf(ui, debugEnabled, "Target SSH key: %s", sshKeyFile)
+		}
+
+		// Ensure tunnel cleanup
+		defer func() {
+			if tunnel != nil {
+				tunnel.Close()
+			}
+		}()
+
+		// Get SSH private key for Ansible to use when connecting through the tunnel
+		// The tunnel provides network path, but Ansible still needs target credentials
+		connType := generatedData["ConnType"].(string)
+		if connType == "ssh" {
+			SSHPrivateKeyFile := generatedData["SSHPrivateKeyFile"].(string)
+			SSHAgentAuth := generatedData["SSHAgentAuth"].(bool)
+			if SSHPrivateKeyFile != "" || SSHAgentAuth {
+				privKeyFile = SSHPrivateKeyFile
+			} else {
+				// Get private key from generatedData and write to temp file
+				SSHPrivateKey := generatedData["SSHPrivateKey"].(string)
+				tmpSSHPrivateKey, err := tmp.File("ansible-key")
+				if err != nil {
+					return fmt.Errorf("error writing private key to temp file for ansible connection: %v", err)
+				}
+				_, err = tmpSSHPrivateKey.WriteString(SSHPrivateKey)
+				if err != nil {
+					return errors.New("failed to write private key to temp file")
+				}
+				err = tmpSSHPrivateKey.Close()
+				if err != nil {
+					return errors.New("failed to close private key temp file")
+				}
+				privKeyFile = tmpSSHPrivateKey.Name()
+				defer os.Remove(privKeyFile)
+			}
+
+			// Match username to SSH keys if not explicitly set
+			if p.config.userWasEmpty {
+				p.config.User = generatedData["User"].(string)
+			}
+		}
+	} else if !p.config.UseProxy.False() {
 		// We set up the proxy if useProxy is either true or unset.
 		pkf, err := p.setupAdapterFunc(ui, comm)
 		if err != nil {

@@ -202,4 +202,25 @@
       }
     }
 
+- `ssh_tunnel_mode` (bool) - SSH tunnel mode enables direct SSH tunneling through a bastion host
+  as an alternative to the Packer SSH proxy adapter. When enabled, the plugin
+  establishes SSH tunnels through the bastion to reach targets directly.
+  Mutually exclusive with use_proxy.
+
+- `bastion_host` (string) - Bastion (jump host) address for SSH tunneling mode.
+  Required when ssh_tunnel_mode is true.
+  Example: "bastion.example.com"
+
+- `bastion_port` (int) - SSH port on the bastion host. Defaults to 22.
+
+- `bastion_user` (string) - SSH username for authenticating to the bastion host.
+  Required when ssh_tunnel_mode is true.
+
+- `bastion_private_key_file` (string) - Path to the SSH private key file for bastion authentication.
+  Either this or bastion_password must be provided when ssh_tunnel_mode is true.
+  Supports HOME expansion (~ and ~/path).
+
+- `bastion_password` (string) - Password for bastion authentication.
+  Either this or bastion_private_key_file must be provided when ssh_tunnel_mode is true.
+
 <!-- End of code generated from the comments of the Config struct in provisioner/ansible-navigator/provisioner.go; -->

@@ -372,6 +372,12 @@ type FlatConfig struct {
 	WinRMUseHTTP            *bool                `mapstructure:"ansible_winrm_use_http" cty:"ansible_winrm_use_http" hcl:"ansible_winrm_use_http"`
 	ShowExtraVars           *bool                `mapstructure:"show_extra_vars" cty:"show_extra_vars" hcl:"show_extra_vars"`
 	NavigatorConfig         *FlatNavigatorConfig `mapstructure:"navigator_config" cty:"navigator_config" hcl:"navigator_config"`
+	SSHTunnelMode           *bool                `mapstructure:"ssh_tunnel_mode" cty:"ssh_tunnel_mode" hcl:"ssh_tunnel_mode"`
+	BastionHost             *string              `mapstructure:"bastion_host" cty:"bastion_host" hcl:"bastion_host"`
+	BastionPort             *int                 `mapstructure:"bastion_port" cty:"bastion_port" hcl:"bastion_port"`
+	BastionUser             *string              `mapstructure:"bastion_user" cty:"bastion_user" hcl:"bastion_user"`
+	BastionPrivateKeyFile   *string              `mapstructure:"bastion_private_key_file" cty:"bastion_private_key_file" hcl:"bastion_private_key_file"`
+	BastionPassword         *string              `mapstructure:"bastion_password" cty:"bastion_password" hcl:"bastion_password"`
 }
 
 // FlatMapstructure returns a new FlatConfig.
@@ -432,6 +438,12 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"ansible_winrm_use_http":     &hcldec.AttrSpec{Name: "ansible_winrm_use_http", Type: cty.Bool, Required: false},
 		"show_extra_vars":            &hcldec.AttrSpec{Name: "show_extra_vars", Type: cty.Bool, Required: false},
 		"navigator_config":           &hcldec.BlockSpec{TypeName: "navigator_config", Nested: hcldec.ObjectSpec((*FlatNavigatorConfig)(nil).HCL2Spec())},
+		"ssh_tunnel_mode":            &hcldec.AttrSpec{Name: "ssh_tunnel_mode", Type: cty.Bool, Required: false},
+		"bastion_host":               &hcldec.AttrSpec{Name: "bastion_host", Type: cty.String, Required: false},
+		"bastion_port":               &hcldec.AttrSpec{Name: "bastion_port", Type: cty.Number, Required: false},
+		"bastion_user":               &hcldec.AttrSpec{Name: "bastion_user", Type: cty.String, Required: false},
+		"bastion_private_key_file":   &hcldec.AttrSpec{Name: "bastion_private_key_file", Type: cty.String, Required: false},
+		"bastion_password":           &hcldec.AttrSpec{Name: "bastion_password", Type: cty.String, Required: false},
 	}
 	return s
 }
