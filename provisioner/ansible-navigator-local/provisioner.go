@@ -3,7 +3,7 @@
 // You may obtain a copy of the License at
 // http://www.apache.org/licenses/LICENSE-2.0
 
-//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play,PathEntry,NavigatorConfig,ExecutionEnvironment,EnvironmentVariablesConfig,VolumeMount,AnsibleConfig,AnsibleConfigDefaults,AnsibleConfigConnection,AnsibleConfigPrivilegeEscalation,AnsibleConfigPersistentConnection,AnsibleConfigInventory,AnsibleConfigParamikoConnection,AnsibleConfigColors,AnsibleConfigDiff,AnsibleConfigGalaxy,LoggingConfig,PlaybookArtifact,CollectionDocCache
+//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play,PathEntry,NavigatorConfig,ExecutionEnvironment,EnvironmentVariablesConfig,VolumeMount,AnsibleConfig,AnsibleConfigDefaults,AnsibleConfigConnection,AnsibleConfigPrivilegeEscalation,AnsibleConfigPersistentConnection,AnsibleConfigInventory,AnsibleConfigParamikoConnection,AnsibleConfigColors,AnsibleConfigDiff,AnsibleConfigGalaxy,LoggingConfig,PlaybookArtifact,CollectionDocCache,ColorConfig,EditorConfig,ImagesConfig
 //go:generate packer-sdc struct-markdown
 
 package ansiblenavigatorlocal
@@ -37,6 +37,20 @@ const DefaultStagingDir = "/tmp/packer-provisioner-ansible-local"
 type NavigatorConfig struct {
 	// Ansible-navigator execution mode
 	Mode string `mapstructure:"mode"`
+	// Stdout output format
+	Format string `mapstructure:"format"`
+	// Color scheme settings
+	Color *ColorConfig `mapstructure:"color"`
+	// Editor settings
+	Editor *EditorConfig `mapstructure:"editor"`
+	// Image display settings
+	Images *ImagesConfig `mapstructure:"images"`
+	// Time zone
+	TimeZone string `mapstructure:"time_zone"`
+	// Inventory display columns
+	InventoryColumns []string `mapstructure:"inventory_columns"`
+	// Collection documentation cache path
+	CollectionDocCachePath string `mapstructure:"collection_doc_cache_path"`
 	// Execution environment configuration
 	ExecutionEnvironment *ExecutionEnvironment `mapstructure:"execution_environment"`
 	// Ansible configuration settings
@@ -236,6 +250,23 @@ type CollectionDocCache struct {
 	Timeout int `mapstructure:"timeout"`
 }
 
+// ColorConfig represents top-level color configuration in ansible-navigator.yml.
+type ColorConfig struct {
+	Enable bool `mapstructure:"enable"`
+	Osc4   bool `mapstructure:"osc4"`
+}
+
+// EditorConfig represents top-level editor configuration in ansible-navigator.yml.
+type EditorConfig struct {
+	Command string `mapstructure:"command"`
+	Console bool   `mapstructure:"console"`
+}
+
+// ImagesConfig represents top-level images configuration in ansible-navigator.yml.
+type ImagesConfig struct {
+	Details []string `mapstructure:"details"`
+}
+
 // Play represents a single Ansible play execution with its configuration.
 // It supports both traditional playbook files and Ansible Collection role FQDNs.
 // Each play can have its own variables, tags, and privilege escalation settings.
@@ -428,6 +459,13 @@ func (c *Config) Validate() error {
 	if c.NavigatorConfig != nil {
 		// Basic validation - ensure at least one field is set
 		isEmpty := c.NavigatorConfig.Mode == "" &&
+			c.NavigatorConfig.Format == "" &&
+			c.NavigatorConfig.Color == nil &&
+			c.NavigatorConfig.Editor == nil &&
+			c.NavigatorConfig.Images == nil &&
+			c.NavigatorConfig.TimeZone == "" &&
+			len(c.NavigatorConfig.InventoryColumns) == 0 &&
+			c.NavigatorConfig.CollectionDocCachePath == "" &&
 			c.NavigatorConfig.ExecutionEnvironment == nil &&
 			c.NavigatorConfig.AnsibleConfig == nil &&
 			c.NavigatorConfig.Logging == nil &&

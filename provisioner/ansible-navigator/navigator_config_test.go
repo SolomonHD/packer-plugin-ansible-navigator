@@ -922,3 +922,69 @@ func TestGenerateNavigatorConfigYAML_LoggingAndPlaybookArtifact_KeyNamesAndTypes
 		t.Fatalf("Did not expect playbook-artifact.save_as in YAML (must be save-as), got: %v", artifact)
 	}
 }
+
+func TestGenerateNavigatorConfigYAML_RemainingTopLevelSettings_KeyNamesAndNesting(t *testing.T) {
+	config := &NavigatorConfig{
+		Mode:                   "stdout",
+		Format:                 "yaml",
+		TimeZone:               "America/New_York",
+		InventoryColumns:       []string{"name", "address"},
+		CollectionDocCachePath: "/tmp/collection-doc-cache",
+		Color:                  &ColorConfig{Enable: true, Osc4: true},
+		Editor:                 &EditorConfig{Command: "vim", Console: true},
+		Images:                 &ImagesConfig{Details: []string{"everything"}},
+	}
+
+	yamlStr, err := generateNavigatorConfigYAML(config, "")
+	if err != nil {
+		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+	}
+
+	var parsed map[string]interface{}
+	if err := yaml.Unmarshal([]byte(yamlStr), &parsed); err != nil {
+		t.Fatalf("Generated YAML is not valid: %v\nYAML:\n%s", err, yamlStr)
+	}
+
+	root, ok := parsed["ansible-navigator"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected ansible-navigator root key in parsed YAML, got: %T (%v)", parsed["ansible-navigator"], parsed["ansible-navigator"])
+	}
+
+	if root["format"] != "yaml" {
+		t.Fatalf("Expected format=yaml, got: %v", root["format"])
+	}
+	if root["time-zone"] != "America/New_York" {
+		t.Fatalf("Expected time-zone=America/New_York, got: %v", root["time-zone"])
+	}
+	if root["collection-doc-cache-path"] != "/tmp/collection-doc-cache" {
+		t.Fatalf("Expected collection-doc-cache-path=/tmp/collection-doc-cache, got: %v", root["collection-doc-cache-path"])
+	}
+	if _, ok := root["inventory-columns"]; !ok {
+		t.Fatalf("Expected inventory-columns to be present, got: %v", root)
+	}
+
+	color, ok := root["color"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected color map in YAML, got: %T (%v)", root["color"], root["color"])
+	}
+	if color["enable"] != true || color["osc4"] != true {
+		t.Fatalf("Unexpected color config: %v", color)
+	}
+
+	editor, ok := root["editor"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected editor map in YAML, got: %T (%v)", root["editor"], root["editor"])
+	}
+	if editor["command"] != "vim" || editor["console"] != true {
+		t.Fatalf("Unexpected editor config: %v", editor)
+	}
+
+	images, ok := root["images"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected images map in YAML, got: %T (%v)", root["images"], root["images"])
+	}
+	details, ok := images["details"].([]interface{})
+	if !ok || len(details) != 1 || details[0] != "everything" {
+		t.Fatalf("Unexpected images.details: %T (%v)", images["details"], images["details"])
+	}
+}
