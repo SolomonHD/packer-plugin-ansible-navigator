@@ -298,6 +298,31 @@ func (*FlatCollectionDocCache) HCL2Spec() map[string]hcldec.Spec {
 	return s
 }
 
+// FlatColorConfig is an auto-generated flat version of ColorConfig.
+// Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
+type FlatColorConfig struct {
+	Enable *bool `mapstructure:"enable" cty:"enable" hcl:"enable"`
+	Osc4   *bool `mapstructure:"osc4" cty:"osc4" hcl:"osc4"`
+}
+
+// FlatMapstructure returns a new FlatColorConfig.
+// FlatColorConfig is an auto-generated flat version of ColorConfig.
+// Where the contents a fields with a `mapstructure:,squash` tag are bubbled up.
+func (*ColorConfig) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec.Spec } {
+	return new(FlatColorConfig)
+}
+
+// HCL2Spec returns the hcl spec of a ColorConfig.
+// This spec is used by HCL to read the fields of ColorConfig.
+// The decoded values from this spec will then be applied to a FlatColorConfig.
+func (*FlatColorConfig) HCL2Spec() map[string]hcldec.Spec {
+	s := map[string]hcldec.Spec{
+		"enable": &hcldec.AttrSpec{Name: "enable", Type: cty.Bool, Required: false},
+		"osc4":   &hcldec.AttrSpec{Name: "osc4", Type: cty.Bool, Required: false},
+	}
+	return s
+}
+
 // FlatConfig is an auto-generated flat version of Config.
 // Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
 type FlatConfig struct {
@@ -373,6 +398,31 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 	return s
 }
 
+// FlatEditorConfig is an auto-generated flat version of EditorConfig.
+// Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
+type FlatEditorConfig struct {
+	Command *string `mapstructure:"command" cty:"command" hcl:"command"`
+	Console *bool   `mapstructure:"console" cty:"console" hcl:"console"`
+}
+
+// FlatMapstructure returns a new FlatEditorConfig.
+// FlatEditorConfig is an auto-generated flat version of EditorConfig.
+// Where the contents a fields with a `mapstructure:,squash` tag are bubbled up.
+func (*EditorConfig) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec.Spec } {
+	return new(FlatEditorConfig)
+}
+
+// HCL2Spec returns the hcl spec of a EditorConfig.
+// This spec is used by HCL to read the fields of EditorConfig.
+// The decoded values from this spec will then be applied to a FlatEditorConfig.
+func (*FlatEditorConfig) HCL2Spec() map[string]hcldec.Spec {
+	s := map[string]hcldec.Spec{
+		"command": &hcldec.AttrSpec{Name: "command", Type: cty.String, Required: false},
+		"console": &hcldec.AttrSpec{Name: "console", Type: cty.Bool, Required: false},
+	}
+	return s
+}
+
 // FlatEnvironmentVariablesConfig is an auto-generated flat version of EnvironmentVariablesConfig.
 // Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
 type FlatEnvironmentVariablesConfig struct {
@@ -435,6 +485,29 @@ func (*FlatExecutionEnvironment) HCL2Spec() map[string]hcldec.Spec {
 	return s
 }
 
+// FlatImagesConfig is an auto-generated flat version of ImagesConfig.
+// Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
+type FlatImagesConfig struct {
+	Details []string `mapstructure:"details" cty:"details" hcl:"details"`
+}
+
+// FlatMapstructure returns a new FlatImagesConfig.
+// FlatImagesConfig is an auto-generated flat version of ImagesConfig.
+// Where the contents a fields with a `mapstructure:,squash` tag are bubbled up.
+func (*ImagesConfig) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec.Spec } {
+	return new(FlatImagesConfig)
+}
+
+// HCL2Spec returns the hcl spec of a ImagesConfig.
+// This spec is used by HCL to read the fields of ImagesConfig.
+// The decoded values from this spec will then be applied to a FlatImagesConfig.
+func (*FlatImagesConfig) HCL2Spec() map[string]hcldec.Spec {
+	s := map[string]hcldec.Spec{
+		"details": &hcldec.AttrSpec{Name: "details", Type: cty.List(cty.String), Required: false},
+	}
+	return s
+}
+
 // FlatLoggingConfig is an auto-generated flat version of LoggingConfig.
 // Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
 type FlatLoggingConfig struct {
@@ -465,12 +538,19 @@ func (*FlatLoggingConfig) HCL2Spec() map[string]hcldec.Spec {
 // FlatNavigatorConfig is an auto-generated flat version of NavigatorConfig.
 // Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
 type FlatNavigatorConfig struct {
-	Mode                 *string                   `mapstructure:"mode" cty:"mode" hcl:"mode"`
-	ExecutionEnvironment *FlatExecutionEnvironment `mapstructure:"execution_environment" cty:"execution_environment" hcl:"execution_environment"`
-	AnsibleConfig        *FlatAnsibleConfig        `mapstructure:"ansible_config" cty:"ansible_config" hcl:"ansible_config"`
-	Logging              *FlatLoggingConfig        `mapstructure:"logging" cty:"logging" hcl:"logging"`
-	PlaybookArtifact     *FlatPlaybookArtifact     `mapstructure:"playbook_artifact" cty:"playbook_artifact" hcl:"playbook_artifact"`
-	CollectionDocCache   *FlatCollectionDocCache   `mapstructure:"collection_doc_cache" cty:"collection_doc_cache" hcl:"collection_doc_cache"`
+	Mode                   *string                   `mapstructure:"mode" cty:"mode" hcl:"mode"`
+	Format                 *string                   `mapstructure:"format" cty:"format" hcl:"format"`
+	Color                  *FlatColorConfig          `mapstructure:"color" cty:"color" hcl:"color"`
+	Editor                 *FlatEditorConfig         `mapstructure:"editor" cty:"editor" hcl:"editor"`
+	Images                 *FlatImagesConfig         `mapstructure:"images" cty:"images" hcl:"images"`
+	TimeZone               *string                   `mapstructure:"time_zone" cty:"time_zone" hcl:"time_zone"`
+	InventoryColumns       []string                  `mapstructure:"inventory_columns" cty:"inventory_columns" hcl:"inventory_columns"`
+	CollectionDocCachePath *string                   `mapstructure:"collection_doc_cache_path" cty:"collection_doc_cache_path" hcl:"collection_doc_cache_path"`
+	ExecutionEnvironment   *FlatExecutionEnvironment `mapstructure:"execution_environment" cty:"execution_environment" hcl:"execution_environment"`
+	AnsibleConfig          *FlatAnsibleConfig        `mapstructure:"ansible_config" cty:"ansible_config" hcl:"ansible_config"`
+	Logging                *FlatLoggingConfig        `mapstructure:"logging" cty:"logging" hcl:"logging"`
+	PlaybookArtifact       *FlatPlaybookArtifact     `mapstructure:"playbook_artifact" cty:"playbook_artifact" hcl:"playbook_artifact"`
+	CollectionDocCache     *FlatCollectionDocCache   `mapstructure:"collection_doc_cache" cty:"collection_doc_cache" hcl:"collection_doc_cache"`
 }
 
 // FlatMapstructure returns a new FlatNavigatorConfig.
@@ -485,12 +565,19 @@ func (*NavigatorConfig) FlatMapstructure() interface{ HCL2Spec() map[string]hcld
 // The decoded values from this spec will then be applied to a FlatNavigatorConfig.
 func (*FlatNavigatorConfig) HCL2Spec() map[string]hcldec.Spec {
 	s := map[string]hcldec.Spec{
-		"mode":                  &hcldec.AttrSpec{Name: "mode", Type: cty.String, Required: false},
-		"execution_environment": &hcldec.BlockSpec{TypeName: "execution_environment", Nested: hcldec.ObjectSpec((*FlatExecutionEnvironment)(nil).HCL2Spec())},
-		"ansible_config":        &hcldec.BlockSpec{TypeName: "ansible_config", Nested: hcldec.ObjectSpec((*FlatAnsibleConfig)(nil).HCL2Spec())},
-		"logging":               &hcldec.BlockSpec{TypeName: "logging", Nested: hcldec.ObjectSpec((*FlatLoggingConfig)(nil).HCL2Spec())},
-		"playbook_artifact":     &hcldec.BlockSpec{TypeName: "playbook_artifact", Nested: hcldec.ObjectSpec((*FlatPlaybookArtifact)(nil).HCL2Spec())},
-		"collection_doc_cache":  &hcldec.BlockSpec{TypeName: "collection_doc_cache", Nested: hcldec.ObjectSpec((*FlatCollectionDocCache)(nil).HCL2Spec())},
+		"mode":                      &hcldec.AttrSpec{Name: "mode", Type: cty.String, Required: false},
+		"format":                    &hcldec.AttrSpec{Name: "format", Type: cty.String, Required: false},
+		"color":                     &hcldec.BlockSpec{TypeName: "color", Nested: hcldec.ObjectSpec((*FlatColorConfig)(nil).HCL2Spec())},
+		"editor":                    &hcldec.BlockSpec{TypeName: "editor", Nested: hcldec.ObjectSpec((*FlatEditorConfig)(nil).HCL2Spec())},
+		"images":                    &hcldec.BlockSpec{TypeName: "images", Nested: hcldec.ObjectSpec((*FlatImagesConfig)(nil).HCL2Spec())},
+		"time_zone":                 &hcldec.AttrSpec{Name: "time_zone", Type: cty.String, Required: false},
+		"inventory_columns":         &hcldec.AttrSpec{Name: "inventory_columns", Type: cty.List(cty.String), Required: false},
+		"collection_doc_cache_path": &hcldec.AttrSpec{Name: "collection_doc_cache_path", Type: cty.String, Required: false},
+		"execution_environment":     &hcldec.BlockSpec{TypeName: "execution_environment", Nested: hcldec.ObjectSpec((*FlatExecutionEnvironment)(nil).HCL2Spec())},
+		"ansible_config":            &hcldec.BlockSpec{TypeName: "ansible_config", Nested: hcldec.ObjectSpec((*FlatAnsibleConfig)(nil).HCL2Spec())},
+		"logging":                   &hcldec.BlockSpec{TypeName: "logging", Nested: hcldec.ObjectSpec((*FlatLoggingConfig)(nil).HCL2Spec())},
+		"playbook_artifact":         &hcldec.BlockSpec{TypeName: "playbook_artifact", Nested: hcldec.ObjectSpec((*FlatPlaybookArtifact)(nil).HCL2Spec())},
+		"collection_doc_cache":      &hcldec.BlockSpec{TypeName: "collection_doc_cache", Nested: hcldec.ObjectSpec((*FlatCollectionDocCache)(nil).HCL2Spec())},
 	}
 	return s
 }

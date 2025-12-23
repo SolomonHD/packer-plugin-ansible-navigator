@@ -1,0 +1,43 @@
+# Tasks: Add remaining `navigator_config` top-level ansible-navigator settings
+
+- [x] Identify the authoritative ansible-navigator v3.x settings reference to use (and pin the version/URL in notes).
+  - Primary schema source (canonical): <https://github.com/ansible/ansible-navigator/blob/main/src/ansible_navigator/data/ansible-navigator.json>
+  - Human docs (supplemental): <https://docs.ansible.com/projects/navigator/settings/>
+- [x] Enumerate the remaining **top-level** keys not already covered by prior changes, including nested shapes and expected YAML key names (hyphenation, nesting).
+  - Enumerated from `ansible-navigator.json` (as of 2025-12-23):
+    - `color` (YAML: `color`) → object:
+      - `enable` (bool)
+      - `osc4` (bool)
+    - `editor` (YAML: `editor`) → object:
+      - `command` (string)
+      - `console` (bool)
+    - `format` (YAML: `format`) → string (allowed values: `json`, `yaml`)
+    - `images` (YAML: `images`) → object:
+      - `details` (list(string))
+    - `time_zone` (YAML: `time-zone`) → string
+    - `inventory_columns` (YAML: `inventory-columns`) → list(string)
+    - `collection_doc_cache_path` (YAML: `collection-doc-cache-path`) → string
+  - Notes:
+    - The OpenSpec prompt originally referenced `mode_settings` / `documentation` / `replay` as top-level keys; these are NOT present as top-level keys in the current upstream `ansible-navigator.json` schema. We will not add unsupported keys unless they are confirmed in the schema.
+- [x] Update typed `NavigatorConfig` structs for both provisioners to add the missing top-level fields.
+  - [x] `format` (string)
+  - [x] `color`
+  - [x] `images`
+  - [x] `time_zone`
+  - [x] `editor`
+  - [x] `inventory_columns`
+  - [x] `collection_doc_cache_path`
+- [x] Add typed structs for each new nested section and include all types in the `//go:generate packer-sdc mapstructure-to-hcl2` type list for both provisioners.
+- [x] Update YAML conversion logic to emit all new fields with correct ansible-navigator YAML key names and nesting.
+- [x] Add/extend unit tests that validate:
+  - [x] HCL decoding succeeds for representative configurations covering each new section
+  - [x] Generated YAML contains the expected keys, nesting, and hyphenated names
+  - [x] Existing `navigator_config` examples still decode and generate equivalent YAML
+    - Verified: `packer validate example/nested-navigator-config.pkr.hcl`.
+- [x] Regenerate HCL2 spec files (`make generate`) and verify the new fields appear in generated HCL2 spec output.
+  - Verified: `collection_doc_cache_path` appears in both generated provisioner HCL2 spec files.
+- [x] Add or update an example Packer template demonstrating the new configuration options.
+  - Added: `example/remaining-navigator-settings.pkr.hcl`.
+- [x] Update user-facing docs (`README.md` and/or `docs/CONFIGURATION.md`) with at least one example per newly-supported section.
+- [x] Validate via `packer validate` using the new example template.
+  - Verified: `packer validate example/remaining-navigator-settings.pkr.hcl`.

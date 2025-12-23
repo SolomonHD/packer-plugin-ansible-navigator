@@ -280,6 +280,72 @@ func TestProvisionerPrepare_DecodesNavigatorConfigAnsibleConfigNewSections(t *te
 	}
 }
 
+func TestProvisionerPrepare_DecodesNavigatorConfigRemainingTopLevelSettings(t *testing.T) {
+	var p Provisioner
+	config := testConfig(t)
+	defer os.Remove(config["command"].(string))
+
+	hostkeyFile, err := os.CreateTemp("", "hostkey")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(hostkeyFile.Name())
+
+	publickeyFile, err := os.CreateTemp("", "publickey")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(publickeyFile.Name())
+
+	playbookFile, err := os.CreateTemp("", "playbook")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(playbookFile.Name())
+
+	config["ssh_host_key_file"] = hostkeyFile.Name()
+	config["ssh_authorized_key_file"] = publickeyFile.Name()
+	config["play"] = []map[string]interface{}{{"target": playbookFile.Name()}}
+	config["navigator_config"] = map[string]interface{}{
+		"format":                    "yaml",
+		"time_zone":                 "America/New_York",
+		"inventory_columns":         []string{"name", "address"},
+		"collection_doc_cache_path": "/tmp/collection-doc-cache",
+		"color":                     map[string]interface{}{"enable": true, "osc4": true},
+		"editor":                    map[string]interface{}{"command": "vim", "console": true},
+		"images":                    map[string]interface{}{"details": []string{"everything"}},
+	}
+
+	if err := p.Prepare(config); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if p.config.NavigatorConfig == nil {
+		t.Fatalf("expected navigator_config to be decoded")
+	}
+	if p.config.NavigatorConfig.Format != "yaml" {
+		t.Fatalf("expected Format=yaml, got: %q", p.config.NavigatorConfig.Format)
+	}
+	if p.config.NavigatorConfig.TimeZone != "America/New_York" {
+		t.Fatalf("expected TimeZone=America/New_York, got: %q", p.config.NavigatorConfig.TimeZone)
+	}
+	if len(p.config.NavigatorConfig.InventoryColumns) != 2 || p.config.NavigatorConfig.InventoryColumns[0] != "name" {
+		t.Fatalf("unexpected InventoryColumns: %#v", p.config.NavigatorConfig.InventoryColumns)
+	}
+	if p.config.NavigatorConfig.CollectionDocCachePath != "/tmp/collection-doc-cache" {
+		t.Fatalf("expected CollectionDocCachePath, got: %q", p.config.NavigatorConfig.CollectionDocCachePath)
+	}
+	if p.config.NavigatorConfig.Color == nil || !p.config.NavigatorConfig.Color.Enable || !p.config.NavigatorConfig.Color.Osc4 {
+		t.Fatalf("unexpected Color decode: %#v", p.config.NavigatorConfig.Color)
+	}
+	if p.config.NavigatorConfig.Editor == nil || p.config.NavigatorConfig.Editor.Command != "vim" || !p.config.NavigatorConfig.Editor.Console {
+		t.Fatalf("unexpected Editor decode: %#v", p.config.NavigatorConfig.Editor)
+	}
+	if p.config.NavigatorConfig.Images == nil || len(p.config.NavigatorConfig.Images.Details) != 1 || p.config.NavigatorConfig.Images.Details[0] != "everything" {
+		t.Fatalf("unexpected Images decode: %#v", p.config.NavigatorConfig.Images)
+	}
+}
+
 func TestProvisionerPrepare_AnsibleConfigPathMutuallyExclusiveWithNewSections(t *testing.T) {
 	var p Provisioner
 	config := testConfig(t)

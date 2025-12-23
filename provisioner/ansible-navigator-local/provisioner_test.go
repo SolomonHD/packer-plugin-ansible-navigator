@@ -169,6 +169,45 @@ func TestProvisionerPrepare_AnsibleConfigPathMutuallyExclusiveWithNewSections(t 
 	require.Contains(t, err.Error(), "mutually exclusive")
 }
 
+func TestProvisionerPrepare_DecodesNavigatorConfigRemainingTopLevelSettings(t *testing.T) {
+	var p Provisioner
+	config := testConfig()
+
+	playbookFile, err := os.CreateTemp("", "playbook-*.yml")
+	require.NoError(t, err)
+	defer os.Remove(playbookFile.Name())
+
+	config["play"] = []map[string]interface{}{{"target": playbookFile.Name()}}
+	config["navigator_config"] = map[string]interface{}{
+		"format":                    "yaml",
+		"time_zone":                 "America/New_York",
+		"inventory_columns":         []string{"name", "address"},
+		"collection_doc_cache_path": "/tmp/collection-doc-cache",
+		"color":                     map[string]interface{}{"enable": true, "osc4": true},
+		"editor":                    map[string]interface{}{"command": "vim", "console": true},
+		"images":                    map[string]interface{}{"details": []string{"everything"}},
+	}
+
+	require.NoError(t, p.Prepare(config))
+	require.NotNil(t, p.config.NavigatorConfig)
+
+	require.Equal(t, "yaml", p.config.NavigatorConfig.Format)
+	require.Equal(t, "America/New_York", p.config.NavigatorConfig.TimeZone)
+	require.Equal(t, []string{"name", "address"}, p.config.NavigatorConfig.InventoryColumns)
+	require.Equal(t, "/tmp/collection-doc-cache", p.config.NavigatorConfig.CollectionDocCachePath)
+
+	require.NotNil(t, p.config.NavigatorConfig.Color)
+	require.True(t, p.config.NavigatorConfig.Color.Enable)
+	require.True(t, p.config.NavigatorConfig.Color.Osc4)
+
+	require.NotNil(t, p.config.NavigatorConfig.Editor)
+	require.Equal(t, "vim", p.config.NavigatorConfig.Editor.Command)
+	require.True(t, p.config.NavigatorConfig.Editor.Console)
+
+	require.NotNil(t, p.config.NavigatorConfig.Images)
+	require.Equal(t, []string{"everything"}, p.config.NavigatorConfig.Images.Details)
+}
+
 func TestProvisionerPrepare_RequiresPlayBlock(t *testing.T) {
 	var p Provisioner
 	config := testConfig()

@@ -160,6 +160,26 @@ provisioner "ansible-navigator" {
   navigator_config {
     mode = "stdout"
 
+    # Additional top-level ansible-navigator settings (v3.x)
+    format                    = "yaml" # or "json"
+    time_zone                  = "America/New_York"
+    inventory_columns          = ["name", "address"]
+    collection_doc_cache_path  = "/tmp/collection-doc-cache"
+
+    color {
+      enable = true
+      osc4   = true
+    }
+
+    editor {
+      command = "vim"
+      console = true
+    }
+
+    images {
+      details = ["everything"]
+    }
+
     # When set to "debug", enables additional plugin diagnostics (prefixed with [DEBUG])
     logging {
       level = "debug"
@@ -183,6 +203,18 @@ provisioner "ansible-navigator" {
   play { target = "site.yml" }
 }
 ```
+
+### Supported additional top-level settings
+
+The following top-level `navigator_config` keys are supported and will be emitted into the generated `ansible-navigator.yml` under the `ansible-navigator:` root:
+
+- `format` (string)
+- `time_zone` (string)
+- `inventory_columns` (list(string))
+- `collection_doc_cache_path` (string)
+- `color { enable, osc4 }`
+- `editor { command, console }`
+- `images { details }`
 
 **Key benefits:**
 
