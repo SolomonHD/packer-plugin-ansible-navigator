@@ -202,6 +202,14 @@ func TestGenerateNavigatorConfigYAML_AnsibleConfigPathSchemaCompliant(t *testing
 				LocalTmp:  "/tmp/.ansible-local",
 			},
 			SSHConnection: &AnsibleConfigConnection{Pipelining: true},
+			PrivilegeEscalation: &AnsibleConfigPrivilegeEscalation{
+				Become:       true,
+				BecomeMethod: "sudo",
+				BecomeUser:   "root",
+			},
+			PersistentConnection: &AnsibleConfigPersistentConnection{ConnectTimeout: 30},
+			Inventory:            &AnsibleConfigInventory{EnablePlugins: []string{"ini", "yaml"}},
+			Colors:               &AnsibleConfigColors{ForceColor: true},
 		},
 	}
 
@@ -214,11 +222,71 @@ func TestGenerateNavigatorConfigYAML_AnsibleConfigPathSchemaCompliant(t *testing
 		t.Fatalf("expected ansible.config.path in YAML, got: %s", yamlStr)
 	}
 
-	if strings.Contains(yamlStr, "defaults") {
-		t.Fatalf("did not expect defaults under ansible.config in YAML, got: %s", yamlStr)
+	for _, forbidden := range []string{
+		"defaults",
+		"ssh_connection",
+		"privilege_escalation",
+		"persistent_connection",
+		"inventory",
+		"paramiko_connection",
+		"colors",
+		"diff",
+		"galaxy",
+	} {
+		if strings.Contains(yamlStr, forbidden) {
+			t.Fatalf("did not expect %s under ansible.config in YAML, got: %s", forbidden, yamlStr)
+		}
 	}
-	if strings.Contains(yamlStr, "ssh_connection") {
-		t.Fatalf("did not expect ssh_connection under ansible.config in YAML, got: %s", yamlStr)
+}
+
+func TestGenerateAnsibleCfgContent_NewSections(t *testing.T) {
+	content, err := generateAnsibleCfgContent(&AnsibleConfig{
+		PrivilegeEscalation: &AnsibleConfigPrivilegeEscalation{
+			Become:       true,
+			BecomeMethod: "sudo",
+			BecomeUser:   "root",
+		},
+		PersistentConnection: &AnsibleConfigPersistentConnection{
+			ConnectTimeout:      30,
+			ConnectRetryTimeout: 15,
+			CommandTimeout:      60,
+		},
+		Inventory: &AnsibleConfigInventory{EnablePlugins: []string{"ini", "yaml"}},
+		ParamikoConnection: &AnsibleConfigParamikoConnection{
+			ProxyCommand: "ssh -W %h:%p jumphost",
+		},
+		Colors: &AnsibleConfigColors{ForceColor: true},
+		Diff:   &AnsibleConfigDiff{Always: true, Context: 3},
+		Galaxy: &AnsibleConfigGalaxy{ServerList: []string{"automation_hub"}, IgnoreCerts: true},
+	})
+	if err != nil {
+		t.Fatalf("generateAnsibleCfgContent failed: %v", err)
+	}
+	for _, expected := range []string{
+		"[privilege_escalation]",
+		"become = True",
+		"become_method = sudo",
+		"become_user = root",
+		"[persistent_connection]",
+		"connect_timeout = 30",
+		"connect_retry_timeout = 15",
+		"command_timeout = 60",
+		"[inventory]",
+		"enable_plugins = ini,yaml",
+		"[paramiko_connection]",
+		"proxy_command = ssh -W %h:%p jumphost",
+		"[colors]",
+		"force_color = True",
+		"[diff]",
+		"always = True",
+		"context = 3",
+		"[galaxy]",
+		"server_list = automation_hub",
+		"ignore_certs = True",
+	} {
+		if !strings.Contains(content, expected) {
+			t.Fatalf("expected %q in generated ansible.cfg, got: %q", expected, content)
+		}
 	}
 }
 

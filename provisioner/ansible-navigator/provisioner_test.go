@@ -190,6 +190,140 @@ func TestProvisionerPrepare_DecodesNavigatorConfigExecutionEnvironmentNewFields(
 	}
 }
 
+func TestProvisionerPrepare_DecodesNavigatorConfigAnsibleConfigNewSections(t *testing.T) {
+	var p Provisioner
+	config := testConfig(t)
+	defer os.Remove(config["command"].(string))
+
+	hostkeyFile, err := os.CreateTemp("", "hostkey")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(hostkeyFile.Name())
+
+	publickeyFile, err := os.CreateTemp("", "publickey")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(publickeyFile.Name())
+
+	playbookFile, err := os.CreateTemp("", "playbook")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(playbookFile.Name())
+
+	config["ssh_host_key_file"] = hostkeyFile.Name()
+	config["ssh_authorized_key_file"] = publickeyFile.Name()
+	config["play"] = []map[string]interface{}{{"target": playbookFile.Name()}}
+	config["navigator_config"] = map[string]interface{}{
+		"ansible_config": map[string]interface{}{
+			"privilege_escalation": map[string]interface{}{
+				"become":        true,
+				"become_method": "sudo",
+				"become_user":   "root",
+			},
+			"persistent_connection": map[string]interface{}{
+				"connect_timeout":       30,
+				"connect_retry_timeout": 15,
+				"command_timeout":       60,
+			},
+			"inventory": map[string]interface{}{
+				"enable_plugins": []string{"ini", "yaml"},
+			},
+			"paramiko_connection": map[string]interface{}{
+				"proxy_command": "ssh -W %h:%p jumphost",
+			},
+			"colors": map[string]interface{}{
+				"force_color": true,
+			},
+			"diff": map[string]interface{}{
+				"always":  true,
+				"context": 3,
+			},
+			"galaxy": map[string]interface{}{
+				"server_list":  []string{"automation_hub"},
+				"ignore_certs": true,
+			},
+		},
+	}
+
+	if err := p.Prepare(config); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if p.config.NavigatorConfig == nil || p.config.NavigatorConfig.AnsibleConfig == nil {
+		t.Fatalf("expected navigator_config.ansible_config to be decoded")
+	}
+
+	ac := p.config.NavigatorConfig.AnsibleConfig
+	if ac.PrivilegeEscalation == nil || !ac.PrivilegeEscalation.Become || ac.PrivilegeEscalation.BecomeMethod != "sudo" {
+		t.Fatalf("unexpected privilege_escalation decode: %#v", ac.PrivilegeEscalation)
+	}
+	if ac.PersistentConnection == nil || ac.PersistentConnection.ConnectTimeout != 30 {
+		t.Fatalf("unexpected persistent_connection decode: %#v", ac.PersistentConnection)
+	}
+	if ac.Inventory == nil || len(ac.Inventory.EnablePlugins) != 2 {
+		t.Fatalf("unexpected inventory decode: %#v", ac.Inventory)
+	}
+	if ac.ParamikoConnection == nil || ac.ParamikoConnection.ProxyCommand == "" {
+		t.Fatalf("unexpected paramiko_connection decode: %#v", ac.ParamikoConnection)
+	}
+	if ac.Colors == nil || !ac.Colors.ForceColor {
+		t.Fatalf("unexpected colors decode: %#v", ac.Colors)
+	}
+	if ac.Diff == nil || !ac.Diff.Always || ac.Diff.Context != 3 {
+		t.Fatalf("unexpected diff decode: %#v", ac.Diff)
+	}
+	if ac.Galaxy == nil || len(ac.Galaxy.ServerList) != 1 || !ac.Galaxy.IgnoreCerts {
+		t.Fatalf("unexpected galaxy decode: %#v", ac.Galaxy)
+	}
+}
+
+func TestProvisionerPrepare_AnsibleConfigPathMutuallyExclusiveWithNewSections(t *testing.T) {
+	var p Provisioner
+	config := testConfig(t)
+	defer os.Remove(config["command"].(string))
+
+	hostkeyFile, err := os.CreateTemp("", "hostkey")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(hostkeyFile.Name())
+
+	publickeyFile, err := os.CreateTemp("", "publickey")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(publickeyFile.Name())
+
+	playbookFile, err := os.CreateTemp("", "playbook")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(playbookFile.Name())
+
+	config["ssh_host_key_file"] = hostkeyFile.Name()
+	config["ssh_authorized_key_file"] = publickeyFile.Name()
+	config["play"] = []map[string]interface{}{{"target": playbookFile.Name()}}
+	config["navigator_config"] = map[string]interface{}{
+		"ansible_config": map[string]interface{}{
+			"config": "/etc/ansible/ansible.cfg",
+			"galaxy": map[string]interface{}{
+				"server_list": []string{"automation_hub"},
+			},
+		},
+	}
+
+	err = p.Prepare(config)
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	if !strings.Contains(err.Error(), "mutually exclusive") {
+		t.Fatalf("expected mutually exclusive error, got: %v", err)
+	}
+}
+
 func TestProvisionerPrepare_HostKeyFile(t *testing.T) {
 	var p Provisioner
 	config := testConfig(t)
