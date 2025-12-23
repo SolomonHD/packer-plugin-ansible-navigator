@@ -255,6 +255,9 @@ type FlatExecutionEnvironment struct {
 	Enabled              *bool                           `mapstructure:"enabled" cty:"enabled" hcl:"enabled"`
 	Image                *string                         `mapstructure:"image" cty:"image" hcl:"image"`
 	PullPolicy           *string                         `mapstructure:"pull_policy" cty:"pull_policy" hcl:"pull_policy"`
+	ContainerEngine      *string                         `mapstructure:"container_engine" cty:"container_engine" hcl:"container_engine"`
+	ContainerOptions     []string                        `mapstructure:"container_options" cty:"container_options" hcl:"container_options"`
+	PullArguments        []string                        `mapstructure:"pull_arguments" cty:"pull_arguments" hcl:"pull_arguments"`
 	EnvironmentVariables *FlatEnvironmentVariablesConfig `mapstructure:"environment_variables" cty:"environment_variables" hcl:"environment_variables"`
 	VolumeMounts         []FlatVolumeMount               `mapstructure:"volume_mounts" cty:"volume_mounts" hcl:"volume_mounts"`
 }
@@ -274,6 +277,9 @@ func (*FlatExecutionEnvironment) HCL2Spec() map[string]hcldec.Spec {
 		"enabled":               &hcldec.AttrSpec{Name: "enabled", Type: cty.Bool, Required: false},
 		"image":                 &hcldec.AttrSpec{Name: "image", Type: cty.String, Required: false},
 		"pull_policy":           &hcldec.AttrSpec{Name: "pull_policy", Type: cty.String, Required: false},
+		"container_engine":      &hcldec.AttrSpec{Name: "container_engine", Type: cty.String, Required: false},
+		"container_options":     &hcldec.AttrSpec{Name: "container_options", Type: cty.List(cty.String), Required: false},
+		"pull_arguments":        &hcldec.AttrSpec{Name: "pull_arguments", Type: cty.List(cty.String), Required: false},
 		"environment_variables": &hcldec.BlockSpec{TypeName: "environment_variables", Nested: hcldec.ObjectSpec((*FlatEnvironmentVariablesConfig)(nil).HCL2Spec())},
 		"volume_mounts":         &hcldec.BlockListSpec{TypeName: "volume_mounts", Nested: hcldec.ObjectSpec((*FlatVolumeMount)(nil).HCL2Spec())},
 	}

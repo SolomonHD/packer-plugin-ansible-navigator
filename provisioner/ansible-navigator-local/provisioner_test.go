@@ -48,6 +48,32 @@ func TestProvisionerPrepare_Defaults(t *testing.T) {
 	}
 }
 
+func TestProvisionerPrepare_DecodesNavigatorConfigExecutionEnvironmentNewFields(t *testing.T) {
+	var p Provisioner
+	config := testConfig()
+
+	playbookFile, err := os.CreateTemp("", "playbook-*.yml")
+	require.NoError(t, err)
+	defer os.Remove(playbookFile.Name())
+
+	config["play"] = []map[string]interface{}{{"target": playbookFile.Name()}}
+	config["navigator_config"] = map[string]interface{}{
+		"execution_environment": map[string]interface{}{
+			"enabled":           true,
+			"container_engine":  "podman",
+			"container_options": []string{"--net=host"},
+			"pull_arguments":    []string{"--tls-verify=false"},
+		},
+	}
+
+	require.NoError(t, p.Prepare(config))
+	require.NotNil(t, p.config.NavigatorConfig)
+	require.NotNil(t, p.config.NavigatorConfig.ExecutionEnvironment)
+	require.Equal(t, "podman", p.config.NavigatorConfig.ExecutionEnvironment.ContainerEngine)
+	require.Equal(t, []string{"--net=host"}, p.config.NavigatorConfig.ExecutionEnvironment.ContainerOptions)
+	require.Equal(t, []string{"--tls-verify=false"}, p.config.NavigatorConfig.ExecutionEnvironment.PullArguments)
+}
+
 func TestProvisionerPrepare_RequiresPlayBlock(t *testing.T) {
 	var p Provisioner
 	config := testConfig()

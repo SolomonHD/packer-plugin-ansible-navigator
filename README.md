@@ -267,7 +267,7 @@ navigator_config {
 
 When using execution environments, the plugin automatically:
 
-1. ** Sets safe temp directories** to avoid `/.ansible/tmp` permission errors
+1. **Sets safe temp directories** to avoid `/.ansible/tmp` permission errors
 2. **Mounts collections as volumes** so they're accessible inside the container
 3. **Configures `ANSIBLE_COLLECTIONS_PATH`** to point to the mounted collections
 
@@ -317,6 +317,11 @@ provisioner "ansible-navigator" {
       enabled = true
       image = "quay.io/ansible/creator-ee:latest"
       pull_policy = "missing"
+
+      # New (v3.x EE schema parity): container engine + runtime/pull options
+      container_engine  = "podman" # or "docker" / "auto"
+      container_options = ["--net=host"]
+      pull_arguments    = ["--tls-verify=false"]
     }
     ansible_config {
       defaults {

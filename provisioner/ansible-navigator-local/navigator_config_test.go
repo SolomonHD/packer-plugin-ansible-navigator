@@ -153,3 +153,60 @@ func TestGenerateAnsibleCfgContent_LocalTmpOmittedWhenUnset(t *testing.T) {
 		t.Fatalf("did not expect local_tmp in generated ansible.cfg when unset, got: %q", content)
 	}
 }
+
+func TestGenerateNavigatorConfigYAML_ExecutionEnvironment_ContainerEngine(t *testing.T) {
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled:         true,
+			ContainerEngine: "podman",
+		},
+	}
+
+	yamlStr, err := generateNavigatorConfigYAML(config, "")
+	if err != nil {
+		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+	}
+	if !strings.Contains(yamlStr, "container-engine: podman") {
+		t.Fatalf("expected container-engine in YAML, got: %s", yamlStr)
+	}
+}
+
+func TestGenerateNavigatorConfigYAML_ExecutionEnvironment_ContainerOptions(t *testing.T) {
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled:          true,
+			ContainerOptions: []string{"--net=host"},
+		},
+	}
+
+	yamlStr, err := generateNavigatorConfigYAML(config, "")
+	if err != nil {
+		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+	}
+	if !strings.Contains(yamlStr, "container-options:") {
+		t.Fatalf("expected container-options in YAML, got: %s", yamlStr)
+	}
+	if !strings.Contains(yamlStr, "- --net=host") {
+		t.Fatalf("expected container option value in YAML, got: %s", yamlStr)
+	}
+}
+
+func TestGenerateNavigatorConfigYAML_ExecutionEnvironment_PullArgumentsOnly(t *testing.T) {
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled:       true,
+			PullArguments: []string{"--tls-verify=false"},
+		},
+	}
+
+	yamlStr, err := generateNavigatorConfigYAML(config, "")
+	if err != nil {
+		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+	}
+	if !strings.Contains(yamlStr, "pull:") || !strings.Contains(yamlStr, "arguments:") {
+		t.Fatalf("expected pull.arguments in YAML, got: %s", yamlStr)
+	}
+	if !strings.Contains(yamlStr, "- --tls-verify=false") {
+		t.Fatalf("expected pull argument list item in YAML, got: %s", yamlStr)
+	}
+}
