@@ -8,6 +8,8 @@ package ansiblenavigatorlocal
 import (
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestGenerateNavigatorConfigYAML_AutomaticEEHomeXDGDefaults_WhenNotSetOrPassed(t *testing.T) {
@@ -276,5 +278,67 @@ func TestGenerateNavigatorConfigYAML_ExecutionEnvironment_PullArgumentsOnly(t *t
 	}
 	if !strings.Contains(yamlStr, "- --tls-verify=false") {
 		t.Fatalf("expected pull argument list item in YAML, got: %s", yamlStr)
+	}
+}
+
+func TestGenerateNavigatorConfigYAML_LoggingAndPlaybookArtifact_KeyNamesAndTypes(t *testing.T) {
+	config := &NavigatorConfig{
+		Mode: "stdout",
+		Logging: &LoggingConfig{
+			Level:  "debug",
+			File:   "/tmp/ansible-navigator.log",
+			Append: true,
+		},
+		PlaybookArtifact: &PlaybookArtifact{
+			Enable: true,
+			Replay: "/tmp/replay.json",
+			SaveAs: "/tmp/save.json",
+		},
+	}
+
+	yamlStr, err := generateNavigatorConfigYAML(config, "")
+	if err != nil {
+		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+	}
+
+	var parsed map[string]interface{}
+	if err := yaml.Unmarshal([]byte(yamlStr), &parsed); err != nil {
+		t.Fatalf("Generated YAML is not valid: %v\nYAML:\n%s", err, yamlStr)
+	}
+
+	root, ok := parsed["ansible-navigator"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected ansible-navigator root key in parsed YAML, got: %T (%v)", parsed["ansible-navigator"], parsed["ansible-navigator"])
+	}
+
+	logging, ok := root["logging"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected logging map in YAML, got: %T (%v)", root["logging"], root["logging"])
+	}
+	if logging["level"] != "debug" {
+		t.Fatalf("Expected logging.level=debug, got: %v", logging["level"])
+	}
+	if logging["file"] != "/tmp/ansible-navigator.log" {
+		t.Fatalf("Expected logging.file=/tmp/ansible-navigator.log, got: %v", logging["file"])
+	}
+	if logging["append"] != true {
+		t.Fatalf("Expected logging.append=true, got: %v", logging["append"])
+	}
+
+	artifact, ok := root["playbook-artifact"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected playbook-artifact map in YAML, got: %T (%v)", root["playbook-artifact"], root["playbook-artifact"])
+	}
+	if artifact["enable"] != true {
+		t.Fatalf("Expected playbook-artifact.enable=true, got: %v", artifact["enable"])
+	}
+	if artifact["replay"] != "/tmp/replay.json" {
+		t.Fatalf("Expected playbook-artifact.replay=/tmp/replay.json, got: %v", artifact["replay"])
+	}
+	if artifact["save-as"] != "/tmp/save.json" {
+		t.Fatalf("Expected playbook-artifact.save-as=/tmp/save.json, got: %v", artifact["save-as"])
+	}
+	if _, hasUnderscore := artifact["save_as"]; hasUnderscore {
+		t.Fatalf("Did not expect playbook-artifact.save_as in YAML (must be save-as), got: %v", artifact)
 	}
 }

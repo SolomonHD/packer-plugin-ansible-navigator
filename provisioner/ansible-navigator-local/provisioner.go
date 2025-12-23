@@ -220,9 +220,11 @@ type LoggingConfig struct {
 type PlaybookArtifact struct {
 	// Enable playbook artifact
 	Enable bool `mapstructure:"enable"`
-	// Replay directory
+	// Path to a playbook artifact to replay.
+	// (YAML key: playbook-artifact.replay)
 	Replay string `mapstructure:"replay"`
-	// Save directory
+	// Path to write the playbook artifact.
+	// (YAML key: playbook-artifact.save-as)
 	SaveAs string `mapstructure:"save_as"`
 }
 
