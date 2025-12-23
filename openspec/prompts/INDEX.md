@@ -1,86 +1,59 @@
-# OpenSpec Prompt Index
+# OpenSpec Prompts Index: SSH Tunnel Mode Feature
 
-This directory contains **numbered OpenSpec prompt files** for expanding navigator_config to support the full ansible-navigator v3.x schema. Run them in order.
-
-## How to use
-
-For each prompt file:
-
-1. Run your existing `/openspec-proposal.md` workflow (it can read directly from `openspec/prompts/`)
-2. Generate the proposal for that one prompt
-3. Implement/review/merge that change
-4. Proceed to the next prompt
-
-Optional compatibility step:
-
-- If you have tooling that still expects a single root prompt file, copy the current prompt to [`OPENSPEC_PROMPT.md`](../../OPENSPEC_PROMPT.md:1) before running the proposal workflow.
-
-## Planned changes (execution order)
-
-| # | Change ID | Title | Depends on |
-|---:|----------|-------|------------|
-| 01 | expand-execution-environment-config | Expand execution-environment configuration | — |
-| 02 | expand-ansible-config-sections | Expand ansible.config sections | — (suggested after 01) |
-| 03 | expand-logging-and-playbook-artifact | Expand logging and playbook-artifact | — (suggested after 01-02) |
-| 04 | add-remaining-navigator-settings | Add remaining navigator settings | 01-03 recommended |
+This index tracks the decomposed prompts for implementing the SSH tunnel mode feature.
 
 ## Overview
 
-This series decomposes the complex task of achieving full ansible-navigator v3.x configuration parity into four reviewable changes:
+Add `ssh_tunnel_mode` option to bypass the Packer SSH proxy adapter by establishing direct SSH tunnels through a bastion host. This solves WSL2/Docker container networking reliability issues.
 
-### Change 01: Execution Environment
+## Prompt Sequence
 
-Expands [`navigator_config.execution_environment`](../../provisioner/ansible-navigator/navigator_config.go:1) to include all v3.x EE options:
-- `container_engine`, `container_options`, `volume_mounts`, `pull_arguments`
-- Complete environment variable configuration (pass/set)
+Execute prompts in numerical order. Each prompt builds on the previous.
 
-**Why separate:** Execution environments are complex container configurations with multiple nested structures. This change focuses exclusively on the EE block to keep it reviewable.
+### 01-add-ssh-tunnel-config-options.md
 
-### Change 02: Ansible Config Sections
+**Status**: Pending  
+**Dependencies**: None  
+**Description**: Add configuration schema for SSH tunnel mode including bastion host settings and mode selection.
 
-Expands [`navigator_config.ansible_config`](../../provisioner/ansible-navigator/navigator_config.go:1) to include all ansible.cfg sections:
-- `privilege_escalation`, `persistent_connection`, `inventory`, `colors`, `diff`, `galaxy`, `paramiko_connection`
-- All ansible.cfg sections supported by ansible-navigator v3.x
+### 02-implement-ssh-tunnel-establishment.md
 
-**Why separate:** Ansible configuration has many sections with different option types. This change adds comprehensive ansible.cfg support without mixing concerns with EE or other navigator settings.
+**Status**: Pending  
+**Dependencies**: 01  
+**Description**: Implement SSH tunnel establishment logic and connection management through bastion host.
 
-### Change 03: Logging and Playbook Artifact
+### 03-integrate-tunnel-with-inventory.md
 
-Completes [`navigator_config.logging`](../../provisioner/ansible-navigator/navigator_config.go:1) and [`navigator_config.playbook_artifact`](../../provisioner/ansible-navigator/navigator_config.go:1):
-- All v3.x logging options
-- Complete playbook-artifact options including replay
+**Status**: Pending  
+**Dependencies**: 02  
+**Description**: Modify inventory generation to use tunnel ports when SSH tunnel mode is active.
 
-**Why separate:** These two related configuration areas are grouped together but kept separate from the larger EE and ansible-config changes. They're simpler and can be reviewed quickly.
+### 04-update-documentation.md
 
-### Change 04: Remaining Navigator Settings
+**Status**: Pending  
+**Dependencies**: 03  
+**Description**: Document SSH tunnel mode configuration, bastion setup, and WSL2/container troubleshooting guidance.
 
-Adds all other top-level ansible-navigator v3.x options:
-- `mode_settings`, `format`, `color`, `images`, `time_zone`, `editor`
-- Expanded `collection_doc_cache`, `inventory_columns`
-- Any other v3.x top-level options not covered above
+## Implementation Notes
 
-**Why last:** This is the "catch-all" for miscellaneous navigator settings. It depends on the previous structural changes being complete and benefits from the patterns established in changes 01-03.
+- SSH tunnel mode is **optional** and only activates when configured
+- Preserves existing proxy adapter behavior as default
+- Tunnel mode and proxy adapter are mutually exclusive
+- Target use case: WSL2/Docker execution environments where container-to-host networking is unreliable
 
 ## Testing Strategy
 
-Each change includes:
-- HCL decoding tests for new configuration options
-- YAML generation tests verifying correct structure and key names
-- Backward compatibility tests ensuring existing configs still work
-- At least one minimal Packer template demonstrating new options
+Each prompt should include:
 
-## Success Criteria
+- Configuration validation tests
+- Connection establishment tests  
+- Error handling tests
+- Integration tests with execution environments
 
-After completing all four changes:
-- ✅ Users can configure any documented ansible-navigator v3.x option through `navigator_config` HCL blocks
-- ✅ Generated ansible-navigator.yml files match the v3.x schema correctly
-- ✅ No "Unsupported argument" errors for valid v3.x configuration options
-- ✅ All existing navigator_config usage continues to work (backward compatibility)
-- ✅ Plugin builds and passes all tests with `make generate`, `go build ./...`, and `go test ./...`
+## Related Files
 
-## Notes
+Key files that will be modified:
 
-- Each prompt is self-contained and follows the standard OpenSpec prompt structure
-- Changes can be implemented independently, though the suggested order provides logical progression
-- Changes 02-04 can potentially be parallelized if multiple reviewers are available
-- The automatic EE defaults (safe temp directories, collections mounting) are preserved throughout - these changes only expand user configuration options, they don't change automatic behavior
+- [`provisioner/ansible-navigator/provisioner.go`](../../provisioner/ansible-navigator/provisioner.go) - Core provisioner logic
+- [`docs/CONFIGURATION.md`](../../docs/CONFIGURATION.md) - User-facing configuration reference
+- OpenSpec specs under `openspec/specs/remote-provisioner-capabilities/spec.md`

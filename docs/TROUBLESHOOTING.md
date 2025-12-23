@@ -126,6 +126,7 @@ The plugin delegates all authentication to `ansible-galaxy` and git. If collecti
 ### Error: "HTTP Error 401: Unauthorized"
 
 **Symptom**: `ansible-galaxy install` fails with:
+
 ```
 ERROR! Unknown error when attempting to call Galaxy at 'https://automation-hub.example.com/api/galaxy/': HTTP Error 401: Unauthorized
 ```
@@ -140,6 +141,7 @@ ERROR! Unknown error when attempting to call Galaxy at 'https://automation-hub.e
    - Regenerate if necessary
 
 2. **Check `ansible.cfg` configuration** in your Packer template:
+
    ```hcl
    provisioner "ansible-navigator" {
      ansible_cfg = <<-EOF
@@ -156,6 +158,7 @@ ERROR! Unknown error when attempting to call Galaxy at 'https://automation-hub.e
    ```
 
 3. **Ensure token variable is set** when running Packer:
+
    ```bash
    packer build -var "automation_hub_token=YOUR_TOKEN" template.pkr.hcl
    ```
@@ -165,6 +168,7 @@ See [GALAXY_AUTHENTICATION.md - Private Automation Hub](GALAXY_AUTHENTICATION.md
 ### Error: "Permission denied (publickey)"
 
 **Symptom**: Git clone fails during `ansible-galaxy install` with:
+
 ```
 fatal: Could not read from remote repository.
 Permission denied (publickey).
@@ -175,18 +179,21 @@ Permission denied (publickey).
 **Resolution**:
 
 1. **Verify SSH key is added to GitHub/GitLab**:
+
    ```bash
    ssh -T git@github.com
    # Should show: "Hi username! You've successfully authenticated..."
    ```
 
 2. **Start ssh-agent and add key**:
+
    ```bash
    eval "$(ssh-agent -s)"
    ssh-add ~/.ssh/id_ed25519  # or your key path
    ```
 
 3. **Verify key is loaded**:
+
    ```bash
    ssh-add -l
    # Should list your key fingerprint
@@ -199,6 +206,7 @@ See [GALAXY_AUTHENTICATION.md - Private GitHub (SSH)](GALAXY_AUTHENTICATION.md#p
 ### Error: "fatal: Authentication failed"
 
 **Symptom**: Git HTTPS clone fails during `ansible-galaxy install` with:
+
 ```
 fatal: Authentication failed for 'https://github.com/myorg/ansible-collection.git/'
 ```
@@ -208,6 +216,7 @@ fatal: Authentication failed for 'https://github.com/myorg/ansible-collection.gi
 **Resolution**:
 
 1. **Configure git credential helper**:
+
    ```bash
    # Cache credentials for 1 hour (recommended for development)
    git config --global credential.helper cache
@@ -215,6 +224,7 @@ fatal: Authentication failed for 'https://github.com/myorg/ansible-collection.gi
    ```
 
 2. **Or set environment variables**:
+
    ```bash
    export GIT_USERNAME="your-github-username"
    export GIT_PASSWORD="ghp_YourPersonalAccessToken"
@@ -226,6 +236,7 @@ fatal: Authentication failed for 'https://github.com/myorg/ansible-collection.gi
    - Required scope: `repo` (for private repositories)
 
 4. **For CI/CD**, inject token via secrets:
+
    ```yaml
    # GitHub Actions example
    - name: Run Packer
@@ -239,9 +250,191 @@ fatal: Authentication failed for 'https://github.com/myorg/ansible-collection.gi
 
 See [GALAXY_AUTHENTICATION.md - Private GitHub (HTTPS)](GALAXY_AUTHENTICATION.md#private-github-repositories-https-with-tokens) for complete setup instructions.
 
+## SSH Tunnel Connection Issues
+
+When using `ssh_tunnel_mode = true`, connection problems may occur at different stages. This section helps diagnose and resolve SSH tunnel-specific issues.
+
+### SSH Tunnel Fails to Establish
+
+**Manual Verification Steps:**
+
+1. **Test bastion connectivity directly:**
+
+   ```bash
+   # Test basic SSH connectivity to bastion
+   ssh -p 22 user@bastion.example.com
+   # If this fails, check network/DNS/firewall before proceeding
+   ```
+
+2. **Test bastion authentication:**
+
+   ```bash
+   # With SSH key
+   ssh -i ~/.ssh/bastion-key.pem -p 22 user@bastion.example.com
+   
+   # With password (will prompt)
+   ssh -p 22 user@bastion.example.com
+   ```
+
+3. **Test bastion-to-target connectivity** (from bastion):
+
+   ```bash
+   # SSH into bastion, then test target connectivity
+   ssh -i ~/.ssh/bastion-key.pem user@bastion.example.com
+   # Once on bastion:
+   ssh target-host.internal.com
+   # Or test specific port:
+   nc -zv target-host.internal.com 22
+   ```
+
+4. **Manually establish tunnel** (to verify tunnel works):
+
+   ```bash
+   # Create tunnel manually
+   ssh -i ~/.ssh/bastion-key.pem -L 2222:target-host:22 user@bastion.example.com -N
+   
+   # In another terminal, test the tunnel
+   ssh -p 2222 target-user@localhost
+   # This should connect through bastion to target
+   ```
+
+5. **Verify local tunnel endpoint** (when plugin creates tunnel):
+
+   ```bash
+   # Check if tunnel port is listening (while Packer runs)
+   netstat -an | grep LISTEN | grep 127.0.0.1
+   # Or on macOS:
+   lsof -i -P | grep LISTEN
+   ```
+
+### Common Error Messages
+
+| Error Pattern | Likely Cause | Resolution |
+|---------------|--------------|------------|
+| `Failed to connect to bastion: dial tcp: lookup bastion.example.com: no such host` | DNS resolution failure | Verify bastion hostname resolves: `nslookup bastion.example.com`<br>Or use IP address instead of hostname |
+| `Failed to connect to bastion: dial tcp <ip>:<port>: i/o timeout` | Network/firewall blocking connection | Check firewall rules allow SSH to bastion<br>Verify security group allows inbound port 22 (or custom port)<br>Test with `telnet bastion.example.com 22` |
+| `Failed to authenticate to bastion: ssh: handshake failed: ssh: unable to authenticate` | Authentication failure | Verify key file exists and has correct permissions (see [Key File Permissions](#key-file-permissions))<br>Confirm `bastion_user` is correct<br>Try password authentication if key fails |
+| `Failed to establish tunnel to target: dial tcp: lookup target-host: no such host` | Bastion cannot resolve target hostname | Use IP address instead of hostname<br>Or verify DNS is configured on bastion |
+| `ssh_tunnel_mode and use_proxy cannot both be true` | Configuration conflict | Remove either `use_proxy = true` or `ssh_tunnel_mode = true`<br>These are mutually exclusive |
+| `bastion_host is required when ssh_tunnel_mode is true` | Missing required field | Add `bastion_host` configuration |
+| `bastion_user is required when ssh_tunnel_mode is true` | Missing required field | Add `bastion_user` configuration |
+| `either bastion_private_key_file or bastion_password must be provided` | Missing authentication | Provide either `bastion_private_key_file` or `bastion_password`<br>Never both |
+| `bastion_port must be between 1 and 65535` | Invalid port number | Correct `bastion_port` value (default is 22) |
+| `bastion_private_key_file does not exist: <path>` | Key file not found | Verify key file path is correct<br>Use absolute path or `~` for home directory |
+
+### WSL2 Execution Environment Issues
+
+**Symptom**: Packer builds fail in WSL2 with `execution_environment.enabled = true`, showing connection errors like:
+
+```
+Could not connect to provisioning host
+Connection refused
+Network unreachable
+```
+
+**Root Cause**: WSL2 container-to-host networking issues prevent the Packer SSH proxy adapter from working reliably. The proxy adapter requires the ansible-navigator container to reach the Packer host, which often fails in WSL2.
+
+**Resolution**:
+
+1. **Verify you're using execution environment mode:**
+
+   ```hcl
+   provisioner "ansible-navigator" {
+     navigator_config {
+       execution_environment {
+         enabled = true  # ← This is what triggers WSL2 issues
+       }
+     }
+   }
+   ```
+
+2. **Enable SSH tunnel mode** (bypasses proxy adapter):
+
+   ```hcl
+   provisioner "ansible-navigator" {
+     # Remove proxy configuration if present
+     # use_proxy = true  ← DELETE THIS LINE
+     
+     # Add tunnel configuration
+     ssh_tunnel_mode          = true
+     bastion_host             = "your-bastion-host"
+     bastion_user             = "ubuntu"
+     bastion_private_key_file = "~/.ssh/id_ed25519"
+     
+     navigator_config {
+       execution_environment {
+         enabled = true
+         image   = "quay.io/ansible/creator-ee:latest"
+       }
+     }
+     
+     play { target = "site.yml" }
+   }
+   ```
+
+3. **Why this works**: SSH tunnel mode establishes the tunnel **before** starting ansible-navigator. The container then connects to `localhost:<tunnel_port>`, avoiding container-to-host networking issues entirely.
+
+4. **Alternative workaround** (if no bastion available):
+   - Disable execution environment mode: `execution_environment.enabled = false`
+   - This uses the host's ansible-navigator directly, avoiding container networking issues
+   - Trade-off: Loses execution environment isolation
+
+### Key File Permissions
+
+**Symptom**: SSH authentication fails with:
+
+```
+Failed to authenticate to bastion: ssh: handshake failed
+WARNING: UNPROTECTED PRIVATE KEY FILE!
+Permissions 0644 for '/home/user/.ssh/bastion-key.pem' are too open
+```
+
+**Root Cause**: SSH requires private key files to be readable only by the owner.
+
+**Resolution**:
+
+1. **Fix key file permissions:**
+
+   ```bash
+   chmod 600 ~/.ssh/bastion-key.pem
+   ```
+
+2. **Verify permissions:**
+
+   ```bash
+   ls -l ~/.ssh/bastion-key.pem
+   # Should show: -rw------- (600 permissions)
+   ```
+
+3. **For parent directory** (if needed):
+
+   ```bash
+   chmod 700 ~/.ssh
+   ```
+
+4. **Verification command in Packer directory:**
+
+   ```bash
+   ls -la ~/.ssh/
+   # Example correct output:
+   # drwx------  .ssh
+   # -rw-------  bastion-key.pem
+   # -rw-------  id_ed25519
+   # -rw-r--r--  id_ed25519.pub (public keys can be 644)
+   ```
+
+**Windows/WSL2 Note**: If your keys are on the Windows filesystem (e.g., `/mnt/c/Users/...`), copy them to your WSL2 home directory, as Windows filesystem permissions may not work correctly with SSH:
+
+```bash
+# Copy key from Windows to WSL2 home
+cp /mnt/c/Users/YourName/.ssh/bastion-key.pem ~/.ssh/
+chmod 600 ~/.ssh/bastion-key.pem
+```
+
 ### Error: "Could not find/install packages"
 
 **Symptom**: `ansible-galaxy install` reports:
+
 ```
 ERROR! Could not find/install packages: namespace.collection_name
 ```
@@ -257,6 +450,7 @@ ERROR! Could not find/install packages: namespace.collection_name
    - See [GALAXY_AUTHENTICATION.md](GALAXY_AUTHENTICATION.md) for detailed authentication setup
 
 2. **Verify collection name and source**:
+
    ```yaml
    # requirements.yml
    collections:
@@ -265,6 +459,7 @@ ERROR! Could not find/install packages: namespace.collection_name
    ```
 
 3. **Check network connectivity**:
+
    ```bash
    # Test access to Galaxy server
    curl -I https://galaxy.ansible.com
@@ -274,6 +469,7 @@ ERROR! Could not find/install packages: namespace.collection_name
    ```
 
 4. **Verify offline mode is not enabled**:
+
    ```hcl
    provisioner "ansible-navigator" {
      # Make sure offline is NOT enabled
@@ -289,6 +485,7 @@ ERROR! Could not find/install packages: namespace.collection_name
 ### Error: "unable to find role" or "collection not found" when using EE
 
 **Symptom**: Collections work fine with `execution_environment.enabled = false`, but fail when EE is enabled:
+
 ```
 ERROR! the role 'namespace.collection.role_name' was not found
 ```
