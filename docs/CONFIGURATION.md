@@ -135,7 +135,23 @@ This single setting controls both:
 
 `navigator_config` is an HCL block that maps to a typed configuration struct. When set, the provisioner generates a temporary `ansible-navigator.yml` file and sets `ANSIBLE_NAVIGATOR_CONFIG`.
 
-When you configure `ansible_config.defaults` and/or `ansible_config.ssh_connection`, the plugin generates an **ansible.cfg** (INI) file and references it from the generated `ansible-navigator.yml` via `ansible.config.path`.
+When you configure `navigator_config.ansible_config` section blocks, the plugin generates an **ansible.cfg** (INI) file and references it from the generated `ansible-navigator.yml` via `ansible.config.path`.
+
+Supported section blocks (initial coverage):
+
+- `defaults`
+- `ssh_connection`
+- `privilege_escalation`
+- `persistent_connection`
+- `inventory`
+- `paramiko_connection`
+- `colors`
+- `diff`
+- `galaxy`
+
+These blocks are **mutually exclusive** with `navigator_config.ansible_config.config` (path override). If you set `config`, you must not set any section blocks.
+
+Reference: Ansible config file options are documented at <https://docs.ansible.com/ansible/latest/reference_appendices/config.html>.
 
 `navigator_config.logging.level` also controls plugin debug output: when set to `"debug"`, the plugin emits a small set of additional diagnostic messages prefixed with `[DEBUG]`.
 

@@ -146,6 +146,40 @@ provisioner "ansible-navigator" {
 }
 ```
 
+## 6) Expanded ansible.cfg sections via `navigator_config.ansible_config`
+
+The plugin can generate an `ansible.cfg` containing additional sections like `[privilege_escalation]`, `[persistent_connection]`, and `[inventory]`.
+
+See full working example: [`example/ansible-config-sections.pkr.hcl`](packer/plugins/packer-plugin-ansible-navigator/example/ansible-config-sections.pkr.hcl:1)
+
+```hcl
+provisioner "ansible-navigator" {
+  navigator_config {
+    mode = "stdout"
+
+    ansible_config {
+      privilege_escalation {
+        become        = true
+        become_method = "sudo"
+        become_user   = "root"
+      }
+
+      persistent_connection {
+        connect_timeout       = 30
+        connect_retry_timeout = 15
+        command_timeout       = 60
+      }
+
+      inventory {
+        enable_plugins = ["ini", "yaml"]
+      }
+    }
+  }
+
+  play { target = "site.yml" }
+}
+```
+
 ---
 
 [← Back to docs index](README.md)

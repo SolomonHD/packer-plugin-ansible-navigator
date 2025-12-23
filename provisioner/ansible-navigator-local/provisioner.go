@@ -3,7 +3,7 @@
 // You may obtain a copy of the License at
 // http://www.apache.org/licenses/LICENSE-2.0
 
-//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play,PathEntry,NavigatorConfig,ExecutionEnvironment,EnvironmentVariablesConfig,VolumeMount,AnsibleConfig,AnsibleConfigDefaults,AnsibleConfigConnection,LoggingConfig,PlaybookArtifact,CollectionDocCache
+//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play,PathEntry,NavigatorConfig,ExecutionEnvironment,EnvironmentVariablesConfig,VolumeMount,AnsibleConfig,AnsibleConfigDefaults,AnsibleConfigConnection,AnsibleConfigPrivilegeEscalation,AnsibleConfigPersistentConnection,AnsibleConfigInventory,AnsibleConfigParamikoConnection,AnsibleConfigColors,AnsibleConfigDiff,AnsibleConfigGalaxy,LoggingConfig,PlaybookArtifact,CollectionDocCache
 //go:generate packer-sdc struct-markdown
 
 package ansiblenavigatorlocal
@@ -113,6 +113,20 @@ type AnsibleConfig struct {
 	Defaults *AnsibleConfigDefaults `mapstructure:"defaults"`
 	// SSH connection section
 	SSHConnection *AnsibleConfigConnection `mapstructure:"ssh_connection"`
+	// Privilege escalation (become) settings
+	PrivilegeEscalation *AnsibleConfigPrivilegeEscalation `mapstructure:"privilege_escalation"`
+	// Persistent connection settings
+	PersistentConnection *AnsibleConfigPersistentConnection `mapstructure:"persistent_connection"`
+	// Inventory behavior settings
+	Inventory *AnsibleConfigInventory `mapstructure:"inventory"`
+	// Paramiko connection settings
+	ParamikoConnection *AnsibleConfigParamikoConnection `mapstructure:"paramiko_connection"`
+	// Output color settings
+	Colors *AnsibleConfigColors `mapstructure:"colors"`
+	// Diff display settings
+	Diff *AnsibleConfigDiff `mapstructure:"diff"`
+	// Galaxy client settings (ansible.cfg [galaxy] section)
+	Galaxy *AnsibleConfigGalaxy `mapstructure:"galaxy"`
 }
 
 // AnsibleConfigDefaults represents ansible defaults configuration
@@ -131,6 +145,65 @@ type AnsibleConfigConnection struct {
 	SSHTimeout int `mapstructure:"ssh_timeout"`
 	// Pipelining
 	Pipelining bool `mapstructure:"pipelining"`
+}
+
+// AnsibleConfigPrivilegeEscalation represents ansible.cfg [privilege_escalation]
+// settings. These provide defaults for privilege escalation behavior.
+type AnsibleConfigPrivilegeEscalation struct {
+	// Enable privilege escalation (become)
+	Become bool `mapstructure:"become"`
+	// Privilege escalation method (e.g. sudo, su, pbrun)
+	BecomeMethod string `mapstructure:"become_method"`
+	// Privilege escalation user (e.g. root)
+	BecomeUser string `mapstructure:"become_user"`
+}
+
+// AnsibleConfigPersistentConnection represents ansible.cfg [persistent_connection]
+// settings that tune connection persistence behavior.
+type AnsibleConfigPersistentConnection struct {
+	// Timeout (seconds) for establishing a persistent connection
+	ConnectTimeout int `mapstructure:"connect_timeout"`
+	// Timeout (seconds) for retries when establishing a connection
+	ConnectRetryTimeout int `mapstructure:"connect_retry_timeout"`
+	// Timeout (seconds) for remote command execution over the persistent connection
+	CommandTimeout int `mapstructure:"command_timeout"`
+}
+
+// AnsibleConfigInventory represents ansible.cfg [inventory] settings.
+type AnsibleConfigInventory struct {
+	// Enable inventory plugins (comma-separated list in INI)
+	EnablePlugins []string `mapstructure:"enable_plugins"`
+}
+
+// AnsibleConfigParamikoConnection represents ansible.cfg [paramiko_connection]
+// settings.
+type AnsibleConfigParamikoConnection struct {
+	// ProxyCommand for Paramiko connections
+	ProxyCommand string `mapstructure:"proxy_command"`
+}
+
+// AnsibleConfigColors represents ansible.cfg [colors] settings.
+type AnsibleConfigColors struct {
+	// Force colored output
+	ForceColor bool `mapstructure:"force_color"`
+}
+
+// AnsibleConfigDiff represents ansible.cfg [diff] settings.
+type AnsibleConfigDiff struct {
+	// Always show diffs
+	Always bool `mapstructure:"always"`
+	// Number of context lines to include in diffs
+	Context int `mapstructure:"context"`
+}
+
+// AnsibleConfigGalaxy represents ansible.cfg [galaxy] settings.
+// NOTE: This is Ansible runtime configuration only; it does not affect the plugin's
+// dependency installation behavior.
+type AnsibleConfigGalaxy struct {
+	// List of Galaxy server names to use (comma-separated list in INI)
+	ServerList []string `mapstructure:"server_list"`
+	// Ignore TLS certificate validation
+	IgnoreCerts bool `mapstructure:"ignore_certs"`
 }
 
 // LoggingConfig represents logging configuration
@@ -364,12 +437,12 @@ func (c *Config) Validate() error {
 		}
 
 		// Schema compliance: ansible_config.config (path) is mutually exclusive with
-		// the nested defaults/ssh_connection blocks (which map to a generated ansible.cfg).
+		// the nested section blocks (which map to a generated ansible.cfg).
 		if c.NavigatorConfig.AnsibleConfig != nil {
 			ac := c.NavigatorConfig.AnsibleConfig
-			if ac.Config != "" && (ac.Defaults != nil || ac.SSHConnection != nil) {
+			if ac.Config != "" && (ac.Defaults != nil || ac.SSHConnection != nil || ac.PrivilegeEscalation != nil || ac.PersistentConnection != nil || ac.Inventory != nil || ac.ParamikoConnection != nil || ac.Colors != nil || ac.Diff != nil || ac.Galaxy != nil) {
 				errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-					"navigator_config.ansible_config.config is mutually exclusive with navigator_config.ansible_config.defaults and navigator_config.ansible_config.ssh_connection"))
+					"navigator_config.ansible_config.config is mutually exclusive with nested ansible_config section blocks"))
 			}
 		}
 	}
