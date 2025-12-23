@@ -37,6 +37,20 @@ build {
         enabled      = true
         image        = "quay.io/ansible/creator-ee:latest"
         pull_policy  = "missing"
+
+        # Prefer podman/docker explicitly, or let ansible-navigator auto-detect.
+        container_engine = "podman"
+
+        # Additional container runtime flags (passed through to the engine).
+        container_options = [
+          "--net=host",
+          "--security-opt=label=disable",
+        ]
+
+        # Extra arguments passed to the image pull operation.
+        pull_arguments = [
+          "--tls-verify=false",
+        ]
         
         # Pass environment variables to the execution environment
         environment_variables {
@@ -57,8 +71,6 @@ build {
       
       # Ansible configuration
       ansible_config {
-        config = "/etc/ansible/ansible.cfg"
-        
         defaults {
           host_key_checking = false
           remote_tmp        = "/tmp/.ansible/tmp"

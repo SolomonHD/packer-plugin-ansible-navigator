@@ -134,6 +134,62 @@ func TestProvisionerPrepare_PlaybookFile(t *testing.T) {
 	}
 }
 
+func TestProvisionerPrepare_DecodesNavigatorConfigExecutionEnvironmentNewFields(t *testing.T) {
+	var p Provisioner
+	config := testConfig(t)
+	defer os.Remove(config["command"].(string))
+
+	hostkeyFile, err := os.CreateTemp("", "hostkey")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(hostkeyFile.Name())
+
+	publickeyFile, err := os.CreateTemp("", "publickey")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(publickeyFile.Name())
+
+	playbookFile, err := os.CreateTemp("", "playbook")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.Remove(playbookFile.Name())
+
+	config["ssh_host_key_file"] = hostkeyFile.Name()
+	config["ssh_authorized_key_file"] = publickeyFile.Name()
+	config["play"] = []map[string]interface{}{{"target": playbookFile.Name()}}
+	config["navigator_config"] = map[string]interface{}{
+		"execution_environment": map[string]interface{}{
+			"enabled":           true,
+			"container_engine":  "podman",
+			"container_options": []string{"--net=host"},
+			"pull_arguments":    []string{"--tls-verify=false"},
+		},
+	}
+
+	err = p.Prepare(config)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if p.config.NavigatorConfig == nil || p.config.NavigatorConfig.ExecutionEnvironment == nil {
+		t.Fatalf("expected navigator_config.execution_environment to be decoded")
+	}
+
+	ee := p.config.NavigatorConfig.ExecutionEnvironment
+	if ee.ContainerEngine != "podman" {
+		t.Fatalf("expected ContainerEngine=podman, got: %q", ee.ContainerEngine)
+	}
+	if len(ee.ContainerOptions) != 1 || ee.ContainerOptions[0] != "--net=host" {
+		t.Fatalf("unexpected ContainerOptions: %#v", ee.ContainerOptions)
+	}
+	if len(ee.PullArguments) != 1 || ee.PullArguments[0] != "--tls-verify=false" {
+		t.Fatalf("unexpected PullArguments: %#v", ee.PullArguments)
+	}
+}
+
 func TestProvisionerPrepare_HostKeyFile(t *testing.T) {
 	var p Provisioner
 	config := testConfig(t)

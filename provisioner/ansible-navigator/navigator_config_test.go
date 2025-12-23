@@ -581,3 +581,214 @@ func TestGenerateNavigatorConfigYAML_UserVolumeMountsPreserved(t *testing.T) {
 		t.Errorf("Expected automatic collections mount to be added, got: %s", yamlStr)
 	}
 }
+
+func TestGenerateNavigatorConfigYAML_ExecutionEnvironment_ContainerEngine(t *testing.T) {
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled:         true,
+			ContainerEngine: "podman",
+		},
+	}
+
+	yamlStr, err := generateNavigatorConfigYAML(config, "")
+	if err != nil {
+		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+	}
+
+	var parsed map[string]interface{}
+	if err := yaml.Unmarshal([]byte(yamlStr), &parsed); err != nil {
+		t.Fatalf("Generated YAML is not valid: %v\nYAML:\n%s", err, yamlStr)
+	}
+
+	root, ok := parsed["ansible-navigator"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected ansible-navigator root key in parsed YAML, got: %v", parsed)
+	}
+	ee, ok := root["execution-environment"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected execution-environment map in parsed YAML, got: %v", root)
+	}
+	if ee["container-engine"] != "podman" {
+		t.Fatalf("Expected container-engine=podman, got: %v", ee["container-engine"])
+	}
+}
+
+func TestGenerateNavigatorConfigYAML_ExecutionEnvironment_ContainerOptions(t *testing.T) {
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled:          true,
+			ContainerOptions: []string{"--net=host", "--security-opt=label=disable"},
+		},
+	}
+
+	yamlStr, err := generateNavigatorConfigYAML(config, "")
+	if err != nil {
+		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+	}
+
+	var parsed map[string]interface{}
+	if err := yaml.Unmarshal([]byte(yamlStr), &parsed); err != nil {
+		t.Fatalf("Generated YAML is not valid: %v\nYAML:\n%s", err, yamlStr)
+	}
+
+	root := parsed["ansible-navigator"].(map[string]interface{})
+	ee := root["execution-environment"].(map[string]interface{})
+
+	opts, ok := ee["container-options"].([]interface{})
+	if !ok {
+		t.Fatalf("Expected container-options list, got: %T (%v)", ee["container-options"], ee["container-options"])
+	}
+	if len(opts) != 2 {
+		t.Fatalf("Expected 2 container-options, got %d: %v", len(opts), opts)
+	}
+	if opts[0] != "--net=host" || opts[1] != "--security-opt=label=disable" {
+		t.Fatalf("Unexpected container-options ordering/content: %v", opts)
+	}
+}
+
+func TestGenerateNavigatorConfigYAML_ExecutionEnvironment_PullArgumentsOnly_CreatesPullObject(t *testing.T) {
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled:              true,
+			PullArguments:        []string{"--tls-verify=false"},
+			PullPolicy:           "", // explicit for clarity
+			Image:                "quay.io/ansible/creator-ee:latest",
+			EnvironmentVariables: &EnvironmentVariablesConfig{Set: map[string]string{"CUSTOM": "x"}},
+		},
+	}
+
+	yamlStr, err := generateNavigatorConfigYAML(config, "")
+	if err != nil {
+		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+	}
+
+	var parsed map[string]interface{}
+	if err := yaml.Unmarshal([]byte(yamlStr), &parsed); err != nil {
+		t.Fatalf("Generated YAML is not valid: %v\nYAML:\n%s", err, yamlStr)
+	}
+
+	root := parsed["ansible-navigator"].(map[string]interface{})
+	ee := root["execution-environment"].(map[string]interface{})
+	pull, ok := ee["pull"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected pull map to be present when pull_arguments set, got: %T (%v)", ee["pull"], ee["pull"])
+	}
+	if _, ok := pull["policy"]; ok {
+		t.Fatalf("Did not expect pull.policy when PullPolicy is empty, got: %v", pull["policy"])
+	}
+	args, ok := pull["arguments"].([]interface{})
+	if !ok || len(args) != 1 || args[0] != "--tls-verify=false" {
+		t.Fatalf("Unexpected pull.arguments: %T (%v)", pull["arguments"], pull["arguments"])
+	}
+}
+
+func TestGenerateNavigatorConfigYAML_ExecutionEnvironment_PullPolicyAndArguments(t *testing.T) {
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled:       true,
+			PullPolicy:    "missing",
+			PullArguments: []string{"--tls-verify=false"},
+		},
+	}
+
+	yamlStr, err := generateNavigatorConfigYAML(config, "")
+	if err != nil {
+		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+	}
+
+	var parsed map[string]interface{}
+	if err := yaml.Unmarshal([]byte(yamlStr), &parsed); err != nil {
+		t.Fatalf("Generated YAML is not valid: %v\nYAML:\n%s", err, yamlStr)
+	}
+
+	root := parsed["ansible-navigator"].(map[string]interface{})
+	ee := root["execution-environment"].(map[string]interface{})
+	pull := ee["pull"].(map[string]interface{})
+	if pull["policy"] != "missing" {
+		t.Fatalf("Expected pull.policy=missing, got: %v", pull["policy"])
+	}
+	args := pull["arguments"].([]interface{})
+	if len(args) != 1 || args[0] != "--tls-verify=false" {
+		t.Fatalf("Unexpected pull.arguments: %v", args)
+	}
+}
+
+func TestGenerateNavigatorConfigYAML_ExecutionEnvironment_AllNewFieldsConfigured(t *testing.T) {
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled:          true,
+			ContainerEngine:  "podman",
+			ContainerOptions: []string{"--net=host"},
+			PullPolicy:       "missing",
+			PullArguments:    []string{"--tls-verify=false"},
+		},
+	}
+
+	yamlStr, err := generateNavigatorConfigYAML(config, "")
+	if err != nil {
+		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+	}
+
+	var parsed map[string]interface{}
+	if err := yaml.Unmarshal([]byte(yamlStr), &parsed); err != nil {
+		t.Fatalf("Generated YAML is not valid: %v\nYAML:\n%s", err, yamlStr)
+	}
+
+	root := parsed["ansible-navigator"].(map[string]interface{})
+	ee := root["execution-environment"].(map[string]interface{})
+	if ee["container-engine"] != "podman" {
+		t.Fatalf("Expected container-engine=podman, got: %v", ee["container-engine"])
+	}
+	opts := ee["container-options"].([]interface{})
+	if len(opts) != 1 || opts[0] != "--net=host" {
+		t.Fatalf("Unexpected container-options: %v", opts)
+	}
+	pull := ee["pull"].(map[string]interface{})
+	if pull["policy"] != "missing" {
+		t.Fatalf("Expected pull.policy=missing, got: %v", pull["policy"])
+	}
+	args := pull["arguments"].([]interface{})
+	if len(args) != 1 || args[0] != "--tls-verify=false" {
+		t.Fatalf("Unexpected pull.arguments: %v", args)
+	}
+}
+
+func TestGenerateNavigatorConfigYAML_ExecutionEnvironment_DoesNotDuplicateCollectionsMount_WhenUserAlreadyHasDest(t *testing.T) {
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled: true,
+			Image:   "quay.io/ansible/creator-ee:latest",
+			VolumeMounts: []VolumeMount{
+				{Src: "/already/mounted", Dest: "/tmp/.packer_ansible/collections", Options: "ro"},
+			},
+		},
+	}
+
+	collectionsPath := filepath.Join(os.TempDir(), "test_collections")
+	yamlStr, err := generateNavigatorConfigYAML(config, collectionsPath)
+	if err != nil {
+		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+	}
+
+	var parsed map[string]interface{}
+	if err := yaml.Unmarshal([]byte(yamlStr), &parsed); err != nil {
+		t.Fatalf("Generated YAML is not valid: %v\nYAML:\n%s", err, yamlStr)
+	}
+	root := parsed["ansible-navigator"].(map[string]interface{})
+	ee := root["execution-environment"].(map[string]interface{})
+	vm, ok := ee["volume-mounts"].([]interface{})
+	if !ok {
+		t.Fatalf("Expected volume-mounts list, got: %T (%v)", ee["volume-mounts"], ee["volume-mounts"])
+	}
+
+	destCount := 0
+	for _, item := range vm {
+		m := item.(map[string]interface{})
+		if m["dest"] == "/tmp/.packer_ansible/collections" {
+			destCount++
+		}
+	}
+	if destCount != 1 {
+		t.Fatalf("Expected exactly 1 mount with dest /tmp/.packer_ansible/collections, got %d (volume-mounts=%v)", destCount, vm)
+	}
+}
