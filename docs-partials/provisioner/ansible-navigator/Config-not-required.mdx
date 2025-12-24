@@ -195,20 +195,34 @@
       }
     }
 
-- `bastion_host` (string) - Bastion (jump host) address for SSH tunneling mode.
+- `bastion` (\*BastionConfig) - Bastion configuration for SSH tunnel mode.
+  Use the nested block syntax for new configurations:
+    bastion {
+      host = "bastion.example.com"
+      port = 22
+      user = "ubuntu"
+      private_key_file = "~/.ssh/id_rsa"
+    }
+
+- `bastion_host` (string) - DEPRECATED: Use bastion.host instead.
+  Bastion (jump host) address for SSH tunneling mode.
   Required when connection_mode is "ssh_tunnel".
   Example: "bastion.example.com"
 
-- `bastion_port` (int) - SSH port on the bastion host. Defaults to 22.
+- `bastion_port` (int) - DEPRECATED: Use bastion.port instead.
+  SSH port on the bastion host. Defaults to 22.
 
-- `bastion_user` (string) - SSH username for authenticating to the bastion host.
+- `bastion_user` (string) - DEPRECATED: Use bastion.user instead.
+  SSH username for authenticating to the bastion host.
   Required when ssh_tunnel_mode is true.
 
-- `bastion_private_key_file` (string) - Path to the SSH private key file for bastion authentication.
+- `bastion_private_key_file` (string) - DEPRECATED: Use bastion.private_key_file instead.
+  Path to the SSH private key file for bastion authentication.
   Either this or bastion_password must be provided when ssh_tunnel_mode is true.
   Supports HOME expansion (~ and ~/path).
 
-- `bastion_password` (string) - Password for bastion authentication.
+- `bastion_password` (string) - DEPRECATED: Use bastion.password instead.
+  Password for bastion authentication.
   Either this or bastion_private_key_file must be provided when ssh_tunnel_mode is true.
 
 <!-- End of code generated from the comments of the Config struct in provisioner/ansible-navigator/provisioner.go; -->

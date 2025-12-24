@@ -273,6 +273,39 @@ func (*FlatAnsibleConfigPrivilegeEscalation) HCL2Spec() map[string]hcldec.Spec {
 	return s
 }
 
+// FlatBastionConfig is an auto-generated flat version of BastionConfig.
+// Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
+type FlatBastionConfig struct {
+	Enabled        *bool   `mapstructure:"enabled" cty:"enabled" hcl:"enabled"`
+	Host           *string `mapstructure:"host" cty:"host" hcl:"host"`
+	Port           *int    `mapstructure:"port" cty:"port" hcl:"port"`
+	User           *string `mapstructure:"user" cty:"user" hcl:"user"`
+	PrivateKeyFile *string `mapstructure:"private_key_file" cty:"private_key_file" hcl:"private_key_file"`
+	Password       *string `mapstructure:"password" cty:"password" hcl:"password"`
+}
+
+// FlatMapstructure returns a new FlatBastionConfig.
+// FlatBastionConfig is an auto-generated flat version of BastionConfig.
+// Where the contents a fields with a `mapstructure:,squash` tag are bubbled up.
+func (*BastionConfig) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec.Spec } {
+	return new(FlatBastionConfig)
+}
+
+// HCL2Spec returns the hcl spec of a BastionConfig.
+// This spec is used by HCL to read the fields of BastionConfig.
+// The decoded values from this spec will then be applied to a FlatBastionConfig.
+func (*FlatBastionConfig) HCL2Spec() map[string]hcldec.Spec {
+	s := map[string]hcldec.Spec{
+		"enabled":          &hcldec.AttrSpec{Name: "enabled", Type: cty.Bool, Required: false},
+		"host":             &hcldec.AttrSpec{Name: "host", Type: cty.String, Required: false},
+		"port":             &hcldec.AttrSpec{Name: "port", Type: cty.Number, Required: false},
+		"user":             &hcldec.AttrSpec{Name: "user", Type: cty.String, Required: false},
+		"private_key_file": &hcldec.AttrSpec{Name: "private_key_file", Type: cty.String, Required: false},
+		"password":         &hcldec.AttrSpec{Name: "password", Type: cty.String, Required: false},
+	}
+	return s
+}
+
 // FlatCollectionDocCache is an auto-generated flat version of CollectionDocCache.
 // Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
 type FlatCollectionDocCache struct {
@@ -372,6 +405,7 @@ type FlatConfig struct {
 	WinRMUseHTTP            *bool                `mapstructure:"ansible_winrm_use_http" cty:"ansible_winrm_use_http" hcl:"ansible_winrm_use_http"`
 	ShowExtraVars           *bool                `mapstructure:"show_extra_vars" cty:"show_extra_vars" hcl:"show_extra_vars"`
 	NavigatorConfig         *FlatNavigatorConfig `mapstructure:"navigator_config" cty:"navigator_config" hcl:"navigator_config"`
+	Bastion                 *FlatBastionConfig   `mapstructure:"bastion" cty:"bastion" hcl:"bastion"`
 	BastionHost             *string              `mapstructure:"bastion_host" cty:"bastion_host" hcl:"bastion_host"`
 	BastionPort             *int                 `mapstructure:"bastion_port" cty:"bastion_port" hcl:"bastion_port"`
 	BastionUser             *string              `mapstructure:"bastion_user" cty:"bastion_user" hcl:"bastion_user"`
@@ -437,6 +471,7 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"ansible_winrm_use_http":     &hcldec.AttrSpec{Name: "ansible_winrm_use_http", Type: cty.Bool, Required: false},
 		"show_extra_vars":            &hcldec.AttrSpec{Name: "show_extra_vars", Type: cty.Bool, Required: false},
 		"navigator_config":           &hcldec.BlockSpec{TypeName: "navigator_config", Nested: hcldec.ObjectSpec((*FlatNavigatorConfig)(nil).HCL2Spec())},
+		"bastion":                    &hcldec.BlockSpec{TypeName: "bastion", Nested: hcldec.ObjectSpec((*FlatBastionConfig)(nil).HCL2Spec())},
 		"bastion_host":               &hcldec.AttrSpec{Name: "bastion_host", Type: cty.String, Required: false},
 		"bastion_port":               &hcldec.AttrSpec{Name: "bastion_port", Type: cty.Number, Required: false},
 		"bastion_user":               &hcldec.AttrSpec{Name: "bastion_user", Type: cty.String, Required: false},

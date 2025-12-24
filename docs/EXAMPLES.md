@@ -189,10 +189,12 @@ provisioner "ansible-navigator" {
   # Use SSH tunnel mode instead of default proxy adapter
   connection_mode = "ssh_tunnel"
   
-  # Bastion configuration
-  bastion_host             = "bastion.example.com"
-  bastion_user             = "ec2-user"
-  bastion_private_key_file = "~/.ssh/bastion.pem"
+  # Bastion configuration using nested block
+  bastion {
+    host             = "bastion.example.com"
+    user             = "ec2-user"
+    private_key_file = "~/.ssh/bastion.pem"
+  }
   
   navigator_config {
     mode = "stdout"

@@ -287,11 +287,30 @@ Use direct mode when:
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `connection_mode` | string | No | `"proxy"` | Connection mode: `"proxy"`, `"ssh_tunnel"`, or `"direct"` |
-| `bastion_host` | string | Yes when `connection_mode="ssh_tunnel"` | - | Hostname or IP address of the bastion/jump host |
-| `bastion_port` | int | No | `22` | SSH port for bastion connection. Must be between 1-65535. |
-| `bastion_user` | string | Yes when `connection_mode="ssh_tunnel"` | - | SSH username for bastion authentication |
-| `bastion_private_key_file` | string | **Either this OR `bastion_password`** | - | Path to SSH private key for bastion auth. Supports `~` for home directory expansion. |
-| `bastion_password` | string | **Either this OR `bastion_private_key_file`** | - | Password for bastion authentication. **Use variables, not hardcoded strings.** |
+
+#### Bastion Configuration Block
+
+When using `connection_mode = "ssh_tunnel"`, configure bastion connectivity using the `bastion {}` block:
+
+```hcl
+bastion {
+  host              = "bastion.example.com"
+  port              = 22  # Optional, defaults to 22
+  user              = "ec2-user"
+  private_key_file  = "~/.ssh/bastion.pem"  # Either private_key_file or password
+  # password        = var.bastion_pass       # Either password or private_key_file
+}
+```
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `bastion.host` | string | Yes | - | Hostname or IP address of the bastion/jump host |
+| `bastion.port` | int | No | `22` | SSH port for bastion connection. Must be between 1-65535. |
+| `bastion.user` | string | Yes | - | SSH username for bastion authentication |
+| `bastion.private_key_file` | string | **Either this OR `password`** | - | Path to SSH private key for bastion auth. Supports `~` for home directory expansion. |
+| `bastion.password` | string | **Either this OR `private_key_file`** | - | Password for bastion authentication. **Use variables, not hardcoded strings.** |
+
+> **⚠️ DEPRECATED:** The flat field syntax (`bastion_host`, `bastion_port`, `bastion_user`, `bastion_private_key_file`, `bastion_password`) is deprecated. Use the `bastion {}` block instead. Legacy fields are automatically migrated with a warning but will be removed in a future major version.
 
 #### Architecture Comparison
 
@@ -368,11 +387,13 @@ build {
     # Use SSH tunnel mode to connect through bastion
     connection_mode = "ssh_tunnel"
     
-    # Bastion host configuration
-    bastion_host             = "bastion.aws.example.com"
-    bastion_port             = 22  # Default, can be omitted
-    bastion_user             = "ec2-user"
-    bastion_private_key_file = "~/.ssh/bastion-key.pem"  # ~ expands to home directory
+    # Bastion host configuration using nested block
+    bastion {
+      host              = "bastion.aws.example.com"
+      port              = 22  # Default, can be omitted
+      user              = "ec2-user"
+      private_key_file  = "~/.ssh/bastion-key.pem"  # ~ expands to home directory
+    }
     
     # Execution environment with tunnel mode (recommended for WSL2)
     navigator_config {
@@ -402,11 +423,14 @@ variable "bastion_pass" {
 
 build {
   provisioner "ansible-navigator" {
-    connection_mode  = "ssh_tunnel"
-    bastion_host     = "jumphost.lab.example.com"
-    bastion_port     = 2222
-    bastion_user     = "deploy"
-    bastion_password = var.bastion_pass  # Use variable for password
+    connection_mode = "ssh_tunnel"
+    
+    bastion {
+      host     = "jumphost.lab.example.com"
+      port     = 2222
+      user     = "deploy"
+      password = var.bastion_pass  # Use variable for password
+    }
     
     play {
       target = "configure.yml"
@@ -429,10 +453,13 @@ If you encounter "connection refused" or "network unreachable" errors with the p
 build {
   provisioner "ansible-navigator" {
     # Switch to SSH tunnel mode to avoid WSL2 networking issues
-    connection_mode          = "ssh_tunnel"
-    bastion_host             = "bastion.example.com"
-    bastion_user             = "ubuntu"
-    bastion_private_key_file = "~/.ssh/id_ed25519"
+    connection_mode = "ssh_tunnel"
+    
+    bastion {
+      host             = "bastion.example.com"
+      user             = "ubuntu"
+      private_key_file = "~/.ssh/id_ed25519"
+    }
     
     navigator_config {
       execution_environment {
@@ -453,18 +480,24 @@ build {
 1. **Home directory expansion**: File paths using `~` are automatically expanded to your home directory:
 
    ```hcl
-   bastion_private_key_file = "~/.ssh/id_rsa"
-   # Expands to: /home/username/.ssh/id_rsa
+   bastion {
+     private_key_file = "~/.ssh/id_rsa"
+     # Expands to: /home/username/.ssh/id_rsa
+   }
    ```
 
 2. **Password security**: Always use Packer variables for passwords, never hardcode them:
 
    ```hcl
    # ❌ BAD - Hardcoded password
-   bastion_password = "MyPassword123"
+   bastion {
+     password = "MyPassword123"
+   }
    
    # ✅ GOOD - Use sensitive variable
-   bastion_password = var.bastion_pass
+   bastion {
+     password = var.bastion_pass
+   }
    ```
 
 3. **Key file permissions**: SSH private keys must have restrictive permissions (see [TROUBLESHOOTING.md](TROUBLESHOOTING.md#key-file-permissions))
