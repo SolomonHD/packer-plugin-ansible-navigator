@@ -1,5 +1,13 @@
 ## Unreleased
 
+### BUG FIXES
+
+* **SSH Tunnel Port Type Support**: Fixed SSH tunnel mode to handle all integer types (`int64`, `int32`, `uint`, etc.) that Packer builders may provide for the `Port` field in `generatedData`.
+  * Previously only supported `int` and `string`, causing failures with amazon-ebs builder which provides `int64`
+  * Now supports: `int`, `int64`, `int32`, `int16`, `int8`, `uint`, `uint64`, `uint32`, `uint16`, `uint8`, and `string`
+  * Includes range validation for unsigned types to prevent values exceeding 65535
+  * Maintains full backward compatibility with existing configurations
+
 ### BREAKING CHANGES
 
 * **Connection Mode Enum Replaces Dual Fields**: The confusing dual-field connection configuration has been replaced with a single, explicit `connection_mode` enum:
