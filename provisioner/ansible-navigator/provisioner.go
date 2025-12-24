@@ -1513,11 +1513,38 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 			return fmt.Errorf("SSH tunnel mode requires a valid target host")
 		}
 
-		// Extract target port with type-safe handling (int or string)
+		// Extract target port with support for all integer types (int, int64, int32, uint, etc.)
 		var targetPort int
 		switch v := generatedData["Port"].(type) {
 		case int:
 			targetPort = v
+		case int64:
+			targetPort = int(v)
+		case int32:
+			targetPort = int(v)
+		case int16:
+			targetPort = int(v)
+		case int8:
+			targetPort = int(v)
+		case uint:
+			if v > 65535 {
+				return fmt.Errorf("SSH tunnel mode: port value %d exceeds maximum 65535", v)
+			}
+			targetPort = int(v)
+		case uint64:
+			if v > 65535 {
+				return fmt.Errorf("SSH tunnel mode: port value %d exceeds maximum 65535", v)
+			}
+			targetPort = int(v)
+		case uint32:
+			if v > 65535 {
+				return fmt.Errorf("SSH tunnel mode: port value %d exceeds maximum 65535", v)
+			}
+			targetPort = int(v)
+		case uint16:
+			targetPort = int(v)
+		case uint8:
+			targetPort = int(v)
 		case string:
 			var err error
 			targetPort, err = strconv.Atoi(v)
@@ -1525,7 +1552,7 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 				return fmt.Errorf("SSH tunnel mode: invalid port value %q: %w", v, err)
 			}
 		default:
-			return fmt.Errorf("SSH tunnel mode: Port must be int or string, got type %T with value %v", v, v)
+			return fmt.Errorf("SSH tunnel mode: Port must be a numeric or string type, got type %T with value %v", v, v)
 		}
 
 		// Validate port range

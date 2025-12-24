@@ -220,112 +220,151 @@ The provisioner SHALL provide diagnostic logging for tunnel operations.
 
 ### Requirement: Target Port Type Handling
 
-The provisioner SHALL accept target port from `generatedData["Port"]` as either `int` or `string` type and convert both to a validated integer port number.
+The provisioner MUST correctly extract the target port from Packer's `generatedData["Port"]` field for all integer types that Packer builders may provide.
 
-#### Scenario: Port provided as int type
+#### Scenario: Port provided as int
 
-- **GIVEN** `ssh_tunnel_mode = true`
-- **AND** `generatedData["Port"]` is an `int` with value `22`
-- **WHEN** the Provision() function extracts the target port
-- **THEN** it SHALL successfully assign the port as `22`
-- **AND** no type conversion SHALL be needed
-- **AND** tunnel setup SHALL proceed with port `22`
+Given: `generatedData["Port"]` is set to `int(22)`  
+When: SSH tunnel mode is enabled  
+Then: `targetPort` is successfully set to `22`
 
-#### Scenario: Port provided as string type
+#### Scenario: Port provided as int64
 
-- **GIVEN** `ssh_tunnel_mode = true`
-- **AND** `generatedData["Port"]` is a `string` with value `"22"`
-- **WHEN** the Provision() function extracts the target port
-- **THEN** it SHALL parse the string using `strconv.Atoi()`
-- **AND** the parsed port SHALL be `22`
-- **AND** tunnel setup SHALL proceed with port `22`
+Given: `generatedData["Port"]` is set to `int64(22)`  
+When: SSH tunnel mode is enabled  
+Then: `targetPort` is successfully set to `22`
 
-#### Scenario: Custom port as string
+#### Scenario: Port provided as int32
 
-- **GIVEN** `ssh_tunnel_mode = true`
-- **AND** `generatedData["Port"]` is a `string` with value `"2222"`
-- **WHEN** the Provision() function extracts the target port
-- **THEN** it SHALL parse the string successfully
-- **AND** the parsed port SHALL be `2222`
-- **AND** tunnel setup SHALL proceed with port `2222`
+Given: `generatedData["Port"]` is set to `int32(2222)`  
+When: SSH tunnel mode is enabled  
+Then: `targetPort` is successfully set to `2222`
+
+#### Scenario: Port provided as int16
+
+Given: `generatedData["Port"]` is set to `int16(3333)`  
+When: SSH tunnel mode is enabled  
+Then: `targetPort` is successfully set to `3333`
+
+#### Scenario: Port provided as int8
+
+Given: `generatedData["Port"]` is set to `int8(80)`  
+When: SSH tunnel mode is enabled  
+Then: `targetPort` is successfully set to `80`
+
+#### Scenario: Port provided as uint
+
+Given: `generatedData["Port"]` is set to `uint(8080)`  
+When: SSH tunnel mode is enabled  
+Then: `targetPort` is successfully set to `8080`
+
+#### Scenario: Port provided as uint64
+
+Given: `generatedData["Port"]` is set to `uint64(443)`  
+When: SSH tunnel mode is enabled  
+Then: `targetPort` is successfully set to `443`
+
+#### Scenario: Port provided as uint32
+
+Given: `generatedData["Port"]` is set to `uint32(8000)`  
+When: SSH tunnel mode is enabled  
+Then: `targetPort` is successfully set to `8000`
+
+#### Scenario: Port provided as uint16
+
+Given: `generatedData["Port"]` is set to `uint16(9090)`  
+When: SSH tunnel mode is enabled  
+Then: `targetPort` is successfully set to `9090`
+
+#### Scenario: Port provided as uint8
+
+Given: `generatedData["Port"]` is set to `uint8(80)`  
+When: SSH tunnel mode is enabled  
+Then: `targetPort` is successfully set to `80`
+
+#### Scenario: Port provided as string
+
+Given: `generatedData["Port"]` is set to `"2222"`  
+When: SSH tunnel mode is enabled  
+Then: `targetPort` is successfully parsed to `2222`
+
+#### Scenario: Invalid string port value
+
+Given: `generatedData["Port"]` is set to `"not-a-number"`  
+When: SSH tunnel mode is enabled  
+Then: The provisioner returns an error "SSH tunnel mode: invalid port value \"not-a-number\""
+
+#### Scenario: Unsigned port exceeding maximum
+
+Given: `generatedData["Port"]` is set to `uint64(70000)`  
+When: SSH tunnel mode is enabled  
+Then: The provisioner returns an error "SSH tunnel mode: port value 70000 exceeds maximum 65535"
+
+#### Scenario: Unsupported type
+
+Given: `generatedData["Port"]` is set to `float64(22.5)`
+When: SSH tunnel mode is enabled
+Then: The provisioner returns an error indicating unsupported type
+
+#### Scenario: Existing int configuration still works
+
+Given: An existing Packer configuration with Port provided as `int(22)`
+When: The provisioner runs with the updated code
+Then: The tunnel is established successfully without errors
+
+#### Scenario: Existing string configuration still works
+
+Given: An existing Packer configuration with Port provided as `"2222"`
+When: The provisioner runs with the updated code
+Then: The tunnel is established successfully without errors
 
 ### Requirement: Port Value Validation
 
-The provisioner SHALL validate that extracted port values are within the valid TCP port range.
+The provisioner MUST validate that the extracted port value is within the valid TCP port range (1-65535) regardless of the source type.
 
-#### Scenario: Valid port within range
+#### Scenario: Port value within valid range
 
-- **GIVEN** extracted target port is `22`
-- **WHEN** port validation is performed
-- **THEN** validation SHALL succeed
-- **AND** tunnel setup SHALL proceed
+Given: `generatedData["Port"]` is `int64(443)`  
+When: Port extraction completes  
+Then: Validation passes and tunnel setup continues
 
-#### Scenario: Port below valid range
+#### Scenario: Port value below minimum
 
-- **GIVEN** extracted target port is `0`
-- **WHEN** port validation is performed
-- **THEN** validation SHALL fail
-- **AND** an error SHALL be returned containing "port must be between 1-65535, got 0"
+Given: `generatedData["Port"]` is `int64(0)`  
+When: Port extraction completes  
+Then: The provisioner returns an error "SSH tunnel mode: port must be between 1-65535, got 0"
 
-#### Scenario: Port above valid range
+#### Scenario: Port value above maximum
 
-- **GIVEN** extracted target port is `99999`
-- **WHEN** port validation is performed
-- **THEN** validation SHALL fail
-- **AND** an error SHALL be returned containing "port must be between 1-65535, got 99999"
+Given: `generatedData["Port"]` is `int64(70000)`  
+When: Port extraction completes  
+Then: The provisioner returns an error "SSH tunnel mode: port must be between 1-65535, got 70000"
 
 #### Scenario: Negative port value
 
-- **GIVEN** extracted target port is `-1`
-- **WHEN** port validation is performed
-- **THEN** validation SHALL fail
-- **AND** an error SHALL be returned containing "port must be between 1-65535"
+Given: `generatedData["Port"]` is `int64(-22)`
+When: Port extraction completes
+Then: The provisioner returns an error "SSH tunnel mode: port must be between 1-65535, got -22"
 
 ### Requirement: Port Extraction Error Handling
 
-The provisioner SHALL provide clear, actionable error messages for all port extraction failure modes.
+The provisioner MUST provide clear, actionable error messages that indicate the specific failure mode when port extraction fails.
 
-#### Scenario: Port missing from generatedData
+#### Scenario: Error message indicates type mismatch
 
-- **GIVEN** `ssh_tunnel_mode = true`
-- **AND** `generatedData["Port"]` is not set (nil)
-- **WHEN** the Provision() function attempts to extract the target port
-- **THEN** it SHALL return an error
-- **AND** the error message SHALL contain "Port must be int or string, got type <nil>"
-- **AND** the error message SHALL include the actual type and value for debugging
+Given: `generatedData["Port"]` is an unsupported type `bool(true)`  
+When: Port extraction fails  
+Then: The error message includes "got type bool with value true"
 
-#### Scenario: Port as invalid string format
+#### Scenario: Error message indicates invalid string format
 
-- **GIVEN** `ssh_tunnel_mode = true`
-- **AND** `generatedData["Port"]` is a `string` with value `"abc"`
-- **WHEN** the Provision() function attempts to parse the port
-- **THEN** parsing SHALL fail
-- **AND** an error SHALL be returned containing "invalid port value \"abc\""
-- **AND** the error SHALL wrap the underlying `strconv.Atoi()` error
+Given: `generatedData["Port"]` is `"abc"`  
+When: Port extraction fails  
+Then: The error message includes "invalid port value \"abc\""
 
-#### Scenario: Port as unsupported type
+#### Scenario: Error message indicates range violation
 
-- **GIVEN** `ssh_tunnel_mode = true`
-- **AND** `generatedData["Port"]` is a `float64` with value `22.5`
-- **WHEN** the Provision() function attempts to extract the target port
-- **THEN** it SHALL return an error
-- **AND** the error message SHALL contain "Port must be int or string, got type float64 with value 22.5"
-
-#### Scenario: Port as empty string
-
-- **GIVEN** `ssh_tunnel_mode = true`
-- **AND** `generatedData["Port"]` is a `string` with value `""`
-- **WHEN** the Provision() function attempts to parse the port
-- **THEN** parsing SHALL fail
-- **AND** an error SHALL be returned containing "invalid port value \"\""
-- **AND** the error SHALL wrap the underlying parsing error
-
-#### Scenario: Port string with whitespace
-
-- **GIVEN** `ssh_tunnel_mode = true`
-- **AND** `generatedData["Port"]` is a `string` with value `" 22 "`
-- **WHEN** the Provision() function attempts to parse the port
-- **THEN** parsing MAY fail due to whitespace (not trimmed)
-- **OR** implementation MAY choose to trim whitespace before parsing
-- **AND** if parsing fails, error message SHALL indicate invalid format
+Given: `generatedData["Port"]` is `uint64(100000)`  
+When: Port extraction fails  
+Then: The error message includes "exceeds maximum 65535"
 
