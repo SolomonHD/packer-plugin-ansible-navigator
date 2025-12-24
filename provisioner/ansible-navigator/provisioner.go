@@ -3,7 +3,7 @@
 // You may obtain a copy of the License at
 // http://www.apache.org/licenses/LICENSE-2.0
 
-//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play,PathEntry,NavigatorConfig,ExecutionEnvironment,EnvironmentVariablesConfig,VolumeMount,AnsibleConfig,AnsibleConfigDefaults,AnsibleConfigConnection,AnsibleConfigPrivilegeEscalation,AnsibleConfigPersistentConnection,AnsibleConfigInventory,AnsibleConfigParamikoConnection,AnsibleConfigColors,AnsibleConfigDiff,AnsibleConfigGalaxy,LoggingConfig,PlaybookArtifact,CollectionDocCache,ColorConfig,EditorConfig,ImagesConfig
+//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play,PathEntry,NavigatorConfig,ExecutionEnvironment,EnvironmentVariablesConfig,VolumeMount,AnsibleConfig,AnsibleConfigDefaults,AnsibleConfigConnection,AnsibleConfigPrivilegeEscalation,AnsibleConfigPersistentConnection,AnsibleConfigInventory,AnsibleConfigParamikoConnection,AnsibleConfigColors,AnsibleConfigDiff,AnsibleConfigGalaxy,LoggingConfig,PlaybookArtifact,CollectionDocCache,ColorConfig,EditorConfig,ImagesConfig,BastionConfig
 //go:generate packer-sdc struct-markdown
 
 package ansiblenavigator
@@ -288,6 +288,39 @@ type ImagesConfig struct {
 	Details []string `mapstructure:"details"`
 }
 
+// BastionConfig represents SSH bastion (jump host) configuration for establishing
+// SSH tunnels to target machines that are not directly accessible.
+// When connection_mode is set to "ssh_tunnel", the bastion host is used as a proxy
+// to reach the target machine.
+type BastionConfig struct {
+	// Enable bastion functionality. When true and bastion.host is set,
+	// the plugin establishes an SSH tunnel through the bastion host.
+	// Auto-enabled when bastion.host is provided.
+	Enabled bool `mapstructure:"enabled"`
+
+	// Bastion (jump host) address for SSH tunneling.
+	// Required when connection_mode is "ssh_tunnel".
+	// Example: "bastion.example.com"
+	Host string `mapstructure:"host"`
+
+	// SSH port on the bastion host.
+	// Defaults to 22 if not specified.
+	Port int `mapstructure:"port"`
+
+	// SSH username for authenticating to the bastion host.
+	// Required when bastion is enabled.
+	User string `mapstructure:"user"`
+
+	// Path to the SSH private key file for bastion authentication.
+	// Either this or password must be provided when bastion is enabled.
+	// Supports HOME expansion (~ and ~/path).
+	PrivateKeyFile string `mapstructure:"private_key_file"`
+
+	// Password for bastion authentication.
+	// Either this or private_key_file must be provided when bastion is enabled.
+	Password string `mapstructure:"password"`
+}
+
 // Play represents a single Ansible play execution with its configuration.
 // It supports both traditional playbook files and Ansible Collection role FQDNs.
 // Each play can have its own variables, tags, and privilege escalation settings.
@@ -523,23 +556,38 @@ type Config struct {
 	NavigatorConfig *NavigatorConfig `mapstructure:"navigator_config"`
 	userWasEmpty    bool
 
+	// Bastion configuration for SSH tunnel mode.
+	// Use the nested block syntax for new configurations:
+	//   bastion {
+	//     host = "bastion.example.com"
+	//     port = 22
+	//     user = "ubuntu"
+	//     private_key_file = "~/.ssh/id_rsa"
+	//   }
+	Bastion *BastionConfig `mapstructure:"bastion"`
+
+	// DEPRECATED: Use bastion.host instead.
 	// Bastion (jump host) address for SSH tunneling mode.
 	// Required when connection_mode is "ssh_tunnel".
 	// Example: "bastion.example.com"
 	BastionHost string `mapstructure:"bastion_host"`
 
+	// DEPRECATED: Use bastion.port instead.
 	// SSH port on the bastion host. Defaults to 22.
 	BastionPort int `mapstructure:"bastion_port"`
 
+	// DEPRECATED: Use bastion.user instead.
 	// SSH username for authenticating to the bastion host.
 	// Required when ssh_tunnel_mode is true.
 	BastionUser string `mapstructure:"bastion_user"`
 
+	// DEPRECATED: Use bastion.private_key_file instead.
 	// Path to the SSH private key file for bastion authentication.
 	// Either this or bastion_password must be provided when ssh_tunnel_mode is true.
 	// Supports HOME expansion (~ and ~/path).
 	BastionPrivateKeyFile string `mapstructure:"bastion_private_key_file"`
 
+	// DEPRECATED: Use bastion.password instead.
 	// Password for bastion authentication.
 	// Either this or bastion_private_key_file must be provided when ssh_tunnel_mode is true.
 	BastionPassword string `mapstructure:"bastion_password"`
@@ -575,24 +623,46 @@ func (c *Config) Validate() error {
 
 	// Validate bastion requirements when using ssh_tunnel mode
 	if c.ConnectionMode == "ssh_tunnel" {
-		if c.BastionHost == "" {
-			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-				"bastion_host is required when connection_mode='ssh_tunnel'"))
+		// Check both new bastion block and legacy flat fields for validation
+		bastionHost := ""
+		bastionUser := ""
+		bastionPrivateKeyFile := ""
+		bastionPassword := ""
+		bastionPort := 0
+
+		if c.Bastion != nil {
+			bastionHost = c.Bastion.Host
+			bastionUser = c.Bastion.User
+			bastionPrivateKeyFile = c.Bastion.PrivateKeyFile
+			bastionPassword = c.Bastion.Password
+			bastionPort = c.Bastion.Port
+		} else {
+			// Fall back to legacy flat fields for backward compatibility
+			bastionHost = c.BastionHost
+			bastionUser = c.BastionUser
+			bastionPrivateKeyFile = c.BastionPrivateKeyFile
+			bastionPassword = c.BastionPassword
+			bastionPort = c.BastionPort
 		}
-		if c.BastionUser == "" {
+
+		if bastionHost == "" {
 			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-				"bastion_user is required when connection_mode='ssh_tunnel'"))
+				"bastion.host is required when connection_mode='ssh_tunnel'"))
 		}
-		if c.BastionPrivateKeyFile == "" && c.BastionPassword == "" {
+		if bastionUser == "" {
 			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-				"either bastion_private_key_file or bastion_password must be provided when connection_mode='ssh_tunnel'"))
+				"bastion.user is required when connection_mode='ssh_tunnel'"))
 		}
-		if c.BastionPort < 1 || c.BastionPort > 65535 {
+		if bastionPrivateKeyFile == "" && bastionPassword == "" {
 			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-				"bastion_port must be between 1 and 65535, got %d", c.BastionPort))
+				"either bastion.private_key_file or bastion.password must be provided when connection_mode='ssh_tunnel'"))
 		}
-		if c.BastionPrivateKeyFile != "" {
-			if err := validateFileConfig(c.BastionPrivateKeyFile, "bastion_private_key_file", true); err != nil {
+		if bastionPort < 1 || bastionPort > 65535 {
+			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+				"bastion.port must be between 1 and 65535, got %d", bastionPort))
+		}
+		if bastionPrivateKeyFile != "" {
+			if err := validateFileConfig(bastionPrivateKeyFile, "bastion.private_key_file", true); err != nil {
 				errs = packersdk.MultiErrorAppend(errs, err)
 			}
 		}
@@ -781,7 +851,66 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 		p.config.HostAlias = "default"
 	}
 
-	// Set default bastion port
+	// Migrate legacy flat bastion fields to nested bastion block
+	hasLegacyBastionFields := p.config.BastionHost != "" ||
+		p.config.BastionPort != 0 ||
+		p.config.BastionUser != "" ||
+		p.config.BastionPrivateKeyFile != "" ||
+		p.config.BastionPassword != ""
+
+	if hasLegacyBastionFields {
+		// Display deprecation warning
+		log.Printf("[WARN] Deprecated bastion configuration detected. The flat bastion_* fields are deprecated.")
+		log.Printf("[WARN] Please migrate to the nested bastion block syntax:")
+		log.Printf("[WARN]   bastion {")
+		log.Printf("[WARN]     host = \"bastion.example.com\"")
+		log.Printf("[WARN]     port = 22")
+		log.Printf("[WARN]     user = \"ubuntu\"")
+		log.Printf("[WARN]     private_key_file = \"~/.ssh/id_rsa\"")
+		log.Printf("[WARN]   }")
+
+		// Create bastion struct if it doesn't exist
+		if p.config.Bastion == nil {
+			p.config.Bastion = &BastionConfig{}
+		}
+
+		// Migrate flat fields to nested struct (new block values take precedence)
+		if p.config.Bastion.Host == "" && p.config.BastionHost != "" {
+			p.config.Bastion.Host = p.config.BastionHost
+		}
+		if p.config.Bastion.Port == 0 && p.config.BastionPort != 0 {
+			p.config.Bastion.Port = p.config.BastionPort
+		}
+		if p.config.Bastion.User == "" && p.config.BastionUser != "" {
+			p.config.Bastion.User = p.config.BastionUser
+		}
+		if p.config.Bastion.PrivateKeyFile == "" && p.config.BastionPrivateKeyFile != "" {
+			p.config.Bastion.PrivateKeyFile = p.config.BastionPrivateKeyFile
+		}
+		if p.config.Bastion.Password == "" && p.config.BastionPassword != "" {
+			p.config.Bastion.Password = p.config.BastionPassword
+		}
+	}
+
+	// Set default bastion port if bastion block is defined
+	if p.config.Bastion != nil {
+		if p.config.Bastion.Port == 0 {
+			p.config.Bastion.Port = 22
+		}
+
+		// Auto-enable bastion if host is set
+		if p.config.Bastion.Host != "" {
+			p.config.Bastion.Enabled = true
+		}
+
+		// Apply HOME expansion to bastion private key file
+		if p.config.Bastion.PrivateKeyFile != "" {
+			p.config.Bastion.PrivateKeyFile = expandUserPath(p.config.Bastion.PrivateKeyFile)
+		}
+	}
+
+	// Also maintain backward compatibility for legacy flat fields
+	// (in case validation references them before migration completes)
 	if p.config.BastionPort == 0 {
 		p.config.BastionPort = 22
 	}
@@ -1119,12 +1248,31 @@ func (p *Provisioner) setupAdapter(ui packersdk.Ui, comm packersdk.Communicator)
 func (p *Provisioner) setupSSHTunnel(ui packersdk.Ui, targetHost string, targetPort int) (int, io.Closer, error) {
 	ui.Message("Setting up SSH tunnel through bastion...")
 
+	// Get bastion config from new structure or fall back to legacy flat fields
+	var bastionHost, bastionUser, bastionPrivateKeyFile, bastionPassword string
+	var bastionPort int
+
+	if p.config.Bastion != nil {
+		bastionHost = p.config.Bastion.Host
+		bastionPort = p.config.Bastion.Port
+		bastionUser = p.config.Bastion.User
+		bastionPrivateKeyFile = p.config.Bastion.PrivateKeyFile
+		bastionPassword = p.config.Bastion.Password
+	} else {
+		// Fall back to legacy flat fields
+		bastionHost = p.config.BastionHost
+		bastionPort = p.config.BastionPort
+		bastionUser = p.config.BastionUser
+		bastionPrivateKeyFile = p.config.BastionPrivateKeyFile
+		bastionPassword = p.config.BastionPassword
+	}
+
 	// Parse bastion authentication methods
 	var authMethods []ssh.AuthMethod
 
 	// Try private key authentication first if specified
-	if p.config.BastionPrivateKeyFile != "" {
-		keyBytes, err := os.ReadFile(p.config.BastionPrivateKeyFile)
+	if bastionPrivateKeyFile != "" {
+		keyBytes, err := os.ReadFile(bastionPrivateKeyFile)
 		if err != nil {
 			return 0, nil, fmt.Errorf("failed to read bastion private key file: %w", err)
 		}
@@ -1138,20 +1286,20 @@ func (p *Provisioner) setupSSHTunnel(ui packersdk.Ui, targetHost string, targetP
 	}
 
 	// Add password authentication if specified
-	if p.config.BastionPassword != "" {
-		authMethods = append(authMethods, ssh.Password(p.config.BastionPassword))
+	if bastionPassword != "" {
+		authMethods = append(authMethods, ssh.Password(bastionPassword))
 	}
 
 	// Configure SSH client for bastion connection
 	bastionConfig := &ssh.ClientConfig{
-		User:            p.config.BastionUser,
+		User:            bastionUser,
 		Auth:            authMethods,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // Accept any host key
 		Timeout:         30 * time.Second,
 	}
 
 	// Connect to bastion host
-	bastionAddr := fmt.Sprintf("%s:%d", p.config.BastionHost, p.config.BastionPort)
+	bastionAddr := fmt.Sprintf("%s:%d", bastionHost, bastionPort)
 	ui.Message(fmt.Sprintf("Connecting to bastion host %s...", bastionAddr))
 
 	bastionClient, err := ssh.Dial("tcp", bastionAddr, bastionConfig)
@@ -1401,8 +1549,15 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 		p.generatedData["Host"] = "127.0.0.1"
 		p.generatedData["Port"] = localPort
 
+		bastionHost := p.config.BastionHost
+		bastionPort := p.config.BastionPort
+		if p.config.Bastion != nil {
+			bastionHost = p.config.Bastion.Host
+			bastionPort = p.config.Bastion.Port
+		}
+
 		ui.Message(fmt.Sprintf("SSH tunnel established: localhost:%d -> %s:%d (via bastion %s:%d)",
-			localPort, targetHost, targetPort, p.config.BastionHost, p.config.BastionPort))
+			localPort, targetHost, targetPort, bastionHost, bastionPort))
 
 		// Debug logging for tunnel inventory integration
 		debugEnabled := isPluginDebugEnabled(p.config.NavigatorConfig)
