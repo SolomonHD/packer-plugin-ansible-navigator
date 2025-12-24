@@ -1385,9 +1385,24 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 			return fmt.Errorf("SSH tunnel mode requires a valid target host")
 		}
 
-		targetPort, ok := generatedData["Port"].(int)
-		if !ok || targetPort == 0 {
-			return fmt.Errorf("SSH tunnel mode requires a valid target port")
+		// Extract target port with type-safe handling (int or string)
+		var targetPort int
+		switch v := generatedData["Port"].(type) {
+		case int:
+			targetPort = v
+		case string:
+			var err error
+			targetPort, err = strconv.Atoi(v)
+			if err != nil {
+				return fmt.Errorf("SSH tunnel mode: invalid port value %q: %w", v, err)
+			}
+		default:
+			return fmt.Errorf("SSH tunnel mode: Port must be int or string, got type %T with value %v", v, v)
+		}
+
+		// Validate port range
+		if targetPort < 1 || targetPort > 65535 {
+			return fmt.Errorf("SSH tunnel mode: port must be between 1-65535, got %d", targetPort)
 		}
 
 		ui.Message("Using SSH tunnel mode - bypassing Packer SSH proxy adapter")
