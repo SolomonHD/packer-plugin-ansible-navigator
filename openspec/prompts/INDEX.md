@@ -1,59 +1,21 @@
-# OpenSpec Prompts Index: SSH Tunnel Mode Feature
+# OpenSpec Prompts Index
 
-This index tracks the decomposed prompts for implementing the SSH tunnel mode feature.
-
-## Overview
-
-Add `ssh_tunnel_mode` option to bypass the Packer SSH proxy adapter by establishing direct SSH tunnels through a bastion host. This solves WSL2/Docker container networking reliability issues.
+This directory contains OpenSpec prompt files for improving the packer-plugin-ansible-navigator.
 
 ## Prompt Sequence
 
-Execute prompts in numerical order. Each prompt builds on the previous.
+Execute these prompts in order:
 
-### 01-add-ssh-tunnel-config-options.md
+1. **[01-fix-port-type-coercion.md](01-fix-port-type-coercion.md)** - Fix Port type assertion bug in SSH tunnel mode
+2. **[02-add-connection-mode-enum.md](02-add-connection-mode-enum.md)** - Replace use_proxy/ssh_tunnel_mode with single connection_mode enum
+3. **[03-add-bastion-block.md](03-add-bastion-block.md)** - Restructure bastion configuration as nested block with sub-variables
 
-**Status**: Pending  
-**Dependencies**: None  
-**Description**: Add configuration schema for SSH tunnel mode including bastion host settings and mode selection.
+## Context
 
-### 02-implement-ssh-tunnel-establishment.md
+Plugin: `/home/solomong/dev/packer/plugins/packer-plugin-ansible-navigator`
 
-**Status**: Pending  
-**Dependencies**: 01  
-**Description**: Implement SSH tunnel establishment logic and connection management through bastion host.
+These changes address:
 
-### 03-integrate-tunnel-with-inventory.md
-
-**Status**: Pending  
-**Dependencies**: 02  
-**Description**: Modify inventory generation to use tunnel ports when SSH tunnel mode is active.
-
-### 04-update-documentation.md
-
-**Status**: Pending  
-**Dependencies**: 03  
-**Description**: Document SSH tunnel mode configuration, bastion setup, and WSL2/container troubleshooting guidance.
-
-## Implementation Notes
-
-- SSH tunnel mode is **optional** and only activates when configured
-- Preserves existing proxy adapter behavior as default
-- Tunnel mode and proxy adapter are mutually exclusive
-- Target use case: WSL2/Docker execution environments where container-to-host networking is unreliable
-
-## Testing Strategy
-
-Each prompt should include:
-
-- Configuration validation tests
-- Connection establishment tests  
-- Error handling tests
-- Integration tests with execution environments
-
-## Related Files
-
-Key files that will be modified:
-
-- [`provisioner/ansible-navigator/provisioner.go`](../../provisioner/ansible-navigator/provisioner.go) - Core provisioner logic
-- [`docs/CONFIGURATION.md`](../../docs/CONFIGURATION.md) - User-facing configuration reference
-- OpenSpec specs under `openspec/specs/remote-provisioner-capabilities/spec.md`
+- Bug: SSH tunnel mode fails with "requires a valid target port" due to type assertion
+- UX: Confusing double-negative with `use_proxy=false` to enable tunnel mode  
+- Config: Flat bastion_* variables should be nested for clarity
