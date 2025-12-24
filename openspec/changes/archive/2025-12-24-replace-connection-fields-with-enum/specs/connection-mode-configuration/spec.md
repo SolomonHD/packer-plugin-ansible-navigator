@@ -1,0 +1,192 @@
+# Spec: Connection Mode Configuration
+
+## Purpose
+
+Defines the configuration interface for selecting how Ansible connects to target machines, using a single explicit `connection_mode` enum field instead of multiple boolean flags.
+
+## ADDED Requirements
+
+**Replaces**: The `use_proxy` (Trilean) and `ssh_tunnel_mode` (bool) fields are superseded by this spec. Those fields are no longer supported.
+
+### Requirement: Connection Mode Enum Configuration
+
+The remote ansible-navigator provisioner SHALL support a `connection_mode` string field that explicitly defines how Ansible connections are established.
+
+#### Scenario: Connection mode can be configured with explicit value
+
+**Given:** A configuration for `provisioner "ansible-navigator"`  
+**When:** The configuration includes `connection_mode = "proxy"`  
+**Then:** Parsing SHALL succeed  
+**And:** The provisioner SHALL store the connection mode as `"proxy"`
+
+#### Scenario: Connection mode defaults to proxy when unspecified
+
+**Given:** A configuration for `provisioner "ansible-navigator"`  
+**And:** `connection_mode` is not specified  
+**When:** The provisioner initializes  
+**Then:** `connection_mode` SHALL default to `"proxy"`
+
+#### Scenario: Connection mode validation rejects invalid values
+
+**Given:** A configuration with `connection_mode = "invalid"`  
+**When:** The configuration is validated  
+**Then:** Validation SHALL fail  
+**And:** The error message SHALL state valid options: ["proxy", "ssh_tunnel", "direct"]
+
+### Requirement: Proxy Mode Selection
+
+When `connection_mode = "proxy"`, the provisioner SHALL use Packer's SSH proxy adapter for Ansible connections.
+
+#### Scenario: Proxy mode activates SSH proxy adapter
+
+**Given:** A configuration with `connection_mode = "proxy"`  
+**When:** [`Provision()`](../../../../../provisioner/ansible-navigator/provisioner.go:1351) is called  
+**Then:** It SHALL call [`setupAdapter()`](../../../../../provisioner/ansible-navigator/provisioner.go:1039)  
+**And:** It SHALL NOT call [`setupSSHTunnel()`](../../../../../provisioner/ansible-navigator/provisioner.go:1122)  
+**And:** The proxy adapter SHALL be used for Ansible connections
+
+#### Scenario: Proxy mode is the default behavior
+
+**Given:** A configuration with no `connection_mode` specified  
+**When:** [`Provision()`](../../../../../provisioner/ansible-navigator/provisioner.go:1351) is called  
+**Then:** The behavior SHALL match `connection_mode = "proxy"`  
+**And:** The proxy adapter SHALL be used
+
+### Requirement: SSH Tunnel Mode Selection
+
+When `connection_mode = "ssh_tunnel"`, the provisioner SHALL establish an SSH tunnel through a bastion host instead of using the proxy adapter.
+
+#### Scenario: SSH tunnel mode requires bastion configuration
+
+**Given:** A configuration with `connection_mode = "ssh_tunnel"`  
+**And:** `bastion_host` is not provided  
+**When:** The configuration is validated  
+**Then:** Validation SHALL fail  
+**And:** The error message SHALL state "bastion_host is required when connection_mode='ssh_tunnel'"
+
+#### Scenario: SSH tunnel mode requires bastion user
+
+**Given:** A configuration with `connection_mode = "ssh_tunnel"`  
+**And:** `bastion_host` is provided  
+**And:** `bastion_user` is not provided  
+**When:** The configuration is validated  
+**Then:** Validation SHALL fail  
+**And:** The error message SHALL state "bastion_user is required when connection_mode='ssh_tunnel'"
+
+#### Scenario: SSH tunnel mode requires authentication credentials
+
+**Given:** A configuration with `connection_mode = "ssh_tunnel"`  
+**And:** `bastion_host` and `bastion_user` are provided  
+**And:** Neither `bastion_private_key_file` nor `bastion_password` are provided  
+**When:** The configuration is validated  
+**Then:** Validation SHALL fail  
+**And:** The error SHALL require either `bastion_private_key_file` or `bastion_password`
+
+#### Scenario: SSH tunnel mode with valid configuration succeeds validation
+
+**Given:** A configuration with:
+
+- `connection_mode = "ssh_tunnel"`
+- `bastion_host` provided
+- `bastion_user` provided
+- Either `bastion_private_key_file` or `bastion_password` provided  
+**When:** The configuration is validated  
+**Then:** Validation SHALL succeed
+
+#### Scenario: SSH tunnel mode establishes tunnel
+
+**Given:** A configuration with `connection_mode = "ssh_tunnel"`  
+**And:** All required bastion fields are provided  
+**When:** [`Provision()`](../../../../../provisioner/ansible-navigator/provisioner.go:1351) is called  
+**Then:** It SHALL NOT call [`setupAdapter()`](../../../../../provisioner/ansible-navigator/provisioner.go:1039)  
+**And:** It SHALL call [`setupSSHTunnel()`](../../../../../provisioner/ansible-navigator/provisioner.go:1122) with target host and port  
+**And:** `generatedData["Host"]` SHALL be overridden to `"127.0.0.1"`  
+**And:** `generatedData["Port"]` SHALL be overridden to the tunnel's local port
+
+### Requirement: Direct Mode Selection
+
+When `connection_mode = "direct"`, the provisioner SHALL connect directly to the target machine without using the proxy adapter or SSH tunnel.
+
+#### Scenario: Direct mode bypasses proxy adapter
+
+**Given:** A configuration with `connection_mode = "direct"`  
+**When:** [`Provision()`](../../../../../provisioner/ansible-navigator/provisioner.go:1351) is called  
+**Then:** It SHALL NOT call [`setupAdapter()`](../../../../../provisioner/ansible-navigator/provisioner.go:1039)  
+**And:** It SHALL NOT call [`setupSSHTunnel()`](../../../../../provisioner/ansible-navigator/provisioner.go:1122)  
+**And:** Ansible SHALL use the target's actual IP address and port from `generatedData`
+
+#### Scenario: Direct mode requires valid target host
+
+**Given:** A configuration with `connection_mode = "direct"`  
+**And:** `generatedData["Host"]` is empty or missing  
+**When:** [`Provision()`](../../../../../provisioner/ansible-navigator/provisioner.go:1351) is called  
+**Then:** The provisioner SHALL log a warning  
+**And:** It SHALL fallback to proxy mode  
+**Or:** It SHALL fail with a clear error message
+
+#### Scenario: Direct mode uses SSH keys from communicator
+
+**Given:** A configuration with `connection_mode = "direct"`  
+**And:** `generatedData["ConnType"]` is `"ssh"`  
+**When:** Connection credentials are prepared  
+**Then:** The provisioner SHALL use `generatedData["SSHPrivateKeyFile"]` or `generatedData["SSHPrivateKey"]`  
+**And:** Ansible SHALL authenticate using the communicator's SSH credentials
+
+### Requirement: Connection Mode Integration with Inventory
+
+The connection mode SHALL affect how inventory files are generated to ensure Ansible connects to the correct endpoint.
+
+#### Scenario: Proxy and tunnel modes use local endpoint in inventory
+
+**Given:** A configuration with `connection_mode` set to `"proxy"` or `"ssh_tunnel"`  
+**When:** The inventory file is generated  
+**Then:** `ansible_host` SHALL be set to `AnsibleProxyHost` (defaults to `"127.0.0.1"`)  
+**And:** `ansible_port` SHALL be set to the local port (proxy adapter port or tunnel local port)
+
+#### Scenario: Direct mode uses target endpoint in inventory
+
+**Given:** A configuration with `connection_mode = "direct"`  
+**When:** The inventory file is generated  
+**Then:** `ansible_host` SHALL be set to `generatedData["Host"]` (target's actual IP/hostname)  
+**And:** `ansible_port` SHALL be set to `generatedData["Port"]` (target's actual SSH port)
+
+### Requirement: Connection Configuration Validation
+
+The provisioner SHALL validate `connection_mode` as an enum and conditionally validate related fields based on the selected mode.
+
+**Note**: This replaces the previous validation which enforced mutual exclusivity between `use_proxy` and `ssh_tunnel_mode` boolean fields.
+
+Validation SHALL enforce:
+
+1. `connection_mode` is one of `["proxy", "ssh_tunnel", "direct"]`
+2. When `connection_mode = "ssh_tunnel"`, all required bastion fields are provided and valid
+3. Default value of `"proxy"` is applied when field is unset
+
+#### Scenario: Invalid connection mode produces clear error
+
+**Given:** A configuration with `connection_mode = "tunnel"` (typo)  
+**When:** Validation runs  
+**Then:** Validation SHALL fail  
+**And:** Error message SHALL list valid values: ["proxy", "ssh_tunnel", "direct"]  
+**And:** Error message SHALL show the invalid value provided
+
+#### Scenario: Empty connection mode defaults to proxy
+
+**Given:** A configuration with `connection_mode = ""`  
+**When:** Validation runs  
+**Then:** `connection_mode` SHALL be set to `"proxy"`  
+**And:** Validation SHALL succeed
+
+## Migration Notes
+
+**Breaking Change**: Existing configurations using `use_proxy` or `ssh_tunnel_mode` will fail to parse.
+
+Users must update configurations according to this mapping:
+
+| Old Configuration | New Configuration |
+|------------------|-------------------|
+| `use_proxy = true` (default) | `connection_mode = "proxy"` (or omit for default) |
+| `use_proxy = false`, `ssh_tunnel_mode = false` | `connection_mode = "direct"` |
+| `use_proxy = false`, `ssh_tunnel_mode = true` | `connection_mode = "ssh_tunnel"` |
+
+**Rationale**: Per `openspec/project.md`, backward compatibility is not a goal. Removing confusing legacy fields in favor of clear, explicit configuration improves user experience.

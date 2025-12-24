@@ -243,17 +243,30 @@ The `ansible-navigator` provisioner supports inventory generation and optional c
 
 - `inventory_file`, `inventory_directory`, `inventory_file_template`
 - `groups`, `empty_groups`, `host_alias`, `limit`
-- `use_proxy`, `local_port`, `ansible_proxy_bind_address`, `ansible_proxy_host`
+- `connection_mode`, `local_port`, `ansible_proxy_bind_address`, `ansible_proxy_host`
 - `ssh_host_key_file`, `ssh_authorized_key_file`, `sftp_command`
 - `skip_version_check`, `version_check_timeout`
 
-### SSH Tunnel Mode (Bastion/Jump Host)
+### Connection Modes
 
-SSH tunnel mode provides an alternative to the Packer SSH proxy adapter for scenarios where direct SSH tunneling through a bastion or jump host is required.
+The `connection_mode` field controls how Ansible connects to the target machine. Valid values:
 
-#### When to Use SSH Tunnel Mode
+- **`"proxy"`** (default): Uses Packer's SSH proxy adapter
+- **`"ssh_tunnel"`**: Establishes SSH tunnel through a bastion/jump host
+- **`"direct"`**: Connects directly without proxy
 
-Choose SSH tunnel mode over the default proxy adapter when:
+#### Connection Mode: `proxy` (default)
+
+Use the proxy adapter when:
+
+- Running Packer on Linux/macOS (non-WSL2)
+- No bastion/jump host infrastructure exists
+- Direct network connectivity to targets
+- Simpler configuration is preferred
+
+#### Connection Mode: `ssh_tunnel`
+
+Use SSH tunnel mode when:
 
 - **WSL2 execution environments**: Container-to-host networking issues prevent the proxy adapter from working reliably
 - **Docker on Windows**: Networking unreliability with the proxy adapter
@@ -261,23 +274,22 @@ Choose SSH tunnel mode over the default proxy adapter when:
 - **Security policies**: Organizational requirements mandate all SSH connections route through a centralized jump host
 - **Network segmentation**: Target network is isolated and requires bastion connectivity
 
-Choose the default proxy adapter (`use_proxy`) when:
+#### Connection Mode: `direct`
 
-- Running Packer on Linux/macOS (non-WSL2)
-- No bastion/jump host infrastructure exists
-- Direct network connectivity to targets
-- Simpler configuration is preferred
+Use direct mode when:
 
-**IMPORTANT**: `ssh_tunnel_mode` and `use_proxy` are **mutually exclusive** - you cannot enable both simultaneously.
+- Target IP is directly accessible from Packer host
+- Proxy overhead is unnecessary
+- You want Ansible to handle SSH connections natively
 
 #### Configuration Fields
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `ssh_tunnel_mode` | bool | No | `false` | Enable SSH tunnel mode. When `true`, establishes SSH tunnels through a bastion to reach targets. **Mutually exclusive with `use_proxy`.** |
-| `bastion_host` | string | Yes when `ssh_tunnel_mode=true` | - | Hostname or IP address of the bastion/jump host |
+| `connection_mode` | string | No | `"proxy"` | Connection mode: `"proxy"`, `"ssh_tunnel"`, or `"direct"` |
+| `bastion_host` | string | Yes when `connection_mode="ssh_tunnel"` | - | Hostname or IP address of the bastion/jump host |
 | `bastion_port` | int | No | `22` | SSH port for bastion connection. Must be between 1-65535. |
-| `bastion_user` | string | Yes when `ssh_tunnel_mode=true` | - | SSH username for bastion authentication |
+| `bastion_user` | string | Yes when `connection_mode="ssh_tunnel"` | - | SSH username for bastion authentication |
 | `bastion_private_key_file` | string | **Either this OR `bastion_password`** | - | Path to SSH private key for bastion auth. Supports `~` for home directory expansion. |
 | `bastion_password` | string | **Either this OR `bastion_private_key_file`** | - | Password for bastion authentication. **Use variables, not hardcoded strings.** |
 
@@ -353,8 +365,8 @@ source "amazon-ebs" "example" {
 
 build {
   provisioner "ansible-navigator" {
-    # Enable SSH tunnel mode (disables proxy adapter)
-    ssh_tunnel_mode = true
+    # Use SSH tunnel mode to connect through bastion
+    connection_mode = "ssh_tunnel"
     
     # Bastion host configuration
     bastion_host             = "bastion.aws.example.com"
@@ -390,7 +402,7 @@ variable "bastion_pass" {
 
 build {
   provisioner "ansible-navigator" {
-    ssh_tunnel_mode  = true
+    connection_mode  = "ssh_tunnel"
     bastion_host     = "jumphost.lab.example.com"
     bastion_port     = 2222
     bastion_user     = "deploy"
@@ -416,10 +428,8 @@ If you encounter "connection refused" or "network unreachable" errors with the p
 ```hcl
 build {
   provisioner "ansible-navigator" {
-    # Switch from proxy to tunnel mode
-    # use_proxy = true  ← REMOVE THIS (mutually exclusive)
-    
-    ssh_tunnel_mode          = true
+    # Switch to SSH tunnel mode to avoid WSL2 networking issues
+    connection_mode          = "ssh_tunnel"
     bastion_host             = "bastion.example.com"
     bastion_user             = "ubuntu"
     bastion_private_key_file = "~/.ssh/id_ed25519"
@@ -459,11 +469,26 @@ build {
 
 3. **Key file permissions**: SSH private keys must have restrictive permissions (see [TROUBLESHOOTING.md](TROUBLESHOOTING.md#key-file-permissions))
 
-4. **Mutual exclusivity**: Cannot use both `ssh_tunnel_mode = true` and `use_proxy = true` - the plugin will reject this configuration with an error.
+4. **Target authentication**: The SSH tunnel provides network connectivity to the target, but Ansible still requires valid credentials for the target host (separate from bastion credentials). Configure target credentials using standard Ansible methods (SSH keys, passwords, etc.).
 
-5. **Target authentication**: The SSH tunnel provides network connectivity to the target, but Ansible still requires valid credentials for the target host (separate from bastion credentials). Configure target credentials using standard Ansible methods (SSH keys, passwords, etc.).
+5. **Multiple targets**: A single tunnel through the bastion can be reused for multiple target hosts if they're all accessible from the bastion.
 
-6. **Multiple targets**: A single tunnel through the bastion can be reused for multiple target hosts if they're all accessible from the bastion.
+##### Example 4: Direct Connection Mode
+
+When the target is directly accessible and you want to avoid proxy overhead:
+
+```hcl
+build {
+  provisioner "ansible-navigator" {
+    # Use direct connection (no proxy, no tunnel)
+    connection_mode = "direct"
+    
+    play {
+      target = "site.yml"
+    }
+  }
+}
+```
 
 ---
 

@@ -474,25 +474,20 @@ type Config struct {
 	//  Adds `--force-with-deps` option to `ansible-galaxy` command. By default,
 	//  this is `false`.
 	GalaxyForceWithDeps bool `mapstructure:"galaxy_force_with_deps"`
-	// When `true`, set up a localhost proxy adapter
-	// so that Ansible has an IP address to connect to, even if your guest does not
-	// have an IP address. For example, the adapter is necessary for Docker builds
-	// to use the Ansible provisioner. If you set this option to `false`, but
-	// Packer cannot find an IP address to connect Ansible to, it will
-	// automatically set up the adapter anyway.
+
+	// ConnectionMode determines how Ansible connects to the target machine.
 	//
-	//  In order for Ansible to connect properly even when use_proxy is false, you
-	// need to make sure that you are either providing a valid username and ssh key
-	// to the ansible provisioner directly, or that the username and ssh key
-	// being used by the ssh communicator will work for your needs. If you do not
-	// provide a user to ansible, it will use the user associated with your
-	// builder, not the user running Packer.
-	//  use_proxy=false is currently only supported for SSH and WinRM.
+	// Valid values:
+	//   - "proxy" (default): Use Packer's SSH proxy adapter. Works for most builds including Docker.
+	//   - "ssh_tunnel": Establish SSH tunnel through a bastion host. Required when targets are only
+	//     accessible via jump host (common with WSL2 execution environments).
+	//   - "direct": Connect directly to the target without proxy. Use when the target IP is directly
+	//     accessible and proxy overhead is unnecessary.
 	//
-	// Currently, this defaults to `true` for all connection types. In the future,
-	// this option will be changed to default to `false` for SSH and WinRM
-	// connections where the provisioner has access to a host IP.
-	UseProxy config.Trilean `mapstructure:"use_proxy"`
+	// When using "ssh_tunnel", you must provide bastion_host, bastion_user, and either
+	// bastion_private_key_file or bastion_password.
+	ConnectionMode string `mapstructure:"connection_mode"`
+
 	// Force WinRM to use HTTP instead of HTTPS.
 	//
 	// Set this to true to force Ansible to use HTTP instead of HTTPS to communicate
@@ -528,14 +523,8 @@ type Config struct {
 	NavigatorConfig *NavigatorConfig `mapstructure:"navigator_config"`
 	userWasEmpty    bool
 
-	// SSH tunnel mode enables direct SSH tunneling through a bastion host
-	// as an alternative to the Packer SSH proxy adapter. When enabled, the plugin
-	// establishes SSH tunnels through the bastion to reach targets directly.
-	// Mutually exclusive with use_proxy.
-	SSHTunnelMode bool `mapstructure:"ssh_tunnel_mode"`
-
 	// Bastion (jump host) address for SSH tunneling mode.
-	// Required when ssh_tunnel_mode is true.
+	// Required when connection_mode is "ssh_tunnel".
 	// Example: "bastion.example.com"
 	BastionHost string `mapstructure:"bastion_host"`
 
@@ -567,38 +556,41 @@ func (c *Config) Validate() error {
 				"Found whitespace in: %q. Use extra_arguments or play-level options for additional flags", c.Command))
 	}
 
-	// Validate SSH tunnel mode configuration
-	if c.SSHTunnelMode {
-		// Mutual exclusivity with use_proxy
-		if c.UseProxy.True() {
-			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-				"ssh_tunnel_mode and use_proxy cannot both be true"))
+	// Validate connection_mode
+	validModes := []string{"proxy", "ssh_tunnel", "direct"}
+	if c.ConnectionMode == "" {
+		c.ConnectionMode = "proxy" // Apply default
+	}
+	modeValid := false
+	for _, mode := range validModes {
+		if c.ConnectionMode == mode {
+			modeValid = true
+			break
 		}
+	}
+	if !modeValid {
+		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
+			"connection_mode must be one of %v, got: %q", validModes, c.ConnectionMode))
+	}
 
-		// Required fields when ssh_tunnel_mode is true
+	// Validate bastion requirements when using ssh_tunnel mode
+	if c.ConnectionMode == "ssh_tunnel" {
 		if c.BastionHost == "" {
 			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-				"bastion_host is required when ssh_tunnel_mode is true"))
+				"bastion_host is required when connection_mode='ssh_tunnel'"))
 		}
-
 		if c.BastionUser == "" {
 			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-				"bastion_user is required when ssh_tunnel_mode is true"))
+				"bastion_user is required when connection_mode='ssh_tunnel'"))
 		}
-
-		// Require either key file or password
 		if c.BastionPrivateKeyFile == "" && c.BastionPassword == "" {
 			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-				"either bastion_private_key_file or bastion_password must be provided when ssh_tunnel_mode is true"))
+				"either bastion_private_key_file or bastion_password must be provided when connection_mode='ssh_tunnel'"))
 		}
-
-		// Validate bastion_port range
 		if c.BastionPort < 1 || c.BastionPort > 65535 {
 			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
 				"bastion_port must be between 1 and 65535, got %d", c.BastionPort))
 		}
-
-		// Validate bastion_private_key_file exists if specified
 		if c.BastionPrivateKeyFile != "" {
 			if err := validateFileConfig(c.BastionPrivateKeyFile, "bastion_private_key_file", true); err != nil {
 				errs = packersdk.MultiErrorAppend(errs, err)
@@ -792,6 +784,11 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	// Set default bastion port
 	if p.config.BastionPort == 0 {
 		p.config.BastionPort = 22
+	}
+
+	// Set default connection_mode
+	if p.config.ConnectionMode == "" {
+		p.config.ConnectionMode = "proxy"
 	}
 
 	// Detect explicit timeout setting before defaulting
@@ -1301,7 +1298,7 @@ func (p *Provisioner) createInventoryFile() error {
 		if p.ansibleMajVersion < 2 {
 			hostTemplate = DefaultSSHInventoryFilev1
 		}
-		if p.config.UseProxy.False() && p.generatedData["ConnType"] == "winrm" {
+		if p.config.ConnectionMode == "direct" && p.generatedData["ConnType"] == "winrm" {
 			hostTemplate = DefaultWinRMInventoryFilev2
 		}
 	}
@@ -1310,7 +1307,7 @@ func (p *Provisioner) createInventoryFile() error {
 	ctxData := p.generatedData
 	ctxData["HostAlias"] = p.config.HostAlias
 	ctxData["User"] = p.config.User
-	if !p.config.UseProxy.False() {
+	if p.config.ConnectionMode == "proxy" || p.config.ConnectionMode == "ssh_tunnel" {
 		ctxData["Host"] = p.config.AnsibleProxyHost
 		ctxData["Port"] = p.config.LocalPort
 	}
@@ -1357,28 +1354,11 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 	p.generatedData = generatedData
 	p.config.ctx.Data = generatedData
 
-	// Set up proxy if host IP is missing or communicator type is wrong.
-	if p.config.UseProxy.False() {
-		hostIP, ok := generatedData["Host"].(string)
-		if !ok || hostIP == "" {
-			ui.Error("Warning: use_proxy is false, but instance does" +
-				" not have an IP address to give to Ansible. Falling back" +
-				" to use localhost proxy.")
-			p.config.UseProxy = config.TriTrue
-		}
-		connType := generatedData["ConnType"]
-		if connType != "ssh" && connType != "winrm" {
-			ui.Error("Warning: use_proxy is false, but communicator is " +
-				"neither ssh nor winrm, so without the proxy ansible will not" +
-				" function. Falling back to localhost proxy.")
-			p.config.UseProxy = config.TriTrue
-		}
-	}
-
 	privKeyFile := ""
 
-	// Check if SSH tunnel mode is enabled
-	if p.config.SSHTunnelMode {
+	// Handle connection based on connection_mode
+	switch p.config.ConnectionMode {
+	case "ssh_tunnel":
 		// Extract target host and port from generatedData
 		targetHost, ok := generatedData["Host"].(string)
 		if !ok || targetHost == "" {
@@ -1405,7 +1385,8 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 			return fmt.Errorf("SSH tunnel mode: port must be between 1-65535, got %d", targetPort)
 		}
 
-		ui.Message("Using SSH tunnel mode - bypassing Packer SSH proxy adapter")
+		// SSH tunnel mode - establish tunnel through bastion
+		ui.Message("Using SSH tunnel mode - connecting through bastion host")
 
 		// Establish SSH tunnel
 		localPort, tunnel, err := p.setupSSHTunnel(ui, targetHost, targetPort)
@@ -1473,34 +1454,14 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 				p.config.User = generatedData["User"].(string)
 			}
 		}
-	} else if !p.config.UseProxy.False() {
-		// We set up the proxy if useProxy is either true or unset.
-		pkf, err := p.setupAdapterFunc(ui, comm)
-		if err != nil {
-			return err
-		}
-		// This is necessary to avoid accidentally redeclaring
-		// privKeyFile in the scope of this if statement.
-		privKeyFile = pkf
 
-		defer func() {
-			log.Print("shutting down the SSH proxy")
-			close(p.done)
-			p.adapter.Shutdown()
-		}()
+	case "direct":
+		// Direct connection mode - use SSH keys from communicator
+		ui.Message("Using direct connection mode - connecting without proxy")
 
-		go p.adapter.Serve()
-
-		// Remove the private key file
-		if len(privKeyFile) > 0 {
-			defer os.Remove(privKeyFile)
-		}
-	} else {
 		connType := generatedData["ConnType"].(string)
 		switch connType {
 		case "ssh":
-			ui.Message("Not using Proxy adapter for Ansible run:\n" +
-				"\tUsing ssh keys from Packer communicator...")
 			// In this situation, we need to make sure we have the
 			// private key we actually use to access the instance.
 			SSHPrivateKeyFile := generatedData["SSHPrivateKeyFile"].(string)
@@ -1531,9 +1492,34 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 				p.config.User = generatedData["User"].(string)
 			}
 		case "winrm":
-			ui.Message("Not using Proxy adapter for Ansible run:\n" +
-				"\tUsing WinRM Password from Packer communicator...")
+			ui.Message("Using WinRM password from Packer communicator")
 		}
+
+	case "proxy":
+		// Proxy adapter mode (default)
+		ui.Message("Using proxy adapter mode")
+
+		pkf, err := p.setupAdapterFunc(ui, comm)
+		if err != nil {
+			return err
+		}
+		privKeyFile = pkf
+
+		defer func() {
+			log.Print("shutting down the SSH proxy")
+			close(p.done)
+			p.adapter.Shutdown()
+		}()
+
+		go p.adapter.Serve()
+
+		// Remove the private key file
+		if len(privKeyFile) > 0 {
+			defer os.Remove(privKeyFile)
+		}
+
+	default:
+		return fmt.Errorf("invalid connection_mode: %q (should have been caught by validation)", p.config.ConnectionMode)
 	}
 
 	if len(p.config.InventoryFile) == 0 {
@@ -1644,7 +1630,7 @@ func (p *Provisioner) createCmdArgs(ui packersdk.Ui, httpAddr, inventory, privKe
 
 	// Add password to ansible call.
 	ansiblePasswordSet := false
-	if p.config.UseProxy.False() && p.generatedData["ConnType"] == "winrm" {
+	if p.config.ConnectionMode == "direct" && p.generatedData["ConnType"] == "winrm" {
 		if password, ok := p.generatedData["Password"]; ok {
 			extraVars["ansible_password"] = fmt.Sprint(password)
 			ansiblePasswordSet = true
