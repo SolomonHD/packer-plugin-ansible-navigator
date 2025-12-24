@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/hashicorp/packer-plugin-sdk/template/config"
 )
 
 // TestSSHTunnelValidation tests the validation logic for SSH tunnel mode configuration
@@ -34,7 +32,7 @@ func TestSSHTunnelValidation(t *testing.T) {
 		{
 			name: "Valid SSH tunnel configuration with key file",
 			config: Config{
-				SSHTunnelMode:         true,
+				ConnectionMode:        "ssh_tunnel",
 				BastionHost:           "bastion.example.com",
 				BastionPort:           22,
 				BastionUser:           "deploy",
@@ -48,7 +46,7 @@ func TestSSHTunnelValidation(t *testing.T) {
 		{
 			name: "Valid SSH tunnel configuration with password",
 			config: Config{
-				SSHTunnelMode:   true,
+				ConnectionMode:  "ssh_tunnel",
 				BastionHost:     "bastion.example.com",
 				BastionPort:     2222,
 				BastionUser:     "deploy",
@@ -60,11 +58,9 @@ func TestSSHTunnelValidation(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "Invalid: ssh_tunnel_mode=true and use_proxy=true",
+			name: "Invalid: connection_mode=ssh_tunnel but missing bastion_host",
 			config: Config{
-				SSHTunnelMode:   true,
-				UseProxy:        config.TriTrue,
-				BastionHost:     "bastion.example.com",
+				ConnectionMode:  "ssh_tunnel",
 				BastionUser:     "deploy",
 				BastionPassword: "secret",
 				Plays: []Play{
@@ -72,25 +68,12 @@ func TestSSHTunnelValidation(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorText:   "ssh_tunnel_mode and use_proxy cannot both be true",
+			errorText:   "bastion_host is required when connection_mode='ssh_tunnel'",
 		},
 		{
-			name: "Invalid: ssh_tunnel_mode=true but missing bastion_host",
+			name: "Invalid: connection_mode=ssh_tunnel but missing bastion_user",
 			config: Config{
-				SSHTunnelMode:   true,
-				BastionUser:     "deploy",
-				BastionPassword: "secret",
-				Plays: []Play{
-					{Target: tmpPlaybook},
-				},
-			},
-			expectError: true,
-			errorText:   "bastion_host is required when ssh_tunnel_mode is true",
-		},
-		{
-			name: "Invalid: ssh_tunnel_mode=true but missing bastion_user",
-			config: Config{
-				SSHTunnelMode:   true,
+				ConnectionMode:  "ssh_tunnel",
 				BastionHost:     "bastion.example.com",
 				BastionPassword: "secret",
 				Plays: []Play{
@@ -98,14 +81,14 @@ func TestSSHTunnelValidation(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorText:   "bastion_user is required when ssh_tunnel_mode is true",
+			errorText:   "bastion_user is required when connection_mode='ssh_tunnel'",
 		},
 		{
-			name: "Invalid: ssh_tunnel_mode=true but missing both key and password",
+			name: "Invalid: connection_mode=ssh_tunnel but missing both key and password",
 			config: Config{
-				SSHTunnelMode: true,
-				BastionHost:   "bastion.example.com",
-				BastionUser:   "deploy",
+				ConnectionMode: "ssh_tunnel",
+				BastionHost:    "bastion.example.com",
+				BastionUser:    "deploy",
 				Plays: []Play{
 					{Target: tmpPlaybook},
 				},
@@ -116,7 +99,7 @@ func TestSSHTunnelValidation(t *testing.T) {
 		{
 			name: "Invalid: bastion_port out of range (too high)",
 			config: Config{
-				SSHTunnelMode:   true,
+				ConnectionMode:  "ssh_tunnel",
 				BastionHost:     "bastion.example.com",
 				BastionPort:     99999,
 				BastionUser:     "deploy",
@@ -131,7 +114,7 @@ func TestSSHTunnelValidation(t *testing.T) {
 		{
 			name: "Invalid: bastion_port out of range (zero)",
 			config: Config{
-				SSHTunnelMode:   true,
+				ConnectionMode:  "ssh_tunnel",
 				BastionHost:     "bastion.example.com",
 				BastionPort:     0,
 				BastionUser:     "deploy",
@@ -146,7 +129,7 @@ func TestSSHTunnelValidation(t *testing.T) {
 		{
 			name: "Invalid: bastion_private_key_file does not exist",
 			config: Config{
-				SSHTunnelMode:         true,
+				ConnectionMode:        "ssh_tunnel",
 				BastionHost:           "bastion.example.com",
 				BastionPort:           22,
 				BastionUser:           "deploy",
@@ -159,14 +142,35 @@ func TestSSHTunnelValidation(t *testing.T) {
 			errorText:   "bastion_private_key_file",
 		},
 		{
-			name: "Valid: SSH tunnel disabled (default behavior)",
+			name: "Valid: proxy mode (default behavior)",
 			config: Config{
-				SSHTunnelMode: false,
+				ConnectionMode: "proxy",
 				Plays: []Play{
 					{Target: tmpPlaybook},
 				},
 			},
 			expectError: false,
+		},
+		{
+			name: "Valid: direct mode",
+			config: Config{
+				ConnectionMode: "direct",
+				Plays: []Play{
+					{Target: tmpPlaybook},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "Invalid: invalid connection_mode",
+			config: Config{
+				ConnectionMode: "invalid_mode",
+				Plays: []Play{
+					{Target: tmpPlaybook},
+				},
+			},
+			expectError: true,
+			errorText:   "connection_mode must be one of",
 		},
 	}
 

@@ -180,6 +180,59 @@ provisioner "ansible-navigator" {
 }
 ```
 
+## 7) Connection modes: SSH tunnel through bastion
+
+Use `connection_mode = "ssh_tunnel"` when targets are only accessible through a bastion/jump host:
+
+```hcl
+provisioner "ansible-navigator" {
+  # Use SSH tunnel mode instead of default proxy adapter
+  connection_mode = "ssh_tunnel"
+  
+  # Bastion configuration
+  bastion_host             = "bastion.example.com"
+  bastion_user             = "ec2-user"
+  bastion_private_key_file = "~/.ssh/bastion.pem"
+  
+  navigator_config {
+    mode = "stdout"
+    
+    execution_environment {
+      enabled     = true
+      image       = "quay.io/ansible/creator-ee:latest"
+      pull_policy = "missing"
+    }
+  }
+  
+  play { target = "site.yml" }
+}
+```
+
+## 8) Connection modes: Direct connection (no proxy)
+
+Use `connection_mode = "direct"` when the target is directly accessible and you want to bypass the proxy adapter:
+
+```hcl
+provisioner "ansible-navigator" {
+  # Direct connection - Ansible handles SSH natively
+  connection_mode = "direct"
+  
+  play { target = "site.yml" }
+}
+```
+
+## 9) Connection modes: Proxy adapter (default)
+
+The default `connection_mode = "proxy"` uses Packer's SSH proxy adapter. This is the default and doesn't need to be explicitly set:
+
+```hcl
+provisioner "ansible-navigator" {
+  # connection_mode = "proxy"  ← Default, can be omitted
+  
+  play { target = "site.yml" }
+}
+```
+
 ---
 
 [← Back to docs index](README.md)

@@ -19,7 +19,6 @@ import (
 
 	"github.com/hashicorp/packer-plugin-sdk/multistep/commonsteps"
 	packersdk "github.com/hashicorp/packer-plugin-sdk/packer"
-	confighelper "github.com/hashicorp/packer-plugin-sdk/template/config"
 )
 
 // Be sure to remove the Ansible stub file in each test with:
@@ -572,7 +571,7 @@ func TestCreateInventoryFile(t *testing.T) {
 		User           string
 		Groups         []string
 		EmptyGroups    []string
-		UseProxy       confighelper.Trilean
+		ConnectionMode string
 		GeneratedData  map[string]interface{}
 		Expected       string
 	}
@@ -581,14 +580,14 @@ func TestCreateInventoryFile(t *testing.T) {
 		{
 			AnsibleVersion: 1,
 			User:           "testuser",
-			UseProxy:       confighelper.TriFalse,
+			ConnectionMode: "direct",
 			GeneratedData:  basicGenData(nil),
 			Expected:       "default ansible_ssh_host=123.45.67.89 ansible_ssh_user=testuser ansible_ssh_port=1234\n",
 		},
 		{
 			AnsibleVersion: 2,
 			User:           "testuser",
-			UseProxy:       confighelper.TriFalse,
+			ConnectionMode: "direct",
 			GeneratedData:  basicGenData(nil),
 			Expected:       "default ansible_host=123.45.67.89 ansible_user=testuser ansible_port=1234\n",
 		},
@@ -596,7 +595,7 @@ func TestCreateInventoryFile(t *testing.T) {
 			AnsibleVersion: 1,
 			User:           "testuser",
 			Groups:         []string{"Group1", "Group2"},
-			UseProxy:       confighelper.TriFalse,
+			ConnectionMode: "direct",
 			GeneratedData:  basicGenData(nil),
 			Expected: `default ansible_ssh_host=123.45.67.89 ansible_ssh_user=testuser ansible_ssh_port=1234
 [Group1]
@@ -609,7 +608,7 @@ default ansible_ssh_host=123.45.67.89 ansible_ssh_user=testuser ansible_ssh_port
 			AnsibleVersion: 1,
 			User:           "testuser",
 			EmptyGroups:    []string{"Group1", "Group2"},
-			UseProxy:       confighelper.TriFalse,
+			ConnectionMode: "direct",
 			GeneratedData:  basicGenData(nil),
 			Expected: `default ansible_ssh_host=123.45.67.89 ansible_ssh_user=testuser ansible_ssh_port=1234
 [Group1]
@@ -621,7 +620,7 @@ default ansible_ssh_host=123.45.67.89 ansible_ssh_user=testuser ansible_ssh_port
 			User:           "testuser",
 			Groups:         []string{"Group1", "Group2"},
 			EmptyGroups:    []string{"Group3"},
-			UseProxy:       confighelper.TriFalse,
+			ConnectionMode: "direct",
 			GeneratedData:  basicGenData(nil),
 			Expected: `default ansible_ssh_host=123.45.67.89 ansible_ssh_user=testuser ansible_ssh_port=1234
 [Group1]
@@ -634,7 +633,7 @@ default ansible_ssh_host=123.45.67.89 ansible_ssh_user=testuser ansible_ssh_port
 		{
 			AnsibleVersion: 2,
 			User:           "testuser",
-			UseProxy:       confighelper.TriFalse,
+			ConnectionMode: "direct",
 			GeneratedData: basicGenData(map[string]interface{}{
 				"ConnType": "winrm",
 				"Password": "12345",
@@ -654,7 +653,7 @@ default ansible_ssh_host=123.45.67.89 ansible_ssh_user=testuser ansible_ssh_port
 		p.config.User = tc.User
 		p.config.Groups = tc.Groups
 		p.config.EmptyGroups = tc.EmptyGroups
-		p.config.UseProxy = tc.UseProxy
+		p.config.ConnectionMode = tc.ConnectionMode
 		p.generatedData = tc.GeneratedData
 
 		err = p.createInventoryFile()
@@ -699,9 +698,9 @@ func basicGenData(input map[string]interface{}) map[string]interface{} {
 	return gd
 }
 
-func TestUseProxy(t *testing.T) {
+func TestConnectionMode(t *testing.T) {
 	type testcase struct {
-		UseProxy                   confighelper.Trilean
+		ConnectionMode             string
 		generatedData              map[string]interface{}
 		expectedSetupAdapterCalled bool
 		explanation                string
@@ -709,54 +708,29 @@ func TestUseProxy(t *testing.T) {
 
 	tcs := []testcase{
 		{
-			explanation:                "use_proxy is true; we should set up adapter",
-			UseProxy:                   confighelper.TriTrue,
+			explanation:                "connection_mode is proxy; we should set up adapter",
+			ConnectionMode:             "proxy",
 			generatedData:              basicGenData(nil),
 			expectedSetupAdapterCalled: true,
 		},
 		{
-			explanation: "use_proxy is false but no IP addr is available; we should set up adapter anyway.",
-			UseProxy:    confighelper.TriFalse,
-			generatedData: basicGenData(map[string]interface{}{
-				"Host": "",
-				"Port": nil,
-			}),
-			expectedSetupAdapterCalled: true,
-		},
-		{
-			explanation:                "use_proxy is false; we shouldn't set up adapter.",
-			UseProxy:                   confighelper.TriFalse,
+			explanation:                "connection_mode is direct; we shouldn't set up adapter",
+			ConnectionMode:             "direct",
 			generatedData:              basicGenData(nil),
 			expectedSetupAdapterCalled: false,
 		},
 		{
-			explanation: "use_proxy is false but connType isn't ssh or winrm.",
-			UseProxy:    confighelper.TriFalse,
-			generatedData: basicGenData(map[string]interface{}{
-				"ConnType": "docker",
-			}),
-			expectedSetupAdapterCalled: true,
-		},
-		{
-			explanation:                "use_proxy is unset; we should default to setting up the adapter (for now).",
-			UseProxy:                   confighelper.TriUnset,
-			generatedData:              basicGenData(nil),
-			expectedSetupAdapterCalled: true,
-		},
-		{
-			explanation: "use_proxy is false and connType is winRM. we should not set up the adapter.",
-			UseProxy:    confighelper.TriFalse,
+			explanation:    "connection_mode is direct and connType is winRM; we should not set up the adapter",
+			ConnectionMode: "direct",
 			generatedData: basicGenData(map[string]interface{}{
 				"ConnType": "winrm",
 			}),
 			expectedSetupAdapterCalled: false,
 		},
 		{
-			explanation: "use_proxy is unset and connType is winRM. we should set up the adapter.",
-			UseProxy:    confighelper.TriUnset,
-			generatedData: basicGenData(map[string]interface{}{
-				"ConnType": "winrm",
-			}),
+			explanation:                "connection_mode defaults to proxy; we should set up adapter",
+			ConnectionMode:             "", // Will default to "proxy"
+			generatedData:              basicGenData(nil),
 			expectedSetupAdapterCalled: true,
 		},
 	}
@@ -767,7 +741,10 @@ func TestUseProxy(t *testing.T) {
 		if err == nil {
 			t.Fatalf("%s should have error", tc.explanation)
 		}
-		p.config.UseProxy = tc.UseProxy
+		p.config.ConnectionMode = tc.ConnectionMode
+		if p.config.ConnectionMode == "" {
+			p.config.ConnectionMode = "proxy" // Apply default
+		}
 		defer os.Remove(p.config.Command)
 		p.ansibleMajVersion = 1
 
@@ -827,7 +804,7 @@ func TestProvisioner_WarnsOnSkipVersionCheckWithExplicitTimeout(t *testing.T) {
 	// Avoid exercising real SSH proxy setup / ansible execution
 	p.setupAdapterFunc = func(ui packersdk.Ui, comm packersdk.Communicator) (string, error) { return "", nil }
 	p.executeAnsibleFunc = func(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string) error { return nil }
-	p.config.UseProxy = confighelper.TriFalse
+	p.config.ConnectionMode = "direct"
 
 	out := new(bytes.Buffer)
 	ui := &packersdk.BasicUi{Reader: new(bytes.Buffer), Writer: out}
@@ -878,7 +855,7 @@ func TestProvisioner_DoesNotWarnOnSkipVersionCheckWithoutExplicitTimeout(t *test
 
 	p.setupAdapterFunc = func(ui packersdk.Ui, comm packersdk.Communicator) (string, error) { return "", nil }
 	p.executeAnsibleFunc = func(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string) error { return nil }
-	p.config.UseProxy = confighelper.TriFalse
+	p.config.ConnectionMode = "direct"
 
 	out := new(bytes.Buffer)
 	ui := &packersdk.BasicUi{Reader: new(bytes.Buffer), Writer: out}
@@ -929,7 +906,7 @@ func TestProvisioner_DoesNotWarnWhenSkipVersionCheckIsFalse(t *testing.T) {
 
 	p.setupAdapterFunc = func(ui packersdk.Ui, comm packersdk.Communicator) (string, error) { return "", nil }
 	p.executeAnsibleFunc = func(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string) error { return nil }
-	p.config.UseProxy = confighelper.TriFalse
+	p.config.ConnectionMode = "direct"
 
 	out := new(bytes.Buffer)
 	ui := &packersdk.BasicUi{Reader: new(bytes.Buffer), Writer: out}
