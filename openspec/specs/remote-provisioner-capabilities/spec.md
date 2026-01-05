@@ -233,130 +233,58 @@ The SSH-based provisioner SHALL force unbuffered Python output to ensure logs ar
 
 ### Requirement: Navigator Config File Generation
 
-The remote provisioner SHALL support generating ansible-navigator.yml configuration files from a declarative HCL map and using them to control ansible-navigator behavior. The generated YAML SHALL conform to the ansible-navigator v24+/v25+ schema, including proper nested structure for execution environment fields.
+The provisioner MUST generate ansible-navigator configuration using CLI flags as the primary method. YAML configuration files MUST be generated only when the configuration contains settings without CLI flag equivalents (PlaybookArtifact, CollectionDocCache).
 
-#### Scenario: User-specified navigator_config generates YAML file
+#### Scenario: CLI-only configuration (common path)
+**Given:** NavigatorConfig contains mode, execution environment, and logging settings  
+**And:** No PlaybookArtifact or CollectionDocCache settings are configured  
+**When:** Executing ProvisionRemote()  
+**Then:** CLI flags are generated for all settings  
+**And:** No temporary YAML file is created  
+**And:** The ansible-navigator command includes flags like `--mode=stdout --execution-environment-image=... --pull-policy=never`  
+**And:** No `--settings` flag is present in the command
 
-- **GIVEN** a configuration with:
+#### Scenario: Hybrid configuration with playbook artifact
+**Given:** NavigatorConfig contains CLI-mappable settings (mode, execution environment)  
+**And:** PlaybookArtifact is configured with `{ Enable: true, SaveAs: "/tmp/artifact.json" }`  
+**When:** Executing ProvisionRemote()  
+**Then:** CLI flags are generated for mode, execution environment, and logging  
+**And:** A minimal YAML file is created containing ONLY playbook-artifact settings  
+**And:** The ansible-navigator command includes both CLI flags and `--settings=/tmp/packer-navigator-cfg-minimal-XXX.yml`  
+**And:** The minimal YAML file is cleaned up after execution
 
-  ```hcl
-  navigator_config {
-    mode = "stdout"
-    execution_environment {
-      enabled     = true
-      image       = "quay.io/ansible/creator-ee:latest"
-      pull_policy = "missing"
-    }
-    ansible_config {
-      defaults {
-        remote_tmp = "/tmp/.ansible/tmp"
-      }
-    }
-  }
-  ```
+#### Scenario: Empty navigator configuration
+**Given:** NavigatorConfig is nil or unspecified  
+**When:** Executing ProvisionRemote()  
+**Then:** No CLI flags are added for navigator configuration  
+**And:** No YAML file is generated  
+**And:** Default ansible-navigator behavior is used
 
-- **WHEN** the provisioner prepares for execution
-- **THEN** it SHALL generate a temporary file named `/tmp/packer-navigator-cfg-<uuid>.yml` (or equivalent in system temp directory)
-- **AND** the file SHALL contain valid YAML conforming to the ansible-navigator.yml v25+ schema
-- **AND** the execution-environment pull policy SHALL be generated as nested structure: `pull: { policy: missing }`
-- **AND** the file SHALL NOT use flat `pull-policy: missing` syntax (which is rejected by ansible-navigator v25+)
-- **AND** the local temporary file SHALL be added to the cleanup list
+#### Scenario: Pull policy enforcement via CLI flag
+**Given:** NavigatorConfig.ExecutionEnvironment.PullPolicy is `"never"`  
+**When:** Executing ProvisionRemote()  
+**Then:** The command includes `--pull-policy=never`  
+**And:** Docker/Podman does NOT attempt to pull the image  
+**And:** Execution uses existing local images only
 
-#### Scenario: ANSIBLE_NAVIGATOR_CONFIG set in command execution
+#### Scenario: Multiple environment variables via CLI flags
+**Given:** NavigatorConfig.ExecutionEnvironment.EnvironmentVariables.Set contains multiple variables  
+**When:** Executing ProvisionRemote()  
+**Then:** Each variable is passed as a separate `--eev KEY=VALUE` flag  
+**And:** No YAML file is needed for environment variables
 
-- **GIVEN** a generated ansible-navigator.yml file at a temporary path
-- **WHEN** the provisioner executes ansible-navigator
-- **THEN** it SHALL prepend `ANSIBLE_NAVIGATOR_CONFIG=<temp_path>` to the environment variables
-- **AND** this SHALL occur for all ansible-navigator executions
+#### Scenario: Volume mounts via CLI flags
+**Given:** NavigatorConfig.ExecutionEnvironment.VolumeMounts contains multiple mount specifications  
+**When:** Executing ProvisionRemote()  
+**Then:** Each mount is passed as a separate `--evm src:dest:options` flag  
+**And:** No YAML file is needed for volume mounts
 
-#### Scenario: Cleanup after provisioning
-
-- **GIVEN** a generated ansible-navigator.yml file
-- **WHEN** provisioning completes (success or failure)
-- **THEN** the temporary ansible-navigator.yml file SHALL be deleted
-
-#### Scenario: Ansible config schema compliance
-
-- **GIVEN** a configuration with `navigator_config.ansible_config` set (any combination of supported fields)
-- **WHEN** the provisioner generates the ansible-navigator.yml file
-- **THEN** the generated YAML MUST NOT contain `defaults` (or any other unexpected keys) under `ansible.config`
-- **AND** `ansible.config` MUST contain only the allowed properties: `help`, `path`, and/or `cmdline`
-
-#### Scenario: Mutual exclusivity for ansible_config.config vs nested blocks
-
-- **GIVEN** a configuration with:
-
-  ```hcl
-  navigator_config {
-    ansible_config {
-      config = "/etc/ansible/ansible.cfg"
-      defaults {
-        remote_tmp = "/tmp/.ansible/tmp"
-      }
-    }
-  }
-  ```
-
-- **WHEN** the configuration is validated
-- **THEN** validation SHALL fail
-- **AND** the error message SHALL state that `ansible_config.config` is mutually exclusive with `ansible_config.defaults` and `ansible_config.ssh_connection`
-
-#### Scenario: Automatic EE defaults are injected per-key when execution environment enabled
-
-- **GIVEN** a configuration with:
-
-  ```hcl
-  navigator_config {
-    execution_environment {
-      enabled = true
-      image   = "quay.io/ansible/creator-ee:latest"
-      environment_variables {
-        set = {
-          CUSTOM_VAR = "custom"
-        }
-      }
-    }
-  }
-  ```
-
-- **WHEN** the provisioner generates the ansible-navigator.yml file
-- **THEN** it SHALL ensure execution-environment environment-variables include safe defaults **per missing key**, at minimum:
-
-  ```yaml
-  execution-environment:
-    environment-variables:
-      set:
-        ANSIBLE_REMOTE_TMP: "/tmp/.ansible/tmp"
-        ANSIBLE_LOCAL_TMP: "/tmp/.ansible-local"
-  ```
-
-- **AND** it SHALL NOT remove or overwrite unrelated user-provided keys (e.g., `CUSTOM_VAR`)
-
-#### Scenario: Automatic EE HOME/XDG defaults when not explicitly set or passed through
-
-- **GIVEN** a configuration with `navigator_config.execution_environment.enabled = true`
-- **AND** the user has NOT provided values for any of the following via `execution_environment.environment_variables.set`:
-  - `HOME`
-  - `XDG_CACHE_HOME`
-  - `XDG_CONFIG_HOME`
-- **AND** the user has NOT requested pass-through of any of the following via `execution_environment.environment_variables.pass`:
-  - `HOME`
-  - `XDG_CACHE_HOME`
-  - `XDG_CONFIG_HOME`
-- **WHEN** the provisioner generates the ansible-navigator.yml file
-- **THEN** it SHALL set the following defaults under `execution-environment.environment-variables.set`:
-  - `HOME=/tmp`
-  - `XDG_CACHE_HOME=/tmp/.cache`
-  - `XDG_CONFIG_HOME=/tmp/.config`
-
-#### Scenario: User-provided env var values are not overridden
-
-- **GIVEN** a configuration with `navigator_config.execution_environment.enabled = true`
-- **AND** the user has explicitly set one or more env var values under `execution_environment.environment_variables.set`
-- **WHEN** the provisioner generates the ansible-navigator.yml file
-- **THEN** the provisioner SHALL preserve the user's values
-- **AND** it SHALL NOT overwrite user-set `HOME` or `XDG_*` values
-- **AND** it SHALL NOT overwrite user-set `ANSIBLE_*` values
+#### Scenario: Temporary YAML cleanup on error
+**Given:** NavigatorConfig contains unmapped settings requiring minimal YAML  
+**And:** An error occurs after YAML file creation but before execution completes  
+**When:** The provisioner deferred cleanup executes  
+**Then:** The minimal YAML file is removed from the system  
+**And:** No temporary files are leaked
 
 ### Requirement: Configuration Validation
 

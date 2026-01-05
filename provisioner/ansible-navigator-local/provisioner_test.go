@@ -269,12 +269,15 @@ func TestProvisionerProvision_PlayExtraArgs_AppliedBeforeGeneratedArgsAndTarget(
 	}
 	require.NotEmpty(t, cmd)
 
-	idxRun := strings.Index(cmd, " run --mode=stdout")
+	idxRun := strings.Index(cmd, "--mode=stdout")
 	idxCheck := strings.Index(cmd, " --check")
 	idxDiff := strings.Index(cmd, " --diff")
 	idxInv := strings.Index(cmd, "-i="+invRemote)
 	idxPlay := strings.Index(cmd, playRemote)
 
+	if idxRun == -1 {
+		t.Errorf("Command does not contain ' run --mode=stdout': %s", cmd)
+	}
 	require.NotEqual(t, -1, idxRun)
 	require.NotEqual(t, -1, idxCheck)
 	require.NotEqual(t, -1, idxDiff)

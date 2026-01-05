@@ -581,3 +581,146 @@ func TestGenerateNavigatorConfigYAML_UserVolumeMountsPreserved(t *testing.T) {
 		t.Errorf("Expected automatic collections mount to be added, got: %s", yamlStr)
 	}
 }
+
+// Test buildNavigatorCLIFlags
+func TestBuildNavigatorCLIFlags_Basic(t *testing.T) {
+	config := &NavigatorConfig{
+		Mode: "stdout",
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled:    true,
+			Image:      "quay.io/ansible/creator-ee:latest",
+			PullPolicy: "missing",
+		},
+		Logging: &LoggingConfig{
+			Level: "debug",
+		},
+	}
+
+	flags := buildNavigatorCLIFlags(config)
+
+	expectedFlags := []string{
+		"--mode=stdout",
+		"--execution-environment-image=quay.io/ansible/creator-ee:latest",
+		"--pull-policy=missing",
+		"--log-level=debug",
+	}
+
+	for _, expected := range expectedFlags {
+		found := false
+		for _, flag := range flags {
+			if flag == expected {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected flag %s not found in %v", expected, flags)
+		}
+	}
+}
+
+func TestBuildNavigatorCLIFlags_Complex(t *testing.T) {
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled: true,
+			EnvironmentVariables: &EnvironmentVariablesConfig{
+				Set:  map[string]string{"KEY": "VALUE"},
+				Pass: []string{"HOME"},
+			},
+			VolumeMounts: []VolumeMount{
+				{Src: "/src", Dest: "/dest", Options: "ro"},
+			},
+			ContainerOptions: []string{"--net=host"},
+		},
+	}
+
+	flags := buildNavigatorCLIFlags(config)
+
+	// Check for repeatable flags
+	foundEEV := false
+	foundEVM := false
+	foundContainerOptions := false
+
+	for _, flag := range flags {
+		if strings.HasPrefix(flag, "--eev=") {
+			if strings.Contains(flag, "KEY=VALUE") || strings.Contains(flag, "HOME") {
+				foundEEV = true
+			}
+		}
+		if strings.HasPrefix(flag, "--evm=") && strings.Contains(flag, "/src:/dest:ro") {
+			foundEVM = true
+		}
+		if strings.HasPrefix(flag, "--container-options=") && strings.Contains(flag, "--net=host") {
+			foundContainerOptions = true
+		}
+	}
+
+	if !foundEEV {
+		t.Error("Expected --eev flags not found")
+	}
+	if !foundEVM {
+		t.Error("Expected --evm flag not found")
+	}
+	if !foundContainerOptions {
+		t.Error("Expected --container-options flag not found")
+	}
+}
+
+// Test hasUnmappedSettings
+func TestHasUnmappedSettings(t *testing.T) {
+	// Case 1: No unmapped settings
+	config1 := &NavigatorConfig{
+		Mode: "stdout",
+	}
+	if hasUnmappedSettings(config1) {
+		t.Error("Expected hasUnmappedSettings to be false for basic config")
+	}
+
+	// Case 2: PlaybookArtifact enabled
+	config2 := &NavigatorConfig{
+		PlaybookArtifact: &PlaybookArtifact{
+			Enable: true,
+		},
+	}
+	if !hasUnmappedSettings(config2) {
+		t.Error("Expected hasUnmappedSettings to be true when PlaybookArtifact is enabled")
+	}
+
+	// Case 3: CollectionDocCache path set
+	config3 := &NavigatorConfig{
+		CollectionDocCache: &CollectionDocCache{
+			Path: "/tmp/cache",
+		},
+	}
+	if !hasUnmappedSettings(config3) {
+		t.Error("Expected hasUnmappedSettings to be true when CollectionDocCache path is set")
+	}
+}
+
+// Test generateMinimalYAML
+func TestGenerateMinimalYAML(t *testing.T) {
+	config := &NavigatorConfig{
+		Mode: "stdout", // Mapped
+		PlaybookArtifact: &PlaybookArtifact{ // Unmapped
+			Enable: true,
+			SaveAs: "/tmp/artifact.json",
+		},
+	}
+
+	yamlStr, err := generateMinimalYAML(config)
+	if err != nil {
+		t.Fatalf("generateMinimalYAML failed: %v", err)
+	}
+
+	if strings.Contains(yamlStr, "mode: stdout") {
+		t.Error("Minimal YAML should NOT contain mapped settings like mode")
+	}
+
+	if !strings.Contains(yamlStr, "playbook-artifact") {
+		t.Error("Minimal YAML SHOULD contain unmapped settings like playbook-artifact")
+	}
+
+	if !strings.Contains(yamlStr, "save-as: /tmp/artifact.json") {
+		t.Error("Minimal YAML should contain save-as value")
+	}
+}

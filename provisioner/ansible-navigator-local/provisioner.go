@@ -532,6 +532,10 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 		// For local provisioner, collections are in the staging directory on the target
 		collectionsPath := p.galaxyCollectionsPath
 
+		// Apply automatic defaults (EE, etc) - this modifies p.config.NavigatorConfig in place
+		// We need to do this before generating ansible.cfg or checking for unmapped settings
+		applyAutomaticEEDefaults(p.config.NavigatorConfig, collectionsPath)
+
 		// If ansible_config.defaults / ansible_config.ssh_connection are provided
 		// (explicitly or via EE defaults), generate an ansible.cfg file, upload it
 		// to the staging directory, and reference it from the navigator config YAML
@@ -562,23 +566,28 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 			}
 		}
 
-		yamlContent, err := generateNavigatorConfigYAML(p.config.NavigatorConfig, collectionsPath)
-		if err != nil {
-			return fmt.Errorf("Error generating navigator_config YAML: %s", err)
-		}
+		// Hybrid approach: Only generate YAML if there are unmapped settings
+		if hasUnmappedSettings(p.config.NavigatorConfig) {
+			yamlContent, err := generateMinimalYAML(p.config.NavigatorConfig)
+			if err != nil {
+				return fmt.Errorf("Error generating minimal navigator_config YAML: %s", err)
+			}
 
-		// Create temporary local file
-		tmpPath, err := createNavigatorConfigFile(yamlContent)
-		if err != nil {
-			return fmt.Errorf("Error creating temporary ansible-navigator.yml: %s", err)
-		}
-		defer os.Remove(tmpPath)
+			if yamlContent != "" {
+				// Create temporary local file
+				tmpPath, err := createNavigatorConfigFile(yamlContent)
+				if err != nil {
+					return fmt.Errorf("Error creating temporary ansible-navigator.yml: %s", err)
+				}
+				defer os.Remove(tmpPath)
 
-		ui.Message("Uploading generated ansible-navigator.yml...")
-		// Upload to remote staging directory
-		navigatorConfigRemotePath = filepath.ToSlash(filepath.Join(p.stagingDir, "ansible-navigator.yml"))
-		if err := p.uploadFile(ui, comm, navigatorConfigRemotePath, tmpPath); err != nil {
-			return fmt.Errorf("Error uploading ansible-navigator.yml: %s", err)
+				ui.Message("Uploading minimal ansible-navigator.yml (hybrid configuration)...")
+				// Upload to remote staging directory
+				navigatorConfigRemotePath = filepath.ToSlash(filepath.Join(p.stagingDir, "ansible-navigator.yml"))
+				if err := p.uploadFile(ui, comm, navigatorConfigRemotePath, tmpPath); err != nil {
+					return fmt.Errorf("Error uploading ansible-navigator.yml: %s", err)
+				}
+			}
 		}
 	}
 
@@ -902,12 +911,6 @@ func (p *Provisioner) executeAnsiblePlaybook(
 		env_vars = strings.Join(envPaths, " ") + " "
 	}
 
-	// Add ANSIBLE_NAVIGATOR_CONFIG if provided
-	if navigatorConfigRemotePath != "" {
-		env_vars += fmt.Sprintf("ANSIBLE_NAVIGATOR_CONFIG=%s ", navigatorConfigRemotePath)
-		debugf(ui, debugEnabled, "Setting ANSIBLE_NAVIGATOR_CONFIG=%s", navigatorConfigRemotePath)
-	}
-
 	// Add standard Ansible environment variables
 	env_vars += "ANSIBLE_FORCE_COLOR=1 PYTHONUNBUFFERED=1"
 
@@ -942,14 +945,25 @@ func (p *Provisioner) executeAnsiblePlaybook(
 	}
 
 	// Deterministic ordering:
-	//   1) ansible-navigator run (+ enforced --mode)
-	//   2) play.extra_args (verbatim)
-	//   3) plugin-generated inventory/extra-vars/etc (including play-level flags)
-	//   4) play target (playbook path)
+	//   1) ansible-navigator run
+	//   2) CLI flags from NavigatorConfig (mode, ee, logging, etc.)
+	//   3) --settings flag (if minimal YAML generated)
+	//   4) play.extra_args (verbatim)
+	//   5) plugin-generated inventory/extra-vars/etc (including play-level flags)
+	//   6) play target (playbook path)
 	runArgs := []string{"run"}
-	if p.config.NavigatorConfig != nil && p.config.NavigatorConfig.Mode != "" {
-		runArgs = append(runArgs, fmt.Sprintf("--mode=%s", p.config.NavigatorConfig.Mode))
+
+	// Add CLI flags from NavigatorConfig
+	if p.config.NavigatorConfig != nil {
+		cliFlags := buildNavigatorCLIFlags(p.config.NavigatorConfig)
+		runArgs = append(runArgs, cliFlags...)
 	}
+
+	// Add --settings flag if minimal YAML was generated
+	if navigatorConfigRemotePath != "" {
+		runArgs = append(runArgs, fmt.Sprintf("--settings=%s", navigatorConfigRemotePath))
+	}
+
 	runArgs = append(runArgs, play.ExtraArgs...)
 
 	// Add the extra-vars file reference BEFORE other plugin args
