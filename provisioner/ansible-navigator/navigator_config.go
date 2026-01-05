@@ -171,11 +171,26 @@ func convertToYAMLStructure(config *NavigatorConfig) map[string]interface{} {
 		if config.ExecutionEnvironment.Image != "" {
 			eeMap["image"] = config.ExecutionEnvironment.Image
 		}
-		if config.ExecutionEnvironment.PullPolicy != "" {
-			eeMap["pull"] = map[string]interface{}{
-				"policy": config.ExecutionEnvironment.PullPolicy,
-			}
+		if config.ExecutionEnvironment.ContainerEngine != "" {
+			eeMap["container-engine"] = config.ExecutionEnvironment.ContainerEngine
 		}
+		if len(config.ExecutionEnvironment.ContainerOptions) > 0 {
+			eeMap["container-options"] = config.ExecutionEnvironment.ContainerOptions
+		}
+
+		// execution-environment.pull.* is a nested object in ansible-navigator.yml.
+		// We must create it when either policy or arguments are provided.
+		pullMap := make(map[string]interface{})
+		if config.ExecutionEnvironment.PullPolicy != "" {
+			pullMap["policy"] = config.ExecutionEnvironment.PullPolicy
+		}
+		if len(config.ExecutionEnvironment.PullArguments) > 0 {
+			pullMap["arguments"] = config.ExecutionEnvironment.PullArguments
+		}
+		if len(pullMap) > 0 {
+			eeMap["pull"] = pullMap
+		}
+
 		if config.ExecutionEnvironment.EnvironmentVariables != nil {
 			envVarsMap := make(map[string]interface{})
 			if len(config.ExecutionEnvironment.EnvironmentVariables.Pass) > 0 {
