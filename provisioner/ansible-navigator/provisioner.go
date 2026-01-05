@@ -3,7 +3,7 @@
 // You may obtain a copy of the License at
 // http://www.apache.org/licenses/LICENSE-2.0
 
-//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play,PathEntry,NavigatorConfig,ExecutionEnvironment,EnvironmentVariablesConfig,VolumeMount,AnsibleConfig,AnsibleConfigDefaults,AnsibleConfigConnection,AnsibleConfigPrivilegeEscalation,AnsibleConfigPersistentConnection,AnsibleConfigInventory,AnsibleConfigParamikoConnection,AnsibleConfigColors,AnsibleConfigDiff,AnsibleConfigGalaxy,LoggingConfig,PlaybookArtifact,CollectionDocCache,ColorConfig,EditorConfig,ImagesConfig,BastionConfig
+//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play,PathEntry,NavigatorConfig,ExecutionEnvironment,EnvironmentVariablesConfig,VolumeMount,AnsibleConfig,AnsibleConfigDefaults,AnsibleConfigConnection,LoggingConfig,PlaybookArtifact,CollectionDocCache
 //go:generate packer-sdc struct-markdown
 
 package ansiblenavigator
@@ -58,20 +58,6 @@ var (
 type NavigatorConfig struct {
 	// Ansible-navigator execution mode
 	Mode string `mapstructure:"mode"`
-	// Stdout output format
-	Format string `mapstructure:"format"`
-	// Color scheme settings
-	Color *ColorConfig `mapstructure:"color"`
-	// Editor settings
-	Editor *EditorConfig `mapstructure:"editor"`
-	// Image display settings
-	Images *ImagesConfig `mapstructure:"images"`
-	// Time zone
-	TimeZone string `mapstructure:"time_zone"`
-	// Inventory display columns
-	InventoryColumns []string `mapstructure:"inventory_columns"`
-	// Collection documentation cache path
-	CollectionDocCachePath string `mapstructure:"collection_doc_cache_path"`
 	// Execution environment configuration
 	ExecutionEnvironment *ExecutionEnvironment `mapstructure:"execution_environment"`
 	// Ansible configuration settings
@@ -110,12 +96,6 @@ type ExecutionEnvironment struct {
 	Image string `mapstructure:"image"`
 	// Pull policy for the container image
 	PullPolicy string `mapstructure:"pull_policy"`
-	// Container engine to use (auto, podman, docker)
-	ContainerEngine string `mapstructure:"container_engine"`
-	// Additional container runtime options (e.g., --net=host, --security-opt)
-	ContainerOptions []string `mapstructure:"container_options"`
-	// Arguments passed to image pull command
-	PullArguments []string `mapstructure:"pull_arguments"`
 	// Environment variables to pass to the execution environment
 	EnvironmentVariables *EnvironmentVariablesConfig `mapstructure:"environment_variables"`
 	// Volume mounts for the execution environment container
@@ -148,20 +128,6 @@ type AnsibleConfig struct {
 	Defaults *AnsibleConfigDefaults `mapstructure:"defaults"`
 	// SSH connection section
 	SSHConnection *AnsibleConfigConnection `mapstructure:"ssh_connection"`
-	// Privilege escalation (become) settings
-	PrivilegeEscalation *AnsibleConfigPrivilegeEscalation `mapstructure:"privilege_escalation"`
-	// Persistent connection settings
-	PersistentConnection *AnsibleConfigPersistentConnection `mapstructure:"persistent_connection"`
-	// Inventory behavior settings
-	Inventory *AnsibleConfigInventory `mapstructure:"inventory"`
-	// Paramiko connection settings
-	ParamikoConnection *AnsibleConfigParamikoConnection `mapstructure:"paramiko_connection"`
-	// Output color settings
-	Colors *AnsibleConfigColors `mapstructure:"colors"`
-	// Diff display settings
-	Diff *AnsibleConfigDiff `mapstructure:"diff"`
-	// Galaxy client settings (ansible.cfg [galaxy] section)
-	Galaxy *AnsibleConfigGalaxy `mapstructure:"galaxy"`
 }
 
 // AnsibleConfigDefaults represents ansible defaults configuration
@@ -182,65 +148,6 @@ type AnsibleConfigConnection struct {
 	Pipelining bool `mapstructure:"pipelining"`
 }
 
-// AnsibleConfigPrivilegeEscalation represents ansible.cfg [privilege_escalation]
-// settings. These provide defaults for privilege escalation behavior.
-type AnsibleConfigPrivilegeEscalation struct {
-	// Enable privilege escalation (become)
-	Become bool `mapstructure:"become"`
-	// Privilege escalation method (e.g. sudo, su, pbrun)
-	BecomeMethod string `mapstructure:"become_method"`
-	// Privilege escalation user (e.g. root)
-	BecomeUser string `mapstructure:"become_user"`
-}
-
-// AnsibleConfigPersistentConnection represents ansible.cfg [persistent_connection]
-// settings that tune connection persistence behavior.
-type AnsibleConfigPersistentConnection struct {
-	// Timeout (seconds) for establishing a persistent connection
-	ConnectTimeout int `mapstructure:"connect_timeout"`
-	// Timeout (seconds) for retries when establishing a connection
-	ConnectRetryTimeout int `mapstructure:"connect_retry_timeout"`
-	// Timeout (seconds) for remote command execution over the persistent connection
-	CommandTimeout int `mapstructure:"command_timeout"`
-}
-
-// AnsibleConfigInventory represents ansible.cfg [inventory] settings.
-type AnsibleConfigInventory struct {
-	// Enable inventory plugins (comma-separated list in INI)
-	EnablePlugins []string `mapstructure:"enable_plugins"`
-}
-
-// AnsibleConfigParamikoConnection represents ansible.cfg [paramiko_connection]
-// settings.
-type AnsibleConfigParamikoConnection struct {
-	// ProxyCommand for Paramiko connections
-	ProxyCommand string `mapstructure:"proxy_command"`
-}
-
-// AnsibleConfigColors represents ansible.cfg [colors] settings.
-type AnsibleConfigColors struct {
-	// Force colored output
-	ForceColor bool `mapstructure:"force_color"`
-}
-
-// AnsibleConfigDiff represents ansible.cfg [diff] settings.
-type AnsibleConfigDiff struct {
-	// Always show diffs
-	Always bool `mapstructure:"always"`
-	// Number of context lines to include in diffs
-	Context int `mapstructure:"context"`
-}
-
-// AnsibleConfigGalaxy represents ansible.cfg [galaxy] settings.
-// NOTE: This is Ansible runtime configuration only; it does not affect the plugin's
-// dependency installation behavior.
-type AnsibleConfigGalaxy struct {
-	// List of Galaxy server names to use (comma-separated list in INI)
-	ServerList []string `mapstructure:"server_list"`
-	// Ignore TLS certificate validation
-	IgnoreCerts bool `mapstructure:"ignore_certs"`
-}
-
 // LoggingConfig represents logging configuration
 type LoggingConfig struct {
 	// Log level
@@ -255,11 +162,9 @@ type LoggingConfig struct {
 type PlaybookArtifact struct {
 	// Enable playbook artifact
 	Enable bool `mapstructure:"enable"`
-	// Path to a playbook artifact to replay.
-	// (YAML key: playbook-artifact.replay)
+	// Replay directory
 	Replay string `mapstructure:"replay"`
-	// Path to write the playbook artifact.
-	// (YAML key: playbook-artifact.save-as)
+	// Save directory
 	SaveAs string `mapstructure:"save_as"`
 }
 
@@ -269,56 +174,6 @@ type CollectionDocCache struct {
 	Path string `mapstructure:"path"`
 	// Timeout for collection doc cache
 	Timeout int `mapstructure:"timeout"`
-}
-
-// ColorConfig represents top-level color configuration in ansible-navigator.yml.
-type ColorConfig struct {
-	Enable bool `mapstructure:"enable"`
-	Osc4   bool `mapstructure:"osc4"`
-}
-
-// EditorConfig represents top-level editor configuration in ansible-navigator.yml.
-type EditorConfig struct {
-	Command string `mapstructure:"command"`
-	Console bool   `mapstructure:"console"`
-}
-
-// ImagesConfig represents top-level images configuration in ansible-navigator.yml.
-type ImagesConfig struct {
-	Details []string `mapstructure:"details"`
-}
-
-// BastionConfig represents SSH bastion (jump host) configuration for establishing
-// SSH tunnels to target machines that are not directly accessible.
-// When connection_mode is set to "ssh_tunnel", the bastion host is used as a proxy
-// to reach the target machine.
-type BastionConfig struct {
-	// Enable bastion functionality. When true and bastion.host is set,
-	// the plugin establishes an SSH tunnel through the bastion host.
-	// Auto-enabled when bastion.host is provided.
-	Enabled bool `mapstructure:"enabled"`
-
-	// Bastion (jump host) address for SSH tunneling.
-	// Required when connection_mode is "ssh_tunnel".
-	// Example: "bastion.example.com"
-	Host string `mapstructure:"host"`
-
-	// SSH port on the bastion host.
-	// Defaults to 22 if not specified.
-	Port int `mapstructure:"port"`
-
-	// SSH username for authenticating to the bastion host.
-	// Required when bastion is enabled.
-	User string `mapstructure:"user"`
-
-	// Path to the SSH private key file for bastion authentication.
-	// Either this or password must be provided when bastion is enabled.
-	// Supports HOME expansion (~ and ~/path).
-	PrivateKeyFile string `mapstructure:"private_key_file"`
-
-	// Password for bastion authentication.
-	// Either this or private_key_file must be provided when bastion is enabled.
-	Password string `mapstructure:"password"`
 }
 
 // Play represents a single Ansible play execution with its configuration.
@@ -507,20 +362,25 @@ type Config struct {
 	//  Adds `--force-with-deps` option to `ansible-galaxy` command. By default,
 	//  this is `false`.
 	GalaxyForceWithDeps bool `mapstructure:"galaxy_force_with_deps"`
-
-	// ConnectionMode determines how Ansible connects to the target machine.
+	// When `true`, set up a localhost proxy adapter
+	// so that Ansible has an IP address to connect to, even if your guest does not
+	// have an IP address. For example, the adapter is necessary for Docker builds
+	// to use the Ansible provisioner. If you set this option to `false`, but
+	// Packer cannot find an IP address to connect Ansible to, it will
+	// automatically set up the adapter anyway.
 	//
-	// Valid values:
-	//   - "proxy" (default): Use Packer's SSH proxy adapter. Works for most builds including Docker.
-	//   - "ssh_tunnel": Establish SSH tunnel through a bastion host. Required when targets are only
-	//     accessible via jump host (common with WSL2 execution environments).
-	//   - "direct": Connect directly to the target without proxy. Use when the target IP is directly
-	//     accessible and proxy overhead is unnecessary.
+	//  In order for Ansible to connect properly even when use_proxy is false, you
+	// need to make sure that you are either providing a valid username and ssh key
+	// to the ansible provisioner directly, or that the username and ssh key
+	// being used by the ssh communicator will work for your needs. If you do not
+	// provide a user to ansible, it will use the user associated with your
+	// builder, not the user running Packer.
+	//  use_proxy=false is currently only supported for SSH and WinRM.
 	//
-	// When using "ssh_tunnel", you must provide bastion_host, bastion_user, and either
-	// bastion_private_key_file or bastion_password.
-	ConnectionMode string `mapstructure:"connection_mode"`
-
+	// Currently, this defaults to `true` for all connection types. In the future,
+	// this option will be changed to default to `false` for SSH and WinRM
+	// connections where the provisioner has access to a host IP.
+	UseProxy config.Trilean `mapstructure:"use_proxy"`
 	// Force WinRM to use HTTP instead of HTTPS.
 	//
 	// Set this to true to force Ansible to use HTTP instead of HTTPS to communicate
@@ -555,42 +415,6 @@ type Config struct {
 	//   }
 	NavigatorConfig *NavigatorConfig `mapstructure:"navigator_config"`
 	userWasEmpty    bool
-
-	// Bastion configuration for SSH tunnel mode.
-	// Use the nested block syntax for new configurations:
-	//   bastion {
-	//     host = "bastion.example.com"
-	//     port = 22
-	//     user = "ubuntu"
-	//     private_key_file = "~/.ssh/id_rsa"
-	//   }
-	Bastion *BastionConfig `mapstructure:"bastion"`
-
-	// DEPRECATED: Use bastion.host instead.
-	// Bastion (jump host) address for SSH tunneling mode.
-	// Required when connection_mode is "ssh_tunnel".
-	// Example: "bastion.example.com"
-	BastionHost string `mapstructure:"bastion_host"`
-
-	// DEPRECATED: Use bastion.port instead.
-	// SSH port on the bastion host. Defaults to 22.
-	BastionPort int `mapstructure:"bastion_port"`
-
-	// DEPRECATED: Use bastion.user instead.
-	// SSH username for authenticating to the bastion host.
-	// Required when ssh_tunnel_mode is true.
-	BastionUser string `mapstructure:"bastion_user"`
-
-	// DEPRECATED: Use bastion.private_key_file instead.
-	// Path to the SSH private key file for bastion authentication.
-	// Either this or bastion_password must be provided when ssh_tunnel_mode is true.
-	// Supports HOME expansion (~ and ~/path).
-	BastionPrivateKeyFile string `mapstructure:"bastion_private_key_file"`
-
-	// DEPRECATED: Use bastion.password instead.
-	// Password for bastion authentication.
-	// Either this or bastion_private_key_file must be provided when ssh_tunnel_mode is true.
-	BastionPassword string `mapstructure:"bastion_password"`
 }
 
 // Validate performs comprehensive validation of the Config
@@ -602,70 +426,6 @@ func (c *Config) Validate() error {
 		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
 			"command must be only the executable name or path (no arguments). "+
 				"Found whitespace in: %q. Use extra_arguments or play-level options for additional flags", c.Command))
-	}
-
-	// Validate connection_mode
-	validModes := []string{"proxy", "ssh_tunnel", "direct"}
-	if c.ConnectionMode == "" {
-		c.ConnectionMode = "proxy" // Apply default
-	}
-	modeValid := false
-	for _, mode := range validModes {
-		if c.ConnectionMode == mode {
-			modeValid = true
-			break
-		}
-	}
-	if !modeValid {
-		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-			"connection_mode must be one of %v, got: %q", validModes, c.ConnectionMode))
-	}
-
-	// Validate bastion requirements when using ssh_tunnel mode
-	if c.ConnectionMode == "ssh_tunnel" {
-		// Check both new bastion block and legacy flat fields for validation
-		bastionHost := ""
-		bastionUser := ""
-		bastionPrivateKeyFile := ""
-		bastionPassword := ""
-		bastionPort := 0
-
-		if c.Bastion != nil {
-			bastionHost = c.Bastion.Host
-			bastionUser = c.Bastion.User
-			bastionPrivateKeyFile = c.Bastion.PrivateKeyFile
-			bastionPassword = c.Bastion.Password
-			bastionPort = c.Bastion.Port
-		} else {
-			// Fall back to legacy flat fields for backward compatibility
-			bastionHost = c.BastionHost
-			bastionUser = c.BastionUser
-			bastionPrivateKeyFile = c.BastionPrivateKeyFile
-			bastionPassword = c.BastionPassword
-			bastionPort = c.BastionPort
-		}
-
-		if bastionHost == "" {
-			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-				"bastion.host is required when connection_mode='ssh_tunnel'"))
-		}
-		if bastionUser == "" {
-			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-				"bastion.user is required when connection_mode='ssh_tunnel'"))
-		}
-		if bastionPrivateKeyFile == "" && bastionPassword == "" {
-			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-				"either bastion.private_key_file or bastion.password must be provided when connection_mode='ssh_tunnel'"))
-		}
-		if bastionPort < 1 || bastionPort > 65535 {
-			errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-				"bastion.port must be between 1 and 65535, got %d", bastionPort))
-		}
-		if bastionPrivateKeyFile != "" {
-			if err := validateFileConfig(bastionPrivateKeyFile, "bastion.private_key_file", true); err != nil {
-				errs = packersdk.MultiErrorAppend(errs, err)
-			}
-		}
 	}
 
 	// Validate play configuration
@@ -743,13 +503,6 @@ func (c *Config) Validate() error {
 	if c.NavigatorConfig != nil {
 		// Basic validation - ensure at least one field is set
 		isEmpty := c.NavigatorConfig.Mode == "" &&
-			c.NavigatorConfig.Format == "" &&
-			c.NavigatorConfig.Color == nil &&
-			c.NavigatorConfig.Editor == nil &&
-			c.NavigatorConfig.Images == nil &&
-			c.NavigatorConfig.TimeZone == "" &&
-			len(c.NavigatorConfig.InventoryColumns) == 0 &&
-			c.NavigatorConfig.CollectionDocCachePath == "" &&
 			c.NavigatorConfig.ExecutionEnvironment == nil &&
 			c.NavigatorConfig.AnsibleConfig == nil &&
 			c.NavigatorConfig.Logging == nil &&
@@ -761,12 +514,12 @@ func (c *Config) Validate() error {
 		}
 
 		// Schema compliance: ansible_config.config (path) is mutually exclusive with
-		// the nested section blocks (which map to a generated ansible.cfg).
+		// the nested defaults/ssh_connection blocks (which map to a generated ansible.cfg).
 		if c.NavigatorConfig.AnsibleConfig != nil {
 			ac := c.NavigatorConfig.AnsibleConfig
-			if ac.Config != "" && (ac.Defaults != nil || ac.SSHConnection != nil || ac.PrivilegeEscalation != nil || ac.PersistentConnection != nil || ac.Inventory != nil || ac.ParamikoConnection != nil || ac.Colors != nil || ac.Diff != nil || ac.Galaxy != nil) {
+			if ac.Config != "" && (ac.Defaults != nil || ac.SSHConnection != nil) {
 				errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-					"navigator_config.ansible_config.config is mutually exclusive with nested ansible_config section blocks"))
+					"navigator_config.ansible_config.config is mutually exclusive with navigator_config.ansible_config.defaults and navigator_config.ansible_config.ssh_connection"))
 			}
 		}
 	}
@@ -837,7 +590,6 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	p.config.CollectionsPath = expandUserPath(p.config.CollectionsPath)
 	p.config.RolesPath = expandUserPath(p.config.RolesPath)
 	p.config.GalaxyCommand = expandUserPath(p.config.GalaxyCommand)
-	p.config.BastionPrivateKeyFile = expandUserPath(p.config.BastionPrivateKeyFile)
 
 	// Apply HOME expansion to plays
 	for i := range p.config.Plays {
@@ -849,75 +601,6 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 
 	if p.config.HostAlias == "" {
 		p.config.HostAlias = "default"
-	}
-
-	// Migrate legacy flat bastion fields to nested bastion block
-	hasLegacyBastionFields := p.config.BastionHost != "" ||
-		p.config.BastionPort != 0 ||
-		p.config.BastionUser != "" ||
-		p.config.BastionPrivateKeyFile != "" ||
-		p.config.BastionPassword != ""
-
-	if hasLegacyBastionFields {
-		// Display deprecation warning
-		log.Printf("[WARN] Deprecated bastion configuration detected. The flat bastion_* fields are deprecated.")
-		log.Printf("[WARN] Please migrate to the nested bastion block syntax:")
-		log.Printf("[WARN]   bastion {")
-		log.Printf("[WARN]     host = \"bastion.example.com\"")
-		log.Printf("[WARN]     port = 22")
-		log.Printf("[WARN]     user = \"ubuntu\"")
-		log.Printf("[WARN]     private_key_file = \"~/.ssh/id_rsa\"")
-		log.Printf("[WARN]   }")
-
-		// Create bastion struct if it doesn't exist
-		if p.config.Bastion == nil {
-			p.config.Bastion = &BastionConfig{}
-		}
-
-		// Migrate flat fields to nested struct (new block values take precedence)
-		if p.config.Bastion.Host == "" && p.config.BastionHost != "" {
-			p.config.Bastion.Host = p.config.BastionHost
-		}
-		if p.config.Bastion.Port == 0 && p.config.BastionPort != 0 {
-			p.config.Bastion.Port = p.config.BastionPort
-		}
-		if p.config.Bastion.User == "" && p.config.BastionUser != "" {
-			p.config.Bastion.User = p.config.BastionUser
-		}
-		if p.config.Bastion.PrivateKeyFile == "" && p.config.BastionPrivateKeyFile != "" {
-			p.config.Bastion.PrivateKeyFile = p.config.BastionPrivateKeyFile
-		}
-		if p.config.Bastion.Password == "" && p.config.BastionPassword != "" {
-			p.config.Bastion.Password = p.config.BastionPassword
-		}
-	}
-
-	// Set default bastion port if bastion block is defined
-	if p.config.Bastion != nil {
-		if p.config.Bastion.Port == 0 {
-			p.config.Bastion.Port = 22
-		}
-
-		// Auto-enable bastion if host is set
-		if p.config.Bastion.Host != "" {
-			p.config.Bastion.Enabled = true
-		}
-
-		// Apply HOME expansion to bastion private key file
-		if p.config.Bastion.PrivateKeyFile != "" {
-			p.config.Bastion.PrivateKeyFile = expandUserPath(p.config.Bastion.PrivateKeyFile)
-		}
-	}
-
-	// Also maintain backward compatibility for legacy flat fields
-	// (in case validation references them before migration completes)
-	if p.config.BastionPort == 0 {
-		p.config.BastionPort = 22
-	}
-
-	// Set default connection_mode
-	if p.config.ConnectionMode == "" {
-		p.config.ConnectionMode = "proxy"
 	}
 
 	// Detect explicit timeout setting before defaulting
@@ -1242,191 +925,6 @@ func (p *Provisioner) setupAdapter(ui packersdk.Ui, comm packersdk.Communicator)
 	return k.privKeyFile, nil
 }
 
-// setupSSHTunnel establishes an SSH tunnel through a bastion host to the target machine.
-// It creates a local port forward that Ansible can use to reach the target.
-// Returns the local port number, a cleanup closer, and an error if setup fails.
-func (p *Provisioner) setupSSHTunnel(ui packersdk.Ui, targetHost string, targetPort int) (int, io.Closer, error) {
-	ui.Message("Setting up SSH tunnel through bastion...")
-
-	// Get bastion config from new structure or fall back to legacy flat fields
-	var bastionHost, bastionUser, bastionPrivateKeyFile, bastionPassword string
-	var bastionPort int
-
-	if p.config.Bastion != nil {
-		bastionHost = p.config.Bastion.Host
-		bastionPort = p.config.Bastion.Port
-		bastionUser = p.config.Bastion.User
-		bastionPrivateKeyFile = p.config.Bastion.PrivateKeyFile
-		bastionPassword = p.config.Bastion.Password
-	} else {
-		// Fall back to legacy flat fields
-		bastionHost = p.config.BastionHost
-		bastionPort = p.config.BastionPort
-		bastionUser = p.config.BastionUser
-		bastionPrivateKeyFile = p.config.BastionPrivateKeyFile
-		bastionPassword = p.config.BastionPassword
-	}
-
-	// Parse bastion authentication methods
-	var authMethods []ssh.AuthMethod
-
-	// Try private key authentication first if specified
-	if bastionPrivateKeyFile != "" {
-		keyBytes, err := os.ReadFile(bastionPrivateKeyFile)
-		if err != nil {
-			return 0, nil, fmt.Errorf("failed to read bastion private key file: %w", err)
-		}
-
-		signer, err := ssh.ParsePrivateKey(keyBytes)
-		if err != nil {
-			return 0, nil, fmt.Errorf("failed to parse bastion private key: %w", err)
-		}
-
-		authMethods = append(authMethods, ssh.PublicKeys(signer))
-	}
-
-	// Add password authentication if specified
-	if bastionPassword != "" {
-		authMethods = append(authMethods, ssh.Password(bastionPassword))
-	}
-
-	// Configure SSH client for bastion connection
-	bastionConfig := &ssh.ClientConfig{
-		User:            bastionUser,
-		Auth:            authMethods,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // Accept any host key
-		Timeout:         30 * time.Second,
-	}
-
-	// Connect to bastion host
-	bastionAddr := fmt.Sprintf("%s:%d", bastionHost, bastionPort)
-	ui.Message(fmt.Sprintf("Connecting to bastion host %s...", bastionAddr))
-
-	bastionClient, err := ssh.Dial("tcp", bastionAddr, bastionConfig)
-	if err != nil {
-		return 0, nil, fmt.Errorf("failed to connect to bastion host %s: %w", bastionAddr, err)
-	}
-
-	// Allocate local port for tunnel
-	var localPort int
-	var localListener net.Listener
-
-	port := p.config.LocalPort
-	tries := 1
-	if port != 0 {
-		tries = 10
-	}
-
-	// Try to allocate a local port
-	for i := 0; i < tries; i++ {
-		addr := fmt.Sprintf("127.0.0.1:%d", port)
-		l, err := net.Listen("tcp", addr)
-		if err != nil {
-			ui.Say(fmt.Sprintf("Port %d unavailable: %v", port, err))
-			port++
-			continue
-		}
-
-		// Extract the actual port (may be system-assigned if port was 0)
-		_, portStr, err := net.SplitHostPort(l.Addr().String())
-		if err != nil {
-			l.Close()
-			ui.Say(fmt.Sprintf("Failed to parse local address: %v", err))
-			port++
-			continue
-		}
-
-		localPort, err = strconv.Atoi(portStr)
-		if err != nil {
-			l.Close()
-			ui.Say(fmt.Sprintf("Failed to parse port number: %v", err))
-			port++
-			continue
-		}
-
-		localListener = l
-		break
-	}
-
-	if localListener == nil {
-		bastionClient.Close()
-		return 0, nil, fmt.Errorf("failed to allocate local port for tunnel")
-	}
-
-	ui.Message(fmt.Sprintf("Tunnel listening on 127.0.0.1:%d", localPort))
-	ui.Message(fmt.Sprintf("Forwarding to %s:%d through bastion", targetHost, targetPort))
-
-	// Create cleanup closer
-	closer := &tunnelCloser{
-		listener:      localListener,
-		bastionClient: bastionClient,
-		ui:            ui,
-	}
-
-	// Start forwarding goroutine
-	go func() {
-		for {
-			localConn, err := localListener.Accept()
-			if err != nil {
-				// Listener was closed
-				return
-			}
-
-			// Handle this connection in a goroutine
-			go func(local net.Conn) {
-				defer local.Close()
-
-				// Dial the target through the bastion
-				targetAddr := fmt.Sprintf("%s:%d", targetHost, targetPort)
-				remoteConn, err := bastionClient.Dial("tcp", targetAddr)
-				if err != nil {
-					ui.Error(fmt.Sprintf("Failed to establish tunnel to target %s: %v", targetAddr, err))
-					return
-				}
-				defer remoteConn.Close()
-
-				// Copy data bidirectionally
-				done := make(chan struct{}, 2)
-				go func() {
-					io.Copy(remoteConn, local)
-					done <- struct{}{}
-				}()
-				go func() {
-					io.Copy(local, remoteConn)
-					done <- struct{}{}
-				}()
-				<-done
-			}(localConn)
-		}
-	}()
-
-	return localPort, closer, nil
-}
-
-// tunnelCloser implements io.Closer for SSH tunnel cleanup
-type tunnelCloser struct {
-	listener      net.Listener
-	bastionClient *ssh.Client
-	ui            packersdk.Ui
-}
-
-func (tc *tunnelCloser) Close() error {
-	tc.ui.Message("Closing SSH tunnel...")
-
-	// Close the listener first to stop accepting new connections
-	if tc.listener != nil {
-		tc.listener.Close()
-	}
-
-	// Close the bastion SSH client
-	if tc.bastionClient != nil {
-		tc.bastionClient.Close()
-	}
-
-	tc.ui.Message("SSH tunnel closed")
-	return nil
-}
-
 const DefaultSSHInventoryFilev2 = "{{ .HostAlias }} ansible_host={{ .Host }} ansible_user={{ .User }} ansible_port={{ .Port }}\n"
 const DefaultSSHInventoryFilev1 = "{{ .HostAlias }} ansible_ssh_host={{ .Host }} ansible_ssh_user={{ .User }} ansible_ssh_port={{ .Port }}\n"
 const DefaultWinRMInventoryFilev2 = "{{ .HostAlias}} ansible_host={{ .Host }} ansible_connection=winrm ansible_winrm_transport=basic ansible_shell_type=powershell ansible_user={{ .User}} ansible_port={{ .Port }}\n"
@@ -1446,7 +944,7 @@ func (p *Provisioner) createInventoryFile() error {
 		if p.ansibleMajVersion < 2 {
 			hostTemplate = DefaultSSHInventoryFilev1
 		}
-		if p.config.ConnectionMode == "direct" && p.generatedData["ConnType"] == "winrm" {
+		if p.config.UseProxy.False() && p.generatedData["ConnType"] == "winrm" {
 			hostTemplate = DefaultWinRMInventoryFilev2
 		}
 	}
@@ -1455,7 +953,7 @@ func (p *Provisioner) createInventoryFile() error {
 	ctxData := p.generatedData
 	ctxData["HostAlias"] = p.config.HostAlias
 	ctxData["User"] = p.config.User
-	if p.config.ConnectionMode == "proxy" || p.config.ConnectionMode == "ssh_tunnel" {
+	if !p.config.UseProxy.False() {
 		ctxData["Host"] = p.config.AnsibleProxyHost
 		ctxData["Port"] = p.config.LocalPort
 	}
@@ -1502,148 +1000,53 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 	p.generatedData = generatedData
 	p.config.ctx.Data = generatedData
 
+	// Set up proxy if host IP is missing or communicator type is wrong.
+	if p.config.UseProxy.False() {
+		hostIP, ok := generatedData["Host"].(string)
+		if !ok || hostIP == "" {
+			ui.Error("Warning: use_proxy is false, but instance does" +
+				" not have an IP address to give to Ansible. Falling back" +
+				" to use localhost proxy.")
+			p.config.UseProxy = config.TriTrue
+		}
+		connType := generatedData["ConnType"]
+		if connType != "ssh" && connType != "winrm" {
+			ui.Error("Warning: use_proxy is false, but communicator is " +
+				"neither ssh nor winrm, so without the proxy ansible will not" +
+				" function. Falling back to localhost proxy.")
+			p.config.UseProxy = config.TriTrue
+		}
+	}
+
 	privKeyFile := ""
-
-	// Handle connection based on connection_mode
-	switch p.config.ConnectionMode {
-	case "ssh_tunnel":
-		// Extract target host and port from generatedData
-		targetHost, ok := generatedData["Host"].(string)
-		if !ok || targetHost == "" {
-			return fmt.Errorf("SSH tunnel mode requires a valid target host")
-		}
-
-		// Extract target port with support for all integer types (int, int64, int32, uint, etc.)
-		var targetPort int
-		switch v := generatedData["Port"].(type) {
-		case int:
-			targetPort = v
-		case int64:
-			targetPort = int(v)
-		case int32:
-			targetPort = int(v)
-		case int16:
-			targetPort = int(v)
-		case int8:
-			targetPort = int(v)
-		case uint:
-			if v > 65535 {
-				return fmt.Errorf("SSH tunnel mode: port value %d exceeds maximum 65535", v)
-			}
-			targetPort = int(v)
-		case uint64:
-			if v > 65535 {
-				return fmt.Errorf("SSH tunnel mode: port value %d exceeds maximum 65535", v)
-			}
-			targetPort = int(v)
-		case uint32:
-			if v > 65535 {
-				return fmt.Errorf("SSH tunnel mode: port value %d exceeds maximum 65535", v)
-			}
-			targetPort = int(v)
-		case uint16:
-			targetPort = int(v)
-		case uint8:
-			targetPort = int(v)
-		case string:
-			var err error
-			targetPort, err = strconv.Atoi(v)
-			if err != nil {
-				return fmt.Errorf("SSH tunnel mode: invalid port value %q: %w", v, err)
-			}
-		default:
-			return fmt.Errorf("SSH tunnel mode: Port must be a numeric or string type, got type %T with value %v", v, v)
-		}
-
-		// Validate port range
-		if targetPort < 1 || targetPort > 65535 {
-			return fmt.Errorf("SSH tunnel mode: port must be between 1-65535, got %d", targetPort)
-		}
-
-		// SSH tunnel mode - establish tunnel through bastion
-		ui.Message("Using SSH tunnel mode - connecting through bastion host")
-
-		// Establish SSH tunnel
-		localPort, tunnel, err := p.setupSSHTunnel(ui, targetHost, targetPort)
+	if !p.config.UseProxy.False() {
+		// We set up the proxy if useProxy is either true or unset.
+		pkf, err := p.setupAdapterFunc(ui, comm)
 		if err != nil {
-			return fmt.Errorf("failed to setup SSH tunnel: %w", err)
+			return err
 		}
+		// This is necessary to avoid accidentally redeclaring
+		// privKeyFile in the scope of this if statement.
+		privKeyFile = pkf
 
-		// Store the local port for inventory generation
-		p.config.LocalPort = localPort
-
-		// Override generatedData to point to the tunnel
-		p.generatedData["Host"] = "127.0.0.1"
-		p.generatedData["Port"] = localPort
-
-		bastionHost := p.config.BastionHost
-		bastionPort := p.config.BastionPort
-		if p.config.Bastion != nil {
-			bastionHost = p.config.Bastion.Host
-			bastionPort = p.config.Bastion.Port
-		}
-
-		ui.Message(fmt.Sprintf("SSH tunnel established: localhost:%d -> %s:%d (via bastion %s:%d)",
-			localPort, targetHost, targetPort, bastionHost, bastionPort))
-
-		// Debug logging for tunnel inventory integration
-		debugEnabled := isPluginDebugEnabled(p.config.NavigatorConfig)
-		debugf(ui, debugEnabled, "SSH tunnel mode active: inventory will use tunnel endpoint")
-		debugf(ui, debugEnabled, "Tunnel connection: 127.0.0.1:%d", localPort)
-		debugf(ui, debugEnabled, "Target user: %s", p.config.User)
-
-		// Log target SSH key if available
-		if sshKeyFile, ok := p.generatedData["SSHPrivateKeyFile"].(string); ok && sshKeyFile != "" {
-			debugf(ui, debugEnabled, "Target SSH key: %s", sshKeyFile)
-		}
-
-		// Ensure tunnel cleanup
 		defer func() {
-			if tunnel != nil {
-				tunnel.Close()
-			}
+			log.Print("shutting down the SSH proxy")
+			close(p.done)
+			p.adapter.Shutdown()
 		}()
 
-		// Get SSH private key for Ansible to use when connecting through the tunnel
-		// The tunnel provides network path, but Ansible still needs target credentials
-		connType := generatedData["ConnType"].(string)
-		if connType == "ssh" {
-			SSHPrivateKeyFile := generatedData["SSHPrivateKeyFile"].(string)
-			SSHAgentAuth := generatedData["SSHAgentAuth"].(bool)
-			if SSHPrivateKeyFile != "" || SSHAgentAuth {
-				privKeyFile = SSHPrivateKeyFile
-			} else {
-				// Get private key from generatedData and write to temp file
-				SSHPrivateKey := generatedData["SSHPrivateKey"].(string)
-				tmpSSHPrivateKey, err := tmp.File("ansible-key")
-				if err != nil {
-					return fmt.Errorf("error writing private key to temp file for ansible connection: %v", err)
-				}
-				_, err = tmpSSHPrivateKey.WriteString(SSHPrivateKey)
-				if err != nil {
-					return errors.New("failed to write private key to temp file")
-				}
-				err = tmpSSHPrivateKey.Close()
-				if err != nil {
-					return errors.New("failed to close private key temp file")
-				}
-				privKeyFile = tmpSSHPrivateKey.Name()
-				defer os.Remove(privKeyFile)
-			}
+		go p.adapter.Serve()
 
-			// Match username to SSH keys if not explicitly set
-			if p.config.userWasEmpty {
-				p.config.User = generatedData["User"].(string)
-			}
+		// Remove the private key file
+		if len(privKeyFile) > 0 {
+			defer os.Remove(privKeyFile)
 		}
-
-	case "direct":
-		// Direct connection mode - use SSH keys from communicator
-		ui.Message("Using direct connection mode - connecting without proxy")
-
+	} else {
 		connType := generatedData["ConnType"].(string)
 		switch connType {
 		case "ssh":
+			ui.Message("Not using Proxy adapter for Ansible run:\n" +
+				"\tUsing ssh keys from Packer communicator...")
 			// In this situation, we need to make sure we have the
 			// private key we actually use to access the instance.
 			SSHPrivateKeyFile := generatedData["SSHPrivateKeyFile"].(string)
@@ -1674,34 +1077,9 @@ func (p *Provisioner) Provision(ctx context.Context, ui packersdk.Ui, comm packe
 				p.config.User = generatedData["User"].(string)
 			}
 		case "winrm":
-			ui.Message("Using WinRM password from Packer communicator")
+			ui.Message("Not using Proxy adapter for Ansible run:\n" +
+				"\tUsing WinRM Password from Packer communicator...")
 		}
-
-	case "proxy":
-		// Proxy adapter mode (default)
-		ui.Message("Using proxy adapter mode")
-
-		pkf, err := p.setupAdapterFunc(ui, comm)
-		if err != nil {
-			return err
-		}
-		privKeyFile = pkf
-
-		defer func() {
-			log.Print("shutting down the SSH proxy")
-			close(p.done)
-			p.adapter.Shutdown()
-		}()
-
-		go p.adapter.Serve()
-
-		// Remove the private key file
-		if len(privKeyFile) > 0 {
-			defer os.Remove(privKeyFile)
-		}
-
-	default:
-		return fmt.Errorf("invalid connection_mode: %q (should have been caught by validation)", p.config.ConnectionMode)
 	}
 
 	if len(p.config.InventoryFile) == 0 {
@@ -1812,7 +1190,7 @@ func (p *Provisioner) createCmdArgs(ui packersdk.Ui, httpAddr, inventory, privKe
 
 	// Add password to ansible call.
 	ansiblePasswordSet := false
-	if p.config.ConnectionMode == "direct" && p.generatedData["ConnType"] == "winrm" {
+	if p.config.UseProxy.False() && p.generatedData["ConnType"] == "winrm" {
 		if password, ok := p.generatedData["Password"]; ok {
 			extraVars["ansible_password"] = fmt.Sprint(password)
 			ansiblePasswordSet = true

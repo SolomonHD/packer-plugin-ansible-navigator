@@ -10,16 +10,9 @@ import (
 // FlatAnsibleConfig is an auto-generated flat version of AnsibleConfig.
 // Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
 type FlatAnsibleConfig struct {
-	Config               *string                                `mapstructure:"config" cty:"config" hcl:"config"`
-	Defaults             *FlatAnsibleConfigDefaults             `mapstructure:"defaults" cty:"defaults" hcl:"defaults"`
-	SSHConnection        *FlatAnsibleConfigConnection           `mapstructure:"ssh_connection" cty:"ssh_connection" hcl:"ssh_connection"`
-	PrivilegeEscalation  *FlatAnsibleConfigPrivilegeEscalation  `mapstructure:"privilege_escalation" cty:"privilege_escalation" hcl:"privilege_escalation"`
-	PersistentConnection *FlatAnsibleConfigPersistentConnection `mapstructure:"persistent_connection" cty:"persistent_connection" hcl:"persistent_connection"`
-	Inventory            *FlatAnsibleConfigInventory            `mapstructure:"inventory" cty:"inventory" hcl:"inventory"`
-	ParamikoConnection   *FlatAnsibleConfigParamikoConnection   `mapstructure:"paramiko_connection" cty:"paramiko_connection" hcl:"paramiko_connection"`
-	Colors               *FlatAnsibleConfigColors               `mapstructure:"colors" cty:"colors" hcl:"colors"`
-	Diff                 *FlatAnsibleConfigDiff                 `mapstructure:"diff" cty:"diff" hcl:"diff"`
-	Galaxy               *FlatAnsibleConfigGalaxy               `mapstructure:"galaxy" cty:"galaxy" hcl:"galaxy"`
+	Config        *string                      `mapstructure:"config" cty:"config" hcl:"config"`
+	Defaults      *FlatAnsibleConfigDefaults   `mapstructure:"defaults" cty:"defaults" hcl:"defaults"`
+	SSHConnection *FlatAnsibleConfigConnection `mapstructure:"ssh_connection" cty:"ssh_connection" hcl:"ssh_connection"`
 }
 
 // FlatMapstructure returns a new FlatAnsibleConfig.
@@ -34,39 +27,9 @@ func (*AnsibleConfig) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec
 // The decoded values from this spec will then be applied to a FlatAnsibleConfig.
 func (*FlatAnsibleConfig) HCL2Spec() map[string]hcldec.Spec {
 	s := map[string]hcldec.Spec{
-		"config":                &hcldec.AttrSpec{Name: "config", Type: cty.String, Required: false},
-		"defaults":              &hcldec.BlockSpec{TypeName: "defaults", Nested: hcldec.ObjectSpec((*FlatAnsibleConfigDefaults)(nil).HCL2Spec())},
-		"ssh_connection":        &hcldec.BlockSpec{TypeName: "ssh_connection", Nested: hcldec.ObjectSpec((*FlatAnsibleConfigConnection)(nil).HCL2Spec())},
-		"privilege_escalation":  &hcldec.BlockSpec{TypeName: "privilege_escalation", Nested: hcldec.ObjectSpec((*FlatAnsibleConfigPrivilegeEscalation)(nil).HCL2Spec())},
-		"persistent_connection": &hcldec.BlockSpec{TypeName: "persistent_connection", Nested: hcldec.ObjectSpec((*FlatAnsibleConfigPersistentConnection)(nil).HCL2Spec())},
-		"inventory":             &hcldec.BlockSpec{TypeName: "inventory", Nested: hcldec.ObjectSpec((*FlatAnsibleConfigInventory)(nil).HCL2Spec())},
-		"paramiko_connection":   &hcldec.BlockSpec{TypeName: "paramiko_connection", Nested: hcldec.ObjectSpec((*FlatAnsibleConfigParamikoConnection)(nil).HCL2Spec())},
-		"colors":                &hcldec.BlockSpec{TypeName: "colors", Nested: hcldec.ObjectSpec((*FlatAnsibleConfigColors)(nil).HCL2Spec())},
-		"diff":                  &hcldec.BlockSpec{TypeName: "diff", Nested: hcldec.ObjectSpec((*FlatAnsibleConfigDiff)(nil).HCL2Spec())},
-		"galaxy":                &hcldec.BlockSpec{TypeName: "galaxy", Nested: hcldec.ObjectSpec((*FlatAnsibleConfigGalaxy)(nil).HCL2Spec())},
-	}
-	return s
-}
-
-// FlatAnsibleConfigColors is an auto-generated flat version of AnsibleConfigColors.
-// Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
-type FlatAnsibleConfigColors struct {
-	ForceColor *bool `mapstructure:"force_color" cty:"force_color" hcl:"force_color"`
-}
-
-// FlatMapstructure returns a new FlatAnsibleConfigColors.
-// FlatAnsibleConfigColors is an auto-generated flat version of AnsibleConfigColors.
-// Where the contents a fields with a `mapstructure:,squash` tag are bubbled up.
-func (*AnsibleConfigColors) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec.Spec } {
-	return new(FlatAnsibleConfigColors)
-}
-
-// HCL2Spec returns the hcl spec of a AnsibleConfigColors.
-// This spec is used by HCL to read the fields of AnsibleConfigColors.
-// The decoded values from this spec will then be applied to a FlatAnsibleConfigColors.
-func (*FlatAnsibleConfigColors) HCL2Spec() map[string]hcldec.Spec {
-	s := map[string]hcldec.Spec{
-		"force_color": &hcldec.AttrSpec{Name: "force_color", Type: cty.Bool, Required: false},
+		"config":         &hcldec.AttrSpec{Name: "config", Type: cty.String, Required: false},
+		"defaults":       &hcldec.BlockSpec{TypeName: "defaults", Nested: hcldec.ObjectSpec((*FlatAnsibleConfigDefaults)(nil).HCL2Spec())},
+		"ssh_connection": &hcldec.BlockSpec{TypeName: "ssh_connection", Nested: hcldec.ObjectSpec((*FlatAnsibleConfigConnection)(nil).HCL2Spec())},
 	}
 	return s
 }
@@ -123,156 +86,6 @@ func (*FlatAnsibleConfigDefaults) HCL2Spec() map[string]hcldec.Spec {
 	return s
 }
 
-// FlatAnsibleConfigDiff is an auto-generated flat version of AnsibleConfigDiff.
-// Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
-type FlatAnsibleConfigDiff struct {
-	Always  *bool `mapstructure:"always" cty:"always" hcl:"always"`
-	Context *int  `mapstructure:"context" cty:"context" hcl:"context"`
-}
-
-// FlatMapstructure returns a new FlatAnsibleConfigDiff.
-// FlatAnsibleConfigDiff is an auto-generated flat version of AnsibleConfigDiff.
-// Where the contents a fields with a `mapstructure:,squash` tag are bubbled up.
-func (*AnsibleConfigDiff) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec.Spec } {
-	return new(FlatAnsibleConfigDiff)
-}
-
-// HCL2Spec returns the hcl spec of a AnsibleConfigDiff.
-// This spec is used by HCL to read the fields of AnsibleConfigDiff.
-// The decoded values from this spec will then be applied to a FlatAnsibleConfigDiff.
-func (*FlatAnsibleConfigDiff) HCL2Spec() map[string]hcldec.Spec {
-	s := map[string]hcldec.Spec{
-		"always":  &hcldec.AttrSpec{Name: "always", Type: cty.Bool, Required: false},
-		"context": &hcldec.AttrSpec{Name: "context", Type: cty.Number, Required: false},
-	}
-	return s
-}
-
-// FlatAnsibleConfigGalaxy is an auto-generated flat version of AnsibleConfigGalaxy.
-// Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
-type FlatAnsibleConfigGalaxy struct {
-	ServerList  []string `mapstructure:"server_list" cty:"server_list" hcl:"server_list"`
-	IgnoreCerts *bool    `mapstructure:"ignore_certs" cty:"ignore_certs" hcl:"ignore_certs"`
-}
-
-// FlatMapstructure returns a new FlatAnsibleConfigGalaxy.
-// FlatAnsibleConfigGalaxy is an auto-generated flat version of AnsibleConfigGalaxy.
-// Where the contents a fields with a `mapstructure:,squash` tag are bubbled up.
-func (*AnsibleConfigGalaxy) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec.Spec } {
-	return new(FlatAnsibleConfigGalaxy)
-}
-
-// HCL2Spec returns the hcl spec of a AnsibleConfigGalaxy.
-// This spec is used by HCL to read the fields of AnsibleConfigGalaxy.
-// The decoded values from this spec will then be applied to a FlatAnsibleConfigGalaxy.
-func (*FlatAnsibleConfigGalaxy) HCL2Spec() map[string]hcldec.Spec {
-	s := map[string]hcldec.Spec{
-		"server_list":  &hcldec.AttrSpec{Name: "server_list", Type: cty.List(cty.String), Required: false},
-		"ignore_certs": &hcldec.AttrSpec{Name: "ignore_certs", Type: cty.Bool, Required: false},
-	}
-	return s
-}
-
-// FlatAnsibleConfigInventory is an auto-generated flat version of AnsibleConfigInventory.
-// Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
-type FlatAnsibleConfigInventory struct {
-	EnablePlugins []string `mapstructure:"enable_plugins" cty:"enable_plugins" hcl:"enable_plugins"`
-}
-
-// FlatMapstructure returns a new FlatAnsibleConfigInventory.
-// FlatAnsibleConfigInventory is an auto-generated flat version of AnsibleConfigInventory.
-// Where the contents a fields with a `mapstructure:,squash` tag are bubbled up.
-func (*AnsibleConfigInventory) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec.Spec } {
-	return new(FlatAnsibleConfigInventory)
-}
-
-// HCL2Spec returns the hcl spec of a AnsibleConfigInventory.
-// This spec is used by HCL to read the fields of AnsibleConfigInventory.
-// The decoded values from this spec will then be applied to a FlatAnsibleConfigInventory.
-func (*FlatAnsibleConfigInventory) HCL2Spec() map[string]hcldec.Spec {
-	s := map[string]hcldec.Spec{
-		"enable_plugins": &hcldec.AttrSpec{Name: "enable_plugins", Type: cty.List(cty.String), Required: false},
-	}
-	return s
-}
-
-// FlatAnsibleConfigParamikoConnection is an auto-generated flat version of AnsibleConfigParamikoConnection.
-// Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
-type FlatAnsibleConfigParamikoConnection struct {
-	ProxyCommand *string `mapstructure:"proxy_command" cty:"proxy_command" hcl:"proxy_command"`
-}
-
-// FlatMapstructure returns a new FlatAnsibleConfigParamikoConnection.
-// FlatAnsibleConfigParamikoConnection is an auto-generated flat version of AnsibleConfigParamikoConnection.
-// Where the contents a fields with a `mapstructure:,squash` tag are bubbled up.
-func (*AnsibleConfigParamikoConnection) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec.Spec } {
-	return new(FlatAnsibleConfigParamikoConnection)
-}
-
-// HCL2Spec returns the hcl spec of a AnsibleConfigParamikoConnection.
-// This spec is used by HCL to read the fields of AnsibleConfigParamikoConnection.
-// The decoded values from this spec will then be applied to a FlatAnsibleConfigParamikoConnection.
-func (*FlatAnsibleConfigParamikoConnection) HCL2Spec() map[string]hcldec.Spec {
-	s := map[string]hcldec.Spec{
-		"proxy_command": &hcldec.AttrSpec{Name: "proxy_command", Type: cty.String, Required: false},
-	}
-	return s
-}
-
-// FlatAnsibleConfigPersistentConnection is an auto-generated flat version of AnsibleConfigPersistentConnection.
-// Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
-type FlatAnsibleConfigPersistentConnection struct {
-	ConnectTimeout      *int `mapstructure:"connect_timeout" cty:"connect_timeout" hcl:"connect_timeout"`
-	ConnectRetryTimeout *int `mapstructure:"connect_retry_timeout" cty:"connect_retry_timeout" hcl:"connect_retry_timeout"`
-	CommandTimeout      *int `mapstructure:"command_timeout" cty:"command_timeout" hcl:"command_timeout"`
-}
-
-// FlatMapstructure returns a new FlatAnsibleConfigPersistentConnection.
-// FlatAnsibleConfigPersistentConnection is an auto-generated flat version of AnsibleConfigPersistentConnection.
-// Where the contents a fields with a `mapstructure:,squash` tag are bubbled up.
-func (*AnsibleConfigPersistentConnection) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec.Spec } {
-	return new(FlatAnsibleConfigPersistentConnection)
-}
-
-// HCL2Spec returns the hcl spec of a AnsibleConfigPersistentConnection.
-// This spec is used by HCL to read the fields of AnsibleConfigPersistentConnection.
-// The decoded values from this spec will then be applied to a FlatAnsibleConfigPersistentConnection.
-func (*FlatAnsibleConfigPersistentConnection) HCL2Spec() map[string]hcldec.Spec {
-	s := map[string]hcldec.Spec{
-		"connect_timeout":       &hcldec.AttrSpec{Name: "connect_timeout", Type: cty.Number, Required: false},
-		"connect_retry_timeout": &hcldec.AttrSpec{Name: "connect_retry_timeout", Type: cty.Number, Required: false},
-		"command_timeout":       &hcldec.AttrSpec{Name: "command_timeout", Type: cty.Number, Required: false},
-	}
-	return s
-}
-
-// FlatAnsibleConfigPrivilegeEscalation is an auto-generated flat version of AnsibleConfigPrivilegeEscalation.
-// Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
-type FlatAnsibleConfigPrivilegeEscalation struct {
-	Become       *bool   `mapstructure:"become" cty:"become" hcl:"become"`
-	BecomeMethod *string `mapstructure:"become_method" cty:"become_method" hcl:"become_method"`
-	BecomeUser   *string `mapstructure:"become_user" cty:"become_user" hcl:"become_user"`
-}
-
-// FlatMapstructure returns a new FlatAnsibleConfigPrivilegeEscalation.
-// FlatAnsibleConfigPrivilegeEscalation is an auto-generated flat version of AnsibleConfigPrivilegeEscalation.
-// Where the contents a fields with a `mapstructure:,squash` tag are bubbled up.
-func (*AnsibleConfigPrivilegeEscalation) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec.Spec } {
-	return new(FlatAnsibleConfigPrivilegeEscalation)
-}
-
-// HCL2Spec returns the hcl spec of a AnsibleConfigPrivilegeEscalation.
-// This spec is used by HCL to read the fields of AnsibleConfigPrivilegeEscalation.
-// The decoded values from this spec will then be applied to a FlatAnsibleConfigPrivilegeEscalation.
-func (*FlatAnsibleConfigPrivilegeEscalation) HCL2Spec() map[string]hcldec.Spec {
-	s := map[string]hcldec.Spec{
-		"become":        &hcldec.AttrSpec{Name: "become", Type: cty.Bool, Required: false},
-		"become_method": &hcldec.AttrSpec{Name: "become_method", Type: cty.String, Required: false},
-		"become_user":   &hcldec.AttrSpec{Name: "become_user", Type: cty.String, Required: false},
-	}
-	return s
-}
-
 // FlatCollectionDocCache is an auto-generated flat version of CollectionDocCache.
 // Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
 type FlatCollectionDocCache struct {
@@ -294,31 +107,6 @@ func (*FlatCollectionDocCache) HCL2Spec() map[string]hcldec.Spec {
 	s := map[string]hcldec.Spec{
 		"path":    &hcldec.AttrSpec{Name: "path", Type: cty.String, Required: false},
 		"timeout": &hcldec.AttrSpec{Name: "timeout", Type: cty.Number, Required: false},
-	}
-	return s
-}
-
-// FlatColorConfig is an auto-generated flat version of ColorConfig.
-// Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
-type FlatColorConfig struct {
-	Enable *bool `mapstructure:"enable" cty:"enable" hcl:"enable"`
-	Osc4   *bool `mapstructure:"osc4" cty:"osc4" hcl:"osc4"`
-}
-
-// FlatMapstructure returns a new FlatColorConfig.
-// FlatColorConfig is an auto-generated flat version of ColorConfig.
-// Where the contents a fields with a `mapstructure:,squash` tag are bubbled up.
-func (*ColorConfig) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec.Spec } {
-	return new(FlatColorConfig)
-}
-
-// HCL2Spec returns the hcl spec of a ColorConfig.
-// This spec is used by HCL to read the fields of ColorConfig.
-// The decoded values from this spec will then be applied to a FlatColorConfig.
-func (*FlatColorConfig) HCL2Spec() map[string]hcldec.Spec {
-	s := map[string]hcldec.Spec{
-		"enable": &hcldec.AttrSpec{Name: "enable", Type: cty.Bool, Required: false},
-		"osc4":   &hcldec.AttrSpec{Name: "osc4", Type: cty.Bool, Required: false},
 	}
 	return s
 }
@@ -398,31 +186,6 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 	return s
 }
 
-// FlatEditorConfig is an auto-generated flat version of EditorConfig.
-// Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
-type FlatEditorConfig struct {
-	Command *string `mapstructure:"command" cty:"command" hcl:"command"`
-	Console *bool   `mapstructure:"console" cty:"console" hcl:"console"`
-}
-
-// FlatMapstructure returns a new FlatEditorConfig.
-// FlatEditorConfig is an auto-generated flat version of EditorConfig.
-// Where the contents a fields with a `mapstructure:,squash` tag are bubbled up.
-func (*EditorConfig) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec.Spec } {
-	return new(FlatEditorConfig)
-}
-
-// HCL2Spec returns the hcl spec of a EditorConfig.
-// This spec is used by HCL to read the fields of EditorConfig.
-// The decoded values from this spec will then be applied to a FlatEditorConfig.
-func (*FlatEditorConfig) HCL2Spec() map[string]hcldec.Spec {
-	s := map[string]hcldec.Spec{
-		"command": &hcldec.AttrSpec{Name: "command", Type: cty.String, Required: false},
-		"console": &hcldec.AttrSpec{Name: "console", Type: cty.Bool, Required: false},
-	}
-	return s
-}
-
 // FlatEnvironmentVariablesConfig is an auto-generated flat version of EnvironmentVariablesConfig.
 // Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
 type FlatEnvironmentVariablesConfig struct {
@@ -454,9 +217,6 @@ type FlatExecutionEnvironment struct {
 	Enabled              *bool                           `mapstructure:"enabled" cty:"enabled" hcl:"enabled"`
 	Image                *string                         `mapstructure:"image" cty:"image" hcl:"image"`
 	PullPolicy           *string                         `mapstructure:"pull_policy" cty:"pull_policy" hcl:"pull_policy"`
-	ContainerEngine      *string                         `mapstructure:"container_engine" cty:"container_engine" hcl:"container_engine"`
-	ContainerOptions     []string                        `mapstructure:"container_options" cty:"container_options" hcl:"container_options"`
-	PullArguments        []string                        `mapstructure:"pull_arguments" cty:"pull_arguments" hcl:"pull_arguments"`
 	EnvironmentVariables *FlatEnvironmentVariablesConfig `mapstructure:"environment_variables" cty:"environment_variables" hcl:"environment_variables"`
 	VolumeMounts         []FlatVolumeMount               `mapstructure:"volume_mounts" cty:"volume_mounts" hcl:"volume_mounts"`
 }
@@ -476,34 +236,8 @@ func (*FlatExecutionEnvironment) HCL2Spec() map[string]hcldec.Spec {
 		"enabled":               &hcldec.AttrSpec{Name: "enabled", Type: cty.Bool, Required: false},
 		"image":                 &hcldec.AttrSpec{Name: "image", Type: cty.String, Required: false},
 		"pull_policy":           &hcldec.AttrSpec{Name: "pull_policy", Type: cty.String, Required: false},
-		"container_engine":      &hcldec.AttrSpec{Name: "container_engine", Type: cty.String, Required: false},
-		"container_options":     &hcldec.AttrSpec{Name: "container_options", Type: cty.List(cty.String), Required: false},
-		"pull_arguments":        &hcldec.AttrSpec{Name: "pull_arguments", Type: cty.List(cty.String), Required: false},
 		"environment_variables": &hcldec.BlockSpec{TypeName: "environment_variables", Nested: hcldec.ObjectSpec((*FlatEnvironmentVariablesConfig)(nil).HCL2Spec())},
 		"volume_mounts":         &hcldec.BlockListSpec{TypeName: "volume_mounts", Nested: hcldec.ObjectSpec((*FlatVolumeMount)(nil).HCL2Spec())},
-	}
-	return s
-}
-
-// FlatImagesConfig is an auto-generated flat version of ImagesConfig.
-// Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
-type FlatImagesConfig struct {
-	Details []string `mapstructure:"details" cty:"details" hcl:"details"`
-}
-
-// FlatMapstructure returns a new FlatImagesConfig.
-// FlatImagesConfig is an auto-generated flat version of ImagesConfig.
-// Where the contents a fields with a `mapstructure:,squash` tag are bubbled up.
-func (*ImagesConfig) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec.Spec } {
-	return new(FlatImagesConfig)
-}
-
-// HCL2Spec returns the hcl spec of a ImagesConfig.
-// This spec is used by HCL to read the fields of ImagesConfig.
-// The decoded values from this spec will then be applied to a FlatImagesConfig.
-func (*FlatImagesConfig) HCL2Spec() map[string]hcldec.Spec {
-	s := map[string]hcldec.Spec{
-		"details": &hcldec.AttrSpec{Name: "details", Type: cty.List(cty.String), Required: false},
 	}
 	return s
 }
@@ -538,19 +272,12 @@ func (*FlatLoggingConfig) HCL2Spec() map[string]hcldec.Spec {
 // FlatNavigatorConfig is an auto-generated flat version of NavigatorConfig.
 // Where the contents of a field with a `mapstructure:,squash` tag are bubbled up.
 type FlatNavigatorConfig struct {
-	Mode                   *string                   `mapstructure:"mode" cty:"mode" hcl:"mode"`
-	Format                 *string                   `mapstructure:"format" cty:"format" hcl:"format"`
-	Color                  *FlatColorConfig          `mapstructure:"color" cty:"color" hcl:"color"`
-	Editor                 *FlatEditorConfig         `mapstructure:"editor" cty:"editor" hcl:"editor"`
-	Images                 *FlatImagesConfig         `mapstructure:"images" cty:"images" hcl:"images"`
-	TimeZone               *string                   `mapstructure:"time_zone" cty:"time_zone" hcl:"time_zone"`
-	InventoryColumns       []string                  `mapstructure:"inventory_columns" cty:"inventory_columns" hcl:"inventory_columns"`
-	CollectionDocCachePath *string                   `mapstructure:"collection_doc_cache_path" cty:"collection_doc_cache_path" hcl:"collection_doc_cache_path"`
-	ExecutionEnvironment   *FlatExecutionEnvironment `mapstructure:"execution_environment" cty:"execution_environment" hcl:"execution_environment"`
-	AnsibleConfig          *FlatAnsibleConfig        `mapstructure:"ansible_config" cty:"ansible_config" hcl:"ansible_config"`
-	Logging                *FlatLoggingConfig        `mapstructure:"logging" cty:"logging" hcl:"logging"`
-	PlaybookArtifact       *FlatPlaybookArtifact     `mapstructure:"playbook_artifact" cty:"playbook_artifact" hcl:"playbook_artifact"`
-	CollectionDocCache     *FlatCollectionDocCache   `mapstructure:"collection_doc_cache" cty:"collection_doc_cache" hcl:"collection_doc_cache"`
+	Mode                 *string                   `mapstructure:"mode" cty:"mode" hcl:"mode"`
+	ExecutionEnvironment *FlatExecutionEnvironment `mapstructure:"execution_environment" cty:"execution_environment" hcl:"execution_environment"`
+	AnsibleConfig        *FlatAnsibleConfig        `mapstructure:"ansible_config" cty:"ansible_config" hcl:"ansible_config"`
+	Logging              *FlatLoggingConfig        `mapstructure:"logging" cty:"logging" hcl:"logging"`
+	PlaybookArtifact     *FlatPlaybookArtifact     `mapstructure:"playbook_artifact" cty:"playbook_artifact" hcl:"playbook_artifact"`
+	CollectionDocCache   *FlatCollectionDocCache   `mapstructure:"collection_doc_cache" cty:"collection_doc_cache" hcl:"collection_doc_cache"`
 }
 
 // FlatMapstructure returns a new FlatNavigatorConfig.
@@ -565,19 +292,12 @@ func (*NavigatorConfig) FlatMapstructure() interface{ HCL2Spec() map[string]hcld
 // The decoded values from this spec will then be applied to a FlatNavigatorConfig.
 func (*FlatNavigatorConfig) HCL2Spec() map[string]hcldec.Spec {
 	s := map[string]hcldec.Spec{
-		"mode":                      &hcldec.AttrSpec{Name: "mode", Type: cty.String, Required: false},
-		"format":                    &hcldec.AttrSpec{Name: "format", Type: cty.String, Required: false},
-		"color":                     &hcldec.BlockSpec{TypeName: "color", Nested: hcldec.ObjectSpec((*FlatColorConfig)(nil).HCL2Spec())},
-		"editor":                    &hcldec.BlockSpec{TypeName: "editor", Nested: hcldec.ObjectSpec((*FlatEditorConfig)(nil).HCL2Spec())},
-		"images":                    &hcldec.BlockSpec{TypeName: "images", Nested: hcldec.ObjectSpec((*FlatImagesConfig)(nil).HCL2Spec())},
-		"time_zone":                 &hcldec.AttrSpec{Name: "time_zone", Type: cty.String, Required: false},
-		"inventory_columns":         &hcldec.AttrSpec{Name: "inventory_columns", Type: cty.List(cty.String), Required: false},
-		"collection_doc_cache_path": &hcldec.AttrSpec{Name: "collection_doc_cache_path", Type: cty.String, Required: false},
-		"execution_environment":     &hcldec.BlockSpec{TypeName: "execution_environment", Nested: hcldec.ObjectSpec((*FlatExecutionEnvironment)(nil).HCL2Spec())},
-		"ansible_config":            &hcldec.BlockSpec{TypeName: "ansible_config", Nested: hcldec.ObjectSpec((*FlatAnsibleConfig)(nil).HCL2Spec())},
-		"logging":                   &hcldec.BlockSpec{TypeName: "logging", Nested: hcldec.ObjectSpec((*FlatLoggingConfig)(nil).HCL2Spec())},
-		"playbook_artifact":         &hcldec.BlockSpec{TypeName: "playbook_artifact", Nested: hcldec.ObjectSpec((*FlatPlaybookArtifact)(nil).HCL2Spec())},
-		"collection_doc_cache":      &hcldec.BlockSpec{TypeName: "collection_doc_cache", Nested: hcldec.ObjectSpec((*FlatCollectionDocCache)(nil).HCL2Spec())},
+		"mode":                  &hcldec.AttrSpec{Name: "mode", Type: cty.String, Required: false},
+		"execution_environment": &hcldec.BlockSpec{TypeName: "execution_environment", Nested: hcldec.ObjectSpec((*FlatExecutionEnvironment)(nil).HCL2Spec())},
+		"ansible_config":        &hcldec.BlockSpec{TypeName: "ansible_config", Nested: hcldec.ObjectSpec((*FlatAnsibleConfig)(nil).HCL2Spec())},
+		"logging":               &hcldec.BlockSpec{TypeName: "logging", Nested: hcldec.ObjectSpec((*FlatLoggingConfig)(nil).HCL2Spec())},
+		"playbook_artifact":     &hcldec.BlockSpec{TypeName: "playbook_artifact", Nested: hcldec.ObjectSpec((*FlatPlaybookArtifact)(nil).HCL2Spec())},
+		"collection_doc_cache":  &hcldec.BlockSpec{TypeName: "collection_doc_cache", Nested: hcldec.ObjectSpec((*FlatCollectionDocCache)(nil).HCL2Spec())},
 	}
 	return s
 }

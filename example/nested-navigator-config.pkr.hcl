@@ -54,11 +54,12 @@ build {
       logging {
         level = "debug"
         file  = "/tmp/ansible-navigator.log"
-        append = true
       }
 
       # Ansible settings (nested block)
       ansible_config {
+        config = "/etc/ansible/ansible.cfg"
+        
         defaults {
           remote_tmp       = "/tmp/.ansible/tmp"
           host_key_checking = false
