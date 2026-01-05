@@ -347,16 +347,6 @@ provisioner "ansible-navigator" {
 }
 ```
 
-## ansible-navigator version warnings
-
-### "Settings file format version needs migration"
-
-**Symptom**: ansible-navigator displays warnings about configuration version migration during Packer builds.
-
-**Resolution**: Starting with v3.1.0, the plugin automatically generates Version 2 format configuration files that are immediately recognized by ansible-navigator 25.x+ without triggering migration prompts.
-
-If you're using an older version of the plugin, upgrade to v3.1.0+ to eliminate these warnings. No configuration changes are required on your part - the plugin handles Version 2 format generation automatically.
-
 ---
 
 [← Back to docs index](README.md)

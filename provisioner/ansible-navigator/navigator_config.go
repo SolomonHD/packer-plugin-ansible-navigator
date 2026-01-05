@@ -161,9 +161,6 @@ func convertToYAMLStructure(config *NavigatorConfig) map[string]interface{} {
 	// Create nested structure with ansible-navigator root key
 	ansibleNavigator := make(map[string]interface{})
 
-	// Add Version 2 schema marker to prevent migration prompts in ansible-navigator 25.x
-	ansibleNavigator["ansible-navigator-settings-version"] = "2.0"
-
 	if config.Mode != "" {
 		ansibleNavigator["mode"] = config.Mode
 	}

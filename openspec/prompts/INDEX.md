@@ -1,10 +1,6 @@
 # OpenSpec Prompt Index
 
-This directory contains **numbered OpenSpec prompt files** for the packer-plugin-ansible-navigator. Run them in order.
-
-## Critical Prerequisite
-
-**Prompt 00 must be completed first** - it fixes a critical bug where ansible-navigator 25.x migration prompts appear and `pull_policy = "never"` doesn't work correctly. Changes 01-04 build on the Version 2 format established in prompt 00.
+This directory contains **numbered OpenSpec prompt files** for expanding navigator_config to support the full ansible-navigator v3.x schema. Run them in order.
 
 ## How to use
 
@@ -23,30 +19,14 @@ Optional compatibility step:
 
 | # | Change ID | Title | Depends on |
 |---:|----------|-------|------------|
-| 00 | update-yaml-to-v2-format | **Update YAML generation to Version 2 format** | — **MUST DO FIRST** |
-| 01 | expand-execution-environment-config | Expand execution-environment configuration | 00 (requires V2 format) |
-| 02 | expand-ansible-config-sections | Expand ansible.config sections | 00 (suggested after 01) |
-| 03 | expand-logging-and-playbook-artifact | Expand logging and playbook-artifact | 00 (suggested after 01-02) |
-| 04 | add-remaining-navigator-settings | Add remaining navigator settings | 00-03 recommended |
+| 01 | expand-execution-environment-config | Expand execution-environment configuration | — |
+| 02 | expand-ansible-config-sections | Expand ansible.config sections | — (suggested after 01) |
+| 03 | expand-logging-and-playbook-artifact | Expand logging and playbook-artifact | — (suggested after 01-02) |
+| 04 | add-remaining-navigator-settings | Add remaining navigator settings | 01-03 recommended |
 
 ## Overview
 
-This series decomposes the work on packer-plugin-ansible-navigator into **five reviewable changes**. Change 00 is a critical prerequisite that fixes a format compatibility bug, then changes 01-04 expand the configuration capabilities to achieve full ansible-navigator v3.x parity.
-
-### Change 00: Update YAML to Version 2 Format (PREREQUISITE)
-
-**Critical bug fix:** Updates YAML generation from Version 1 to Version 2 format to fix:
-- ansible-navigator 25.x migration prompts appearing during builds
-- `pull_policy = "never"` being ignored, causing unwanted Docker registry pulls
-
-This change modifies the YAML generation logic in [`navigator_config.go`](../../provisioner/ansible-navigator/navigator_config.go:1) to produce Version 2 format files that ansible-navigator 25.x recognizes immediately without requiring migration.
-
-**Why prerequisite:** All subsequent changes (01-04) build upon the Version 2 format structure. Implementing them on the broken V1 format would compound compatibility issues.
-
-**Expected files touched:**
-- [`provisioner/ansible-navigator/navigator_config.go`](../../provisioner/ansible-navigator/navigator_config.go:1) - YAML generation
-- [`provisioner/ansible-navigator/provisioner.go`](../../provisioner/ansible-navigator/provisioner.go:1) - Config file writing
-- Test files for YAML validation
+This series decomposes the complex task of achieving full ansible-navigator v3.x configuration parity into four reviewable changes:
 
 ### Change 01: Execution Environment
 
@@ -90,9 +70,8 @@ Each change includes:
 - At least one minimal Packer template demonstrating new options
 
 ## Success Criteria
-After completing all five changes (00-04):
 
-- ✅ **Change 00 prerequisite met:** No migration prompts appear, pull-policy works correctly, Version 2 format validated
+After completing all four changes:
 - ✅ Users can configure any documented ansible-navigator v3.x option through `navigator_config` HCL blocks
 - ✅ Generated ansible-navigator.yml files match the v3.x schema correctly
 - ✅ No "Unsupported argument" errors for valid v3.x configuration options

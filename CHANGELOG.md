@@ -1,12 +1,3 @@
-## 3.1.0 (TBD)
-### IMPROVEMENTS:
-* **ansible-navigator Version 2 Configuration Format**: Updated YAML configuration generation to include Version 2 schema markers
-  - Eliminates version migration prompts when using ansible-navigator 25.x+
-  - Generated configuration files now include `ansible-navigator-settings-version: "2.0"` marker
-  - Ensures `pull_policy` settings are immediately recognized without triggering migrations
-  - No breaking changes - this is an internal YAML generation update transparent to users
-  - Affects both `ansible-navigator` and `ansible-navigator-local` provisioners
-
 ## 3.0.0 (December 2, 2025)
 ### BREAKING CHANGES:
 * **Provisioner Naming Swapped to Align with Packer Conventions**: The provisioner naming has been corrected to match the standard Packer pattern where SSH-based (remote) execution is the default:
