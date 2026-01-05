@@ -6,6 +6,12 @@
 
 - `pull_policy` (string) - Pull policy for the container image
 
+- `container_engine` (string) - Container engine to use (auto, podman, docker)
+
+- `container_options` ([]string) - Additional container runtime options (e.g., --net=host, --security-opt, --user=0:0)
+
+- `pull_arguments` ([]string) - Arguments passed to image pull command
+
 - `environment_variables` (\*EnvironmentVariablesConfig) - Environment variables to pass to the execution environment
 
 - `volume_mounts` ([]VolumeMount) - Volume mounts for the execution environment container

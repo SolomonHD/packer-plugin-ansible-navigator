@@ -96,6 +96,12 @@ type ExecutionEnvironment struct {
 	Image string `mapstructure:"image"`
 	// Pull policy for the container image
 	PullPolicy string `mapstructure:"pull_policy"`
+	// Container engine to use (auto, podman, docker)
+	ContainerEngine string `mapstructure:"container_engine"`
+	// Additional container runtime options (e.g., --net=host, --security-opt, --user=0:0)
+	ContainerOptions []string `mapstructure:"container_options"`
+	// Arguments passed to image pull command
+	PullArguments []string `mapstructure:"pull_arguments"`
 	// Environment variables to pass to the execution environment
 	EnvironmentVariables *EnvironmentVariablesConfig `mapstructure:"environment_variables"`
 	// Volume mounts for the execution environment container
