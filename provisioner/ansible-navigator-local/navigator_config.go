@@ -155,9 +155,6 @@ func generateNavigatorConfigYAML(config *NavigatorConfig, collectionsPath string
 func convertToYAMLStructure(config *NavigatorConfig) map[string]interface{} {
 	result := make(map[string]interface{})
 
-	// Add Version 2 schema marker to prevent migration prompts in ansible-navigator 25.x
-	result["ansible-navigator-settings-version"] = "2.0"
-
 	if config.Mode != "" {
 		result["mode"] = config.Mode
 	}
