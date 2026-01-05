@@ -161,60 +161,11 @@ func convertToYAMLStructure(config *NavigatorConfig) map[string]interface{} {
 	// Create nested structure with ansible-navigator root key
 	ansibleNavigator := make(map[string]interface{})
 
+	// Add Version 2 schema marker to prevent migration prompts in ansible-navigator 25.x
+	ansibleNavigator["ansible-navigator-settings-version"] = "2.0"
+
 	if config.Mode != "" {
 		ansibleNavigator["mode"] = config.Mode
-	}
-
-	if config.Format != "" {
-		ansibleNavigator["format"] = config.Format
-	}
-
-	if config.TimeZone != "" {
-		ansibleNavigator["time-zone"] = config.TimeZone
-	}
-
-	if len(config.InventoryColumns) > 0 {
-		ansibleNavigator["inventory-columns"] = config.InventoryColumns
-	}
-
-	if config.CollectionDocCachePath != "" {
-		ansibleNavigator["collection-doc-cache-path"] = config.CollectionDocCachePath
-	}
-
-	if config.Color != nil {
-		colorMap := make(map[string]interface{})
-		if config.Color.Enable {
-			colorMap["enable"] = true
-		}
-		if config.Color.Osc4 {
-			colorMap["osc4"] = true
-		}
-		if len(colorMap) > 0 {
-			ansibleNavigator["color"] = colorMap
-		}
-	}
-
-	if config.Editor != nil {
-		editorMap := make(map[string]interface{})
-		if config.Editor.Command != "" {
-			editorMap["command"] = config.Editor.Command
-		}
-		if config.Editor.Console {
-			editorMap["console"] = true
-		}
-		if len(editorMap) > 0 {
-			ansibleNavigator["editor"] = editorMap
-		}
-	}
-
-	if config.Images != nil {
-		imagesMap := make(map[string]interface{})
-		if len(config.Images.Details) > 0 {
-			imagesMap["details"] = config.Images.Details
-		}
-		if len(imagesMap) > 0 {
-			ansibleNavigator["images"] = imagesMap
-		}
 	}
 
 	if config.ExecutionEnvironment != nil {
@@ -223,24 +174,10 @@ func convertToYAMLStructure(config *NavigatorConfig) map[string]interface{} {
 		if config.ExecutionEnvironment.Image != "" {
 			eeMap["image"] = config.ExecutionEnvironment.Image
 		}
-		if config.ExecutionEnvironment.ContainerEngine != "" {
-			eeMap["container-engine"] = config.ExecutionEnvironment.ContainerEngine
-		}
-		if len(config.ExecutionEnvironment.ContainerOptions) > 0 {
-			eeMap["container-options"] = config.ExecutionEnvironment.ContainerOptions
-		}
-
-		// execution-environment.pull.* is a nested object in ansible-navigator.yml.
-		// We must create it when either policy or arguments are provided.
-		pullMap := make(map[string]interface{})
 		if config.ExecutionEnvironment.PullPolicy != "" {
-			pullMap["policy"] = config.ExecutionEnvironment.PullPolicy
-		}
-		if len(config.ExecutionEnvironment.PullArguments) > 0 {
-			pullMap["arguments"] = config.ExecutionEnvironment.PullArguments
-		}
-		if len(pullMap) > 0 {
-			eeMap["pull"] = pullMap
+			eeMap["pull"] = map[string]interface{}{
+				"policy": config.ExecutionEnvironment.PullPolicy,
+			}
 		}
 		if config.ExecutionEnvironment.EnvironmentVariables != nil {
 			envVarsMap := make(map[string]interface{})

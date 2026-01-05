@@ -1123,311 +1123,60 @@ The SSH-based provisioner SHALL treat `collections_path` as the exact path value
 - **THEN** Ansible SHALL NOT emit deprecation warnings about `ANSIBLE_COLLECTIONS_PATHS` (plural)
 - **AND** the plugin SHALL use only the modern singular form `ANSIBLE_COLLECTIONS_PATH`
 
-### Requirement: Container Engine Configuration (remote provisioner)
+### Requirement: ansible-navigator Version 2 Schema Compliance
 
-The SSH-based provisioner SHALL support specifying the container engine used by ansible-navigator for execution environments.
+The remote provisioner SHALL generate ansible-navigator.yml configuration files that include ansible-navigator Version 2 schema markers to ensure immediate recognition by ansible-navigator 25.x without triggering version migration prompts.
 
-#### Scenario: container_engine field accepted in HCL
+#### Scenario: Version 2 schema marker included in generated YAML
 
-- **GIVEN** a configuration with `provisioner "ansible-navigator"`
-- **AND** `navigator_config.execution_environment.container_engine = "docker"`
-- **WHEN** Packer parses the configuration
-- **THEN** parsing SHALL succeed
-- **AND** the configuration SHALL preserve the `container_engine` value
+- **GIVEN** a configuration with `navigator_config` block containing any settings
+- **WHEN** the provisioner generates the `ansible-navigator.yml` file  
+- **THEN** the generated YAML SHALL include schema version markers that identify it as Version 2 format
+- **AND** ansible-navigator 25.12.0+ SHALL recognize the file as Version 2 format immediately
+- **AND** NO version migration prompts SHALL appear
 
-#### Scenario: container_engine generated in YAML
+#### Scenario: Pull-policy Version 2 nested structure preserved
 
-- **GIVEN** a configuration with `navigator_config.execution_environment.container_engine = "podman"`
-- **WHEN** the provisioner generates `ansible-navigator.yml`
-- **THEN** the YAML SHALL include under `ansible-navigator.execution-environment`:
-  ```yaml
-  container-engine: podman
-  ```
-- **AND** ansible-navigator SHALL use the specified container runtime
-
-#### Scenario: container_engine omitted when not configured
-
-- **GIVEN** a configuration that does not set `container_engine`
-- **WHEN** the provisioner generates `ansible-navigator.yml`
-- **THEN** the `container-engine` key SHALL NOT appear in the YAML
-- **AND** ansible-navigator SHALL use its default container engine selection
-
-### Requirement: Container Options Configuration (remote provisioner)
-
-The SSH-based provisioner SHALL support passing arbitrary container runtime flags via `container_options`.
-
-#### Scenario: container_options accepted as list of strings
-
-- **GIVEN** a configuration with:
-  ```hcl
-  navigator_config {
-    execution_environment {
-      container_options = [
-        "--net=host",
-        "--security-opt", "label=disable"
-      ]
-    }
-  }
-  ```
-- **WHEN** Packer parses the configuration
-- **THEN** parsing SHALL succeed
-- **AND** all container option values SHALL be preserved
-
-#### Scenario: container_options generated in YAML
-
-- **GIVEN** a configuration with `container_options = ["--net=host", "--cap-add=SYS_ADMIN"]`
-- **WHEN** the provisioner generates `ansible-navigator.yml`
-- **THEN** the YAML SHALL include under `ansible-navigator.execution-environment`:
-  ```yaml
-  container-options:
-    - --net=host
-    - --cap-add=SYS_ADMIN
-  ```
-- **AND** ansible-navigator SHALL pass these options verbatim to the container runtime
-
-#### Scenario: container_options omitted when not configured
-
-- **GIVEN** a configuration that does not set `container_options`
-- **WHEN** the provisioner generates `ansible-navigator.yml`
-- **THEN** the `container-options` key SHALL NOT appear in the YAML
-- **AND** no additional container options SHALL be applied
-
-### Requirement: Pull Arguments Configuration (remote provisioner)
-
-The SSH-based provisioner SHALL support passing arguments to the container image pull command via `pull_arguments`.
-
-#### Scenario: pull_arguments accepted in HCL
-
-- **GIVEN** a configuration with:
-  ```hcl
-  navigator_config {
-    execution_environment {
-      pull_arguments = [
-        "--creds", "username:password",
-        "--tls-verify=false"
-      ]
-    }
-  }
-  ```
-- **WHEN** Packer parses the configuration
-- **THEN** parsing SHALL succeed
-- **AND** all pull argument values SHALL be preserved
-
-#### Scenario: pull_arguments nested under pull in YAML
-
-- **GIVEN** a configuration with `pull_arguments = ["--tls-verify=false"]`
-- **AND** `pull_policy = "missing"`
-- **WHEN** the provisioner generates `ansible-navigator.yml`
-- **THEN** the YAML SHALL include under `ansible-navigator.execution-environment`:
-  ```yaml
-  pull:
-    policy: missing
-    arguments:
-      - --tls-verify=false
-  ```
-- **AND** both pull.policy and pull.arguments SHALL be nested under the same `pull` parent key
-
-#### Scenario: pull struct created when only pull_arguments provided
-
-- **GIVEN** a configuration with `pull_arguments` set but `pull_policy` NOT set
-- **WHEN** the provisioner generates `ansible-navigator.yml`
-- **THEN** the YAML SHALL include:
-  ```yaml
-  pull:
-    arguments:
-      - <configured arguments>
-  ```
-- **AND** the `policy` field SHALL be omitted (ansible-navigator uses default)
-
-#### Scenario: pull_arguments omitted when not configured
-
-- **GIVEN** a configuration that does not set `pull_arguments`
-- **WHEN** the provisioner generates `ansible-navigator.yml`
-- **THEN** if `pull_policy` is set, YAML SHALL include `pull: { policy: <value> }`
-- **AND** if `pull_policy` is NOT set, the `pull` key SHALL be omitted entirely
-
-### Requirement: Additional Volume Mounts (remote provisioner)
-
-The SSH-based provisioner SHALL allow users to specify additional volume mounts beyond the automatic collections mount.
-
-#### Scenario: User-specified volume mounts preserved alongside automatic mounts
-
-- **GIVEN** a configuration with:
-  ```hcl
-  requirements_file = "./requirements.yml"
-  navigator_config {
-    execution_environment {
-      enabled = true
-      volume_mounts = [
-        {
-          src     = "/host/custom"
-          dest    = "/container/custom"
-          options = "ro"
-        }
-      ]
-    }
-  }
-  ```
-- **WHEN** the provisioner applies automatic EE defaults (collections mount)
-- **THEN** the final volume mounts list SHALL include BOTH:
-  - User-specified mount: `/host/custom:/container/custom:ro`
-  - Automatic collections mount: `<collections_path>:/tmp/.packer_ansible/collections:ro`
-- **AND** the generated YAML SHALL include both mounts under `volume-mounts`
-
-#### Scenario: Duplicate mount detection prevents conflicts
-
-- **GIVEN** a configuration where user manually specifies a collections mount with the same destination as the automatic mount
-- **WHEN** the provisioner applies automatic EE defaults
-- **THEN** it SHALL detect the duplicate destination path
-- **AND** it SHALL NOT add a second mount to the same destination
-- **AND** the user's explicit mount SHALL take precedence
-
-#### Scenario: Volume mounts work without collections
-
-- **GIVEN** a configuration with `volume_mounts` but NO `requirements_file`
-- **WHEN** the provisioner generates `ansible-navigator.yml`
-- **THEN** the YAML SHALL include only the user-specified volume mounts
-- **AND** no automatic collections mount SHALL be added
-
-### Requirement: Complete Pull Configuration Structure (remote provisioner)
-
-The YAML generation SHALL correctly nest both `pull.policy` and `pull.arguments` under a single `pull` parent key to match ansible-navigator v3.x schema.
-
-#### Scenario: Pull policy and arguments combined in YAML
-
-- **GIVEN** a configuration with both `pull_policy = "always"` AND `pull_arguments = ["--tls-verify=false"]`
-- **WHEN** the provisioner generates `ansible-navigator.yml`
-- **THEN** the YAML SHALL be structured as:
+- **GIVEN** a configuration with `navigator_config.execution_environment.pull_policy = "never"`
+- **WHEN** the provisioner generates the `ansible-navigator.yml` file
+- **THEN** the generated YAML SHALL use the Version 2 nested structure:
   ```yaml
   ansible-navigator:
     execution-environment:
       pull:
-        policy: always
-        arguments:
-          - --tls-verify=false
+        policy: never
   ```
-- **AND** ansible-navigator SHALL accept this structure without errors
+- **AND** ansible-navigator SHALL respect the pull-policy setting without attempting registry pulls
+- **AND** Docker SHALL NOT attempt to pull images when local images exist
 
-#### Scenario: Backward compatibility for pull_policy only
+#### Scenario: Version 2 format works with all pull-policy values
 
-- **GIVEN** a configuration with only `pull_policy = "missing"` (no `pull_arguments`)
-- **WHEN** the provisioner generates `ansible-navigator.yml`
-- **THEN** the YAML SHALL include:
-  ```yaml
-  ansible-navigator:
-    execution-environment:
-      pull:
-        policy: missing
-  ```
-- **AND** existing configurations SHALL continue to work without modification
+- **GIVEN** a configuration with `navigator_config.execution_environment.pull_policy` set to any valid value (`"always"`, `"missing"`, `"never"`, `"tag"`)
+- **WHEN** the provisioner generates the `ansible-navigator.yml` file
+- **THEN** the generated YAML SHALL use the Version 2 nested `pull.policy` structure
+- **AND** ansible-navigator SHALL correctly interpret the pull-policy value
+- **AND** Docker pull behavior SHALL match the specified policy
 
-### Requirement: REQ-ANSIBLE-CONFIG-SECTIONS-REMOTE-001 Additional ansible.cfg sections are supported via `navigator_config.ansible_config` (remote)
+#### Scenario: No legacy Version 1 field names in generated YAML
 
-The SSH-based `ansible-navigator` provisioner SHALL accept additional ansible.cfg section blocks under `navigator_config.ansible_config` and preserve their values through to configuration artifact generation.
+- **GIVEN** any valid `navigator_config` configuration
+- **WHEN** the provisioner generates the `ansible-navigator.yml` file
+- **THEN** the generated YAML SHALL NOT contain legacy Version 1 field names or structures
+- **AND** ALL field names SHALL conform to Version 2 schema conventions
+- **AND** ansible-navigator 25.x SHALL accept the configuration without schema validation warnings
 
-#### Scenario: Packer HCL decodes additional ansible_config section blocks
+#### Scenario: Version 2 format backward compatible with v24.x
 
-Given: a Packer template using `provisioner "ansible-navigator"` with `navigator_config.ansible_config` containing additional section blocks
-When: Packer parses the configuration
-Then: parsing MUST succeed without “Unsupported argument” errors for these documented blocks
+- **GIVEN** a generated ansible-navigator.yml file with Version 2 schema markers
+- **WHEN** the file is used with ansible-navigator 24.x or later
+- **THEN** ansible-navigator SHALL accept and process the configuration correctly
+- **AND** Version 2 format SHALL NOT break compatibility with ansible-navigator 24.x installations
 
-#### Scenario: ansible.cfg contains additional sections derived from HCL blocks
+#### Scenario: Temporary config files remain Version 2 format
 
-Given: a configuration where `navigator_config.ansible_config` sets at least one of: `privilege_escalation`, `persistent_connection`, `inventory`, `paramiko_connection`, `colors`, `diff`, `galaxy`
-When: the provisioner generates configuration artifacts
-Then: it SHALL generate an ansible.cfg that includes a corresponding INI section for each configured block (e.g., `[privilege_escalation]`)
-And: within each INI section, it SHALL emit keys that correspond to the configured HCL fields for that section
-And: it SHALL serialize scalar values deterministically (string / number / boolean)
-
-#### Scenario: ansible-navigator.yml remains schema-compliant while referencing ansible.cfg
-
-Given: a configuration where `navigator_config.ansible_config` sets one or more additional section blocks
-When: the provisioner generates the `ansible-navigator.yml`
-Then: `ansible.config` in YAML MUST contain only allowed keys (`help`, `path`, and/or `cmdline`)
-And: the generated YAML SHALL reference the generated ansible.cfg file path via `ansible.config.path`
-
-### Requirement: REQ-ANSIBLE-CONFIG-GALAXY-SCOPE-REMOTE-001 ansible_config.galaxy affects Ansible runtime config only (remote)
-
-The SSH-based provisioner SHALL treat `navigator_config.ansible_config.galaxy` as Ansible runtime configuration (ansible.cfg) and SHALL NOT conflate it with plugin-managed dependency installation behavior.
-
-#### Scenario: galaxy configuration is emitted only to ansible.cfg
-
-Given: a configuration that sets `navigator_config.ansible_config.galaxy` options
-When: the provisioner generates configuration artifacts
-Then: the configuration SHALL be rendered under the `[galaxy]` section of the generated ansible.cfg
-And: it SHALL NOT change which `ansible-galaxy` subcommands or flags the plugin uses for dependency installation
-
-### Requirement: REQ-NAVCFG-LOG-REMOTE-001 Expanded `navigator_config.logging` schema support (remote)
-
-The SSH-based `ansible-navigator` provisioner SHALL support all documented ansible-navigator configuration options under `navigator_config.logging` for the supported schema baseline.
-
-#### Scenario: Packer HCL decodes documented logging options
-
-Given: a Packer template using `provisioner "ansible-navigator"`
-And: the template includes a `navigator_config { logging { ... } }` block containing any documented ansible-navigator logging options for the supported schema baseline
-When: Packer parses the configuration
-Then: parsing MUST succeed without “Unsupported argument” errors for those logging options
-
-#### Scenario: Generated YAML contains logging configuration with correct key names
-
-Given: a configuration using `provisioner "ansible-navigator"` with `navigator_config.logging` configured
-When: the provisioner generates `ansible-navigator.yml`
-Then: the YAML MUST include the `logging:` section under the `ansible-navigator:` root
-And: any keys that are hyphenated in ansible-navigator.yml MUST be emitted with hyphens in YAML
-And: the YAML MUST reflect the configured logging values without renaming user intent
-
-### Requirement: REQ-NAVCFG-ARTIFACT-REMOTE-001 Expanded `navigator_config.playbook_artifact` schema support (remote)
-
-The SSH-based `ansible-navigator` provisioner SHALL support all documented ansible-navigator configuration options under `navigator_config.playbook_artifact` for the supported schema baseline.
-
-#### Scenario: Packer HCL decodes documented playbook-artifact options
-
-Given: a Packer template using `provisioner "ansible-navigator"`
-And: the template includes a `navigator_config { playbook_artifact { ... } }` block containing any documented ansible-navigator playbook-artifact options for the supported schema baseline
-When: Packer parses the configuration
-Then: parsing MUST succeed without “Unsupported argument” errors for those playbook-artifact options
-
-#### Scenario: Generated YAML contains playbook-artifact configuration with correct key names
-
-Given: a configuration using `provisioner "ansible-navigator"` with `navigator_config.playbook_artifact` configured
-When: the provisioner generates `ansible-navigator.yml`
-Then: the YAML MUST include the `playbook-artifact:` section under the `ansible-navigator:` root
-And: the YAML MUST emit `save-as` (and any other hyphenated keys) using hyphenated YAML key names
-And: the YAML MUST reflect the configured playbook-artifact values
-
-### Requirement: REQ-NAVCFG-TOPLEVEL-REMOTE-001 Expand `navigator_config` top-level schema support (remote)
-
-The SSH-based `ansible-navigator` provisioner SHALL support the remaining documented ansible-navigator v3.x **top-level** configuration options in `navigator_config`, including at minimum:
-
-- `mode_settings` (YAML: `mode-settings`)
-- `format` (YAML: `format`)
-- `color` (YAML: `color`)
-- `images` (YAML: `images`)
-- `time_zone` (YAML: `time-zone`)
-- `documentation` (YAML: `documentation`)
-- `editor` (YAML: `editor`)
-- `inventory_columns` (YAML: `inventory-columns`)
-- `replay` (YAML: `replay`) when present as a top-level key in the v3.x schema
-- Expanded `collection_doc_cache` (YAML: `collection-doc-cache`) beyond `path`/`timeout` as required by the v3.x schema
-
-#### Scenario: Packer HCL decodes remaining top-level settings
-
-Given: a Packer template using `provisioner "ansible-navigator"`
-And: the template includes a `navigator_config { ... }` block containing supported v3.x top-level settings (e.g., `mode_settings`, `format`, `color`, `images`, `time_zone`, `documentation`, `editor`, `inventory_columns`, `replay`)
-When: Packer parses the configuration
-Then: parsing MUST succeed without “Unsupported argument” errors for those settings
-
-#### Scenario: Generated YAML contains remaining top-level settings with correct key names
-
-Given: a configuration using `provisioner "ansible-navigator"` with the supported top-level settings configured under `navigator_config`
-When: the provisioner generates `ansible-navigator.yml`
-Then: the YAML MUST include the configured settings under the `ansible-navigator:` root
-And: any keys that are hyphenated in ansible-navigator.yml MUST be emitted with hyphens in YAML (e.g., `mode-settings`, `time-zone`, `inventory-columns`, `collection-doc-cache`)
-And: the YAML MUST reflect the configured values without renaming user intent
-
-#### Scenario: Existing navigator_config sections remain supported
-
-Given: a configuration using `provisioner "ansible-navigator"` with only previously-supported `navigator_config` sections (e.g., `execution_environment`, `ansible_config`, `logging`, `playbook_artifact`, minimal `collection_doc_cache`)
-When: Packer parses the configuration and the provisioner generates `ansible-navigator.yml`
-Then: parsing and YAML generation MUST continue to succeed
+- **GIVEN** the provisioner creates temporary `/tmp/packer-ansible-navigator-*.yml` files
+- **WHEN** these temporary files are generated
+- **THEN** they SHALL include Version 2 schema markers
+- **AND** ansible-navigator SHALL process them without migration attempts
+- **AND** the temporary nature of the files SHALL NOT prevent correct Version 2 recognition
 

@@ -3,7 +3,7 @@
 // You may obtain a copy of the License at
 // http://www.apache.org/licenses/LICENSE-2.0
 
-//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play,PathEntry,NavigatorConfig,ExecutionEnvironment,EnvironmentVariablesConfig,VolumeMount,AnsibleConfig,AnsibleConfigDefaults,AnsibleConfigConnection,AnsibleConfigPrivilegeEscalation,AnsibleConfigPersistentConnection,AnsibleConfigInventory,AnsibleConfigParamikoConnection,AnsibleConfigColors,AnsibleConfigDiff,AnsibleConfigGalaxy,LoggingConfig,PlaybookArtifact,CollectionDocCache,ColorConfig,EditorConfig,ImagesConfig
+//go:generate packer-sdc mapstructure-to-hcl2 -type Config,Play,PathEntry,NavigatorConfig,ExecutionEnvironment,EnvironmentVariablesConfig,VolumeMount,AnsibleConfig,AnsibleConfigDefaults,AnsibleConfigConnection,LoggingConfig,PlaybookArtifact,CollectionDocCache
 //go:generate packer-sdc struct-markdown
 
 package ansiblenavigatorlocal
@@ -37,20 +37,6 @@ const DefaultStagingDir = "/tmp/packer-provisioner-ansible-local"
 type NavigatorConfig struct {
 	// Ansible-navigator execution mode
 	Mode string `mapstructure:"mode"`
-	// Stdout output format
-	Format string `mapstructure:"format"`
-	// Color scheme settings
-	Color *ColorConfig `mapstructure:"color"`
-	// Editor settings
-	Editor *EditorConfig `mapstructure:"editor"`
-	// Image display settings
-	Images *ImagesConfig `mapstructure:"images"`
-	// Time zone
-	TimeZone string `mapstructure:"time_zone"`
-	// Inventory display columns
-	InventoryColumns []string `mapstructure:"inventory_columns"`
-	// Collection documentation cache path
-	CollectionDocCachePath string `mapstructure:"collection_doc_cache_path"`
 	// Execution environment configuration
 	ExecutionEnvironment *ExecutionEnvironment `mapstructure:"execution_environment"`
 	// Ansible configuration settings
@@ -89,12 +75,6 @@ type ExecutionEnvironment struct {
 	Image string `mapstructure:"image"`
 	// Pull policy for the container image
 	PullPolicy string `mapstructure:"pull_policy"`
-	// Container engine to use (auto, podman, docker)
-	ContainerEngine string `mapstructure:"container_engine"`
-	// Additional container runtime options (e.g., --net=host, --security-opt)
-	ContainerOptions []string `mapstructure:"container_options"`
-	// Arguments passed to image pull command
-	PullArguments []string `mapstructure:"pull_arguments"`
 	// Environment variables to pass to the execution environment
 	EnvironmentVariables *EnvironmentVariablesConfig `mapstructure:"environment_variables"`
 	// Volume mounts for the execution environment container
@@ -127,20 +107,6 @@ type AnsibleConfig struct {
 	Defaults *AnsibleConfigDefaults `mapstructure:"defaults"`
 	// SSH connection section
 	SSHConnection *AnsibleConfigConnection `mapstructure:"ssh_connection"`
-	// Privilege escalation (become) settings
-	PrivilegeEscalation *AnsibleConfigPrivilegeEscalation `mapstructure:"privilege_escalation"`
-	// Persistent connection settings
-	PersistentConnection *AnsibleConfigPersistentConnection `mapstructure:"persistent_connection"`
-	// Inventory behavior settings
-	Inventory *AnsibleConfigInventory `mapstructure:"inventory"`
-	// Paramiko connection settings
-	ParamikoConnection *AnsibleConfigParamikoConnection `mapstructure:"paramiko_connection"`
-	// Output color settings
-	Colors *AnsibleConfigColors `mapstructure:"colors"`
-	// Diff display settings
-	Diff *AnsibleConfigDiff `mapstructure:"diff"`
-	// Galaxy client settings (ansible.cfg [galaxy] section)
-	Galaxy *AnsibleConfigGalaxy `mapstructure:"galaxy"`
 }
 
 // AnsibleConfigDefaults represents ansible defaults configuration
@@ -161,65 +127,6 @@ type AnsibleConfigConnection struct {
 	Pipelining bool `mapstructure:"pipelining"`
 }
 
-// AnsibleConfigPrivilegeEscalation represents ansible.cfg [privilege_escalation]
-// settings. These provide defaults for privilege escalation behavior.
-type AnsibleConfigPrivilegeEscalation struct {
-	// Enable privilege escalation (become)
-	Become bool `mapstructure:"become"`
-	// Privilege escalation method (e.g. sudo, su, pbrun)
-	BecomeMethod string `mapstructure:"become_method"`
-	// Privilege escalation user (e.g. root)
-	BecomeUser string `mapstructure:"become_user"`
-}
-
-// AnsibleConfigPersistentConnection represents ansible.cfg [persistent_connection]
-// settings that tune connection persistence behavior.
-type AnsibleConfigPersistentConnection struct {
-	// Timeout (seconds) for establishing a persistent connection
-	ConnectTimeout int `mapstructure:"connect_timeout"`
-	// Timeout (seconds) for retries when establishing a connection
-	ConnectRetryTimeout int `mapstructure:"connect_retry_timeout"`
-	// Timeout (seconds) for remote command execution over the persistent connection
-	CommandTimeout int `mapstructure:"command_timeout"`
-}
-
-// AnsibleConfigInventory represents ansible.cfg [inventory] settings.
-type AnsibleConfigInventory struct {
-	// Enable inventory plugins (comma-separated list in INI)
-	EnablePlugins []string `mapstructure:"enable_plugins"`
-}
-
-// AnsibleConfigParamikoConnection represents ansible.cfg [paramiko_connection]
-// settings.
-type AnsibleConfigParamikoConnection struct {
-	// ProxyCommand for Paramiko connections
-	ProxyCommand string `mapstructure:"proxy_command"`
-}
-
-// AnsibleConfigColors represents ansible.cfg [colors] settings.
-type AnsibleConfigColors struct {
-	// Force colored output
-	ForceColor bool `mapstructure:"force_color"`
-}
-
-// AnsibleConfigDiff represents ansible.cfg [diff] settings.
-type AnsibleConfigDiff struct {
-	// Always show diffs
-	Always bool `mapstructure:"always"`
-	// Number of context lines to include in diffs
-	Context int `mapstructure:"context"`
-}
-
-// AnsibleConfigGalaxy represents ansible.cfg [galaxy] settings.
-// NOTE: This is Ansible runtime configuration only; it does not affect the plugin's
-// dependency installation behavior.
-type AnsibleConfigGalaxy struct {
-	// List of Galaxy server names to use (comma-separated list in INI)
-	ServerList []string `mapstructure:"server_list"`
-	// Ignore TLS certificate validation
-	IgnoreCerts bool `mapstructure:"ignore_certs"`
-}
-
 // LoggingConfig represents logging configuration
 type LoggingConfig struct {
 	// Log level
@@ -234,11 +141,9 @@ type LoggingConfig struct {
 type PlaybookArtifact struct {
 	// Enable playbook artifact
 	Enable bool `mapstructure:"enable"`
-	// Path to a playbook artifact to replay.
-	// (YAML key: playbook-artifact.replay)
+	// Replay directory
 	Replay string `mapstructure:"replay"`
-	// Path to write the playbook artifact.
-	// (YAML key: playbook-artifact.save-as)
+	// Save directory
 	SaveAs string `mapstructure:"save_as"`
 }
 
@@ -248,23 +153,6 @@ type CollectionDocCache struct {
 	Path string `mapstructure:"path"`
 	// Timeout for collection doc cache
 	Timeout int `mapstructure:"timeout"`
-}
-
-// ColorConfig represents top-level color configuration in ansible-navigator.yml.
-type ColorConfig struct {
-	Enable bool `mapstructure:"enable"`
-	Osc4   bool `mapstructure:"osc4"`
-}
-
-// EditorConfig represents top-level editor configuration in ansible-navigator.yml.
-type EditorConfig struct {
-	Command string `mapstructure:"command"`
-	Console bool   `mapstructure:"console"`
-}
-
-// ImagesConfig represents top-level images configuration in ansible-navigator.yml.
-type ImagesConfig struct {
-	Details []string `mapstructure:"details"`
 }
 
 // Play represents a single Ansible play execution with its configuration.
@@ -459,13 +347,6 @@ func (c *Config) Validate() error {
 	if c.NavigatorConfig != nil {
 		// Basic validation - ensure at least one field is set
 		isEmpty := c.NavigatorConfig.Mode == "" &&
-			c.NavigatorConfig.Format == "" &&
-			c.NavigatorConfig.Color == nil &&
-			c.NavigatorConfig.Editor == nil &&
-			c.NavigatorConfig.Images == nil &&
-			c.NavigatorConfig.TimeZone == "" &&
-			len(c.NavigatorConfig.InventoryColumns) == 0 &&
-			c.NavigatorConfig.CollectionDocCachePath == "" &&
 			c.NavigatorConfig.ExecutionEnvironment == nil &&
 			c.NavigatorConfig.AnsibleConfig == nil &&
 			c.NavigatorConfig.Logging == nil &&
@@ -477,12 +358,12 @@ func (c *Config) Validate() error {
 		}
 
 		// Schema compliance: ansible_config.config (path) is mutually exclusive with
-		// the nested section blocks (which map to a generated ansible.cfg).
+		// the nested defaults/ssh_connection blocks (which map to a generated ansible.cfg).
 		if c.NavigatorConfig.AnsibleConfig != nil {
 			ac := c.NavigatorConfig.AnsibleConfig
-			if ac.Config != "" && (ac.Defaults != nil || ac.SSHConnection != nil || ac.PrivilegeEscalation != nil || ac.PersistentConnection != nil || ac.Inventory != nil || ac.ParamikoConnection != nil || ac.Colors != nil || ac.Diff != nil || ac.Galaxy != nil) {
+			if ac.Config != "" && (ac.Defaults != nil || ac.SSHConnection != nil) {
 				errs = packersdk.MultiErrorAppend(errs, fmt.Errorf(
-					"navigator_config.ansible_config.config is mutually exclusive with nested ansible_config section blocks"))
+					"navigator_config.ansible_config.config is mutually exclusive with navigator_config.ansible_config.defaults and navigator_config.ansible_config.ssh_connection"))
 			}
 		}
 	}

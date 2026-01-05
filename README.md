@@ -267,7 +267,7 @@ navigator_config {
 
 When using execution environments, the plugin automatically:
 
-1. **Sets safe temp directories** to avoid `/.ansible/tmp` permission errors
+1. ** Sets safe temp directories** to avoid `/.ansible/tmp` permission errors
 2. **Mounts collections as volumes** so they're accessible inside the container
 3. **Configures `ANSIBLE_COLLECTIONS_PATH`** to point to the mounted collections
 
@@ -313,35 +313,10 @@ For advanced users, the `navigator_config` option provides direct control over a
 provisioner "ansible-navigator" {
   navigator_config {
     mode = "stdout"
-
-    # Additional top-level ansible-navigator settings (v3.x)
-    format                    = "yaml" # or "json"
-    time_zone                  = "America/New_York"
-    inventory_columns          = ["name", "address"]
-    collection_doc_cache_path  = "/tmp/collection-doc-cache"
-
-    color {
-      enable = true
-      osc4   = true
-    }
-
-    editor {
-      command = "vim"
-      console = true
-    }
-
-    images {
-      details = ["everything"]
-    }
     execution_environment {
       enabled = true
       image = "quay.io/ansible/creator-ee:latest"
       pull_policy = "missing"
-
-      # New (v3.x EE schema parity): container engine + runtime/pull options
-      container_engine  = "podman" # or "docker" / "auto"
-      container_options = ["--net=host"]
-      pull_arguments    = ["--tls-verify=false"]
     }
     ansible_config {
       defaults {

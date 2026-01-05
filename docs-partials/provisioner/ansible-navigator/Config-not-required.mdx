@@ -152,17 +152,24 @@
    Adds `--force-with-deps` option to `ansible-galaxy` command. By default,
    this is `false`.
 
-- `connection_mode` (string) - ConnectionMode determines how Ansible connects to the target machine.
+- `use_proxy` (boolean) - When `true`, set up a localhost proxy adapter
+  so that Ansible has an IP address to connect to, even if your guest does not
+  have an IP address. For example, the adapter is necessary for Docker builds
+  to use the Ansible provisioner. If you set this option to `false`, but
+  Packer cannot find an IP address to connect Ansible to, it will
+  automatically set up the adapter anyway.
   
-  Valid values:
-    - "proxy" (default): Use Packer's SSH proxy adapter. Works for most builds including Docker.
-    - "ssh_tunnel": Establish SSH tunnel through a bastion host. Required when targets are only
-      accessible via jump host (common with WSL2 execution environments).
-    - "direct": Connect directly to the target without proxy. Use when the target IP is directly
-      accessible and proxy overhead is unnecessary.
+   In order for Ansible to connect properly even when use_proxy is false, you
+  need to make sure that you are either providing a valid username and ssh key
+  to the ansible provisioner directly, or that the username and ssh key
+  being used by the ssh communicator will work for your needs. If you do not
+  provide a user to ansible, it will use the user associated with your
+  builder, not the user running Packer.
+   use_proxy=false is currently only supported for SSH and WinRM.
   
-  When using "ssh_tunnel", you must provide bastion_host, bastion_user, and either
-  bastion_private_key_file or bastion_password.
+  Currently, this defaults to `true` for all connection types. In the future,
+  this option will be changed to default to `false` for SSH and WinRM
+  connections where the provisioner has access to a host IP.
 
 - `ansible_winrm_use_http` (bool) - Force WinRM to use HTTP instead of HTTPS.
   
@@ -194,35 +201,5 @@
         image = "quay.io/ansible/creator-ee:latest"
       }
     }
-
-- `bastion` (\*BastionConfig) - Bastion configuration for SSH tunnel mode.
-  Use the nested block syntax for new configurations:
-    bastion {
-      host = "bastion.example.com"
-      port = 22
-      user = "ubuntu"
-      private_key_file = "~/.ssh/id_rsa"
-    }
-
-- `bastion_host` (string) - DEPRECATED: Use bastion.host instead.
-  Bastion (jump host) address for SSH tunneling mode.
-  Required when connection_mode is "ssh_tunnel".
-  Example: "bastion.example.com"
-
-- `bastion_port` (int) - DEPRECATED: Use bastion.port instead.
-  SSH port on the bastion host. Defaults to 22.
-
-- `bastion_user` (string) - DEPRECATED: Use bastion.user instead.
-  SSH username for authenticating to the bastion host.
-  Required when ssh_tunnel_mode is true.
-
-- `bastion_private_key_file` (string) - DEPRECATED: Use bastion.private_key_file instead.
-  Path to the SSH private key file for bastion authentication.
-  Either this or bastion_password must be provided when ssh_tunnel_mode is true.
-  Supports HOME expansion (~ and ~/path).
-
-- `bastion_password` (string) - DEPRECATED: Use bastion.password instead.
-  Password for bastion authentication.
-  Either this or bastion_private_key_file must be provided when ssh_tunnel_mode is true.
 
 <!-- End of code generated from the comments of the Config struct in provisioner/ansible-navigator/provisioner.go; -->
