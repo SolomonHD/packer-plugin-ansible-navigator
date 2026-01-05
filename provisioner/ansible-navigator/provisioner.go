@@ -1306,18 +1306,18 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 	debugEnabled := isPluginDebugEnabled(p.config.NavigatorConfig)
 	debugf(ui, debugEnabled, "Plugin debug mode enabled (gated by navigator_config.logging.level=debug)")
 
-	// Generate and setup ansible-navigator.yml if configured
+	// Hybrid configuration approach: CLI flags + minimal YAML
+	var navigatorCLIFlags []string
 	var navigatorConfigPath string
+
 	if p.config.NavigatorConfig != nil {
-		// Pass collections path directly to navigator config generation.
-		// The path should point to the directory that contains the ansible_collections/ subdirectory.
-		// ansible-galaxy installs to <collections_path>/ansible_collections/<namespace>/<collection>,
-		// and Ansible expects ANSIBLE_COLLECTIONS_PATH to point to the parent directory.
+		// Pass collections path for EE automatic defaults
 		collectionsPath := p.config.CollectionsPath
 
-		// If ansible_config.defaults / ansible_config.ssh_connection are provided
-		// (explicitly or via EE defaults), generate an ansible.cfg file and reference
-		// it from the navigator config YAML via ansible.config.path.
+		// Apply EE automatic defaults (e.g., temp paths, collections mount)
+		applyAutomaticEEDefaults(p.config.NavigatorConfig, collectionsPath)
+
+		// Handle ansible.cfg generation if needed
 		if p.config.NavigatorConfig.AnsibleConfig != nil && needsGeneratedAnsibleCfg(p.config.NavigatorConfig.AnsibleConfig) {
 			if p.config.NavigatorConfig.AnsibleConfig.Config != "" {
 				return fmt.Errorf("invalid navigator_config.ansible_config: config is mutually exclusive with defaults/ssh_connection")
@@ -1340,25 +1340,39 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 			}
 		}
 
-		yamlContent, err := generateNavigatorConfigYAML(p.config.NavigatorConfig, collectionsPath)
-		if err != nil {
-			return fmt.Errorf("failed to generate navigator_config YAML: %w", err)
+		// Build CLI flags (primary configuration method)
+		navigatorCLIFlags = buildNavigatorCLIFlags(p.config.NavigatorConfig)
+		if len(navigatorCLIFlags) > 0 {
+			ui.Message(fmt.Sprintf("Using CLI flags for ansible-navigator configuration (%d flags)", len(navigatorCLIFlags)))
+			debugf(ui, debugEnabled, "CLI flags: %v", navigatorCLIFlags)
 		}
 
-		navigatorConfigPath, err = createNavigatorConfigFile(yamlContent)
-		if err != nil {
-			return fmt.Errorf("failed to create temporary ansible-navigator.yml: %w", err)
-		}
-
-		ui.Message(fmt.Sprintf("Generated ansible-navigator.yml at %s", navigatorConfigPath))
-		debugf(ui, debugEnabled, "ANSIBLE_NAVIGATOR_CONFIG will be set to %s", navigatorConfigPath)
-
-		// Ensure cleanup on exit (success or failure)
-		defer func() {
-			if err := os.Remove(navigatorConfigPath); err != nil {
-				ui.Message(fmt.Sprintf("Warning: failed to remove temporary ansible-navigator.yml: %v", err))
+		// Generate minimal YAML only if unmapped settings exist
+		if hasUnmappedSettings(p.config.NavigatorConfig) {
+			yamlContent, err := generateMinimalYAML(p.config.NavigatorConfig)
+			if err != nil {
+				return fmt.Errorf("failed to generate minimal YAML: %w", err)
 			}
-		}()
+
+			if yamlContent != "" {
+				navigatorConfigPath, err = createNavigatorConfigFile(yamlContent)
+				if err != nil {
+					return fmt.Errorf("failed to create minimal ansible-navigator.yml: %w", err)
+				}
+
+				ui.Message(fmt.Sprintf("Generated minimal ansible-navigator.yml at %s (for unmapped settings)", navigatorConfigPath))
+				debugf(ui, debugEnabled, "Minimal YAML content:\n%s", yamlContent)
+
+				// Ensure cleanup on exit
+				defer func() {
+					if err := os.Remove(navigatorConfigPath); err != nil {
+						ui.Message(fmt.Sprintf("Warning: failed to remove minimal ansible-navigator.yml: %v", err))
+					}
+				}()
+			}
+		} else {
+			debugf(ui, debugEnabled, "No unmapped settings - skipping YAML generation (CLI-only configuration)")
+		}
 	}
 
 	// Install dependencies using GalaxyManager
@@ -1374,13 +1388,13 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 	}
 
 	// Execute plays (required by validation)
-	return p.executePlays(ui, comm, privKeyFile, httpAddr, navigatorConfigPath)
+	return p.executePlays(ui, comm, privKeyFile, httpAddr, navigatorCLIFlags, navigatorConfigPath)
 }
 
 // buildRunCommandArgsForPlay constructs the full command arguments for a play
 // and returns the command args, environment variables, and path to the temp extra vars file.
 // The caller is responsible for cleaning up the extra vars file.
-func (p *Provisioner) buildRunCommandArgsForPlay(ui packersdk.Ui, play Play, httpAddr, inventory, playbookPath, privKeyFile string) (cmdArgs []string, envvars []string, extraVarsFilePath string, err error) {
+func (p *Provisioner) buildRunCommandArgsForPlay(ui packersdk.Ui, play Play, httpAddr, inventory, playbookPath, privKeyFile string, navigatorCLIFlags []string) (cmdArgs []string, envvars []string, extraVarsFilePath string, err error) {
 	// Build command arguments (excluding play target; appended last for deterministic ordering)
 	baseArgs, envvars, extraVarsFilePath, err := p.createCmdArgs(ui, httpAddr, inventory, privKeyFile)
 	if err != nil {
@@ -1416,14 +1430,17 @@ func (p *Provisioner) buildRunCommandArgsForPlay(ui packersdk.Ui, play Play, htt
 	}
 
 	// Deterministic ordering:
-	//   1) ansible-navigator run (+ enforced --mode)
-	//   2) play.extra_args (verbatim)
-	//   3) plugin-generated inventory/extra-vars/etc (including play-level flags)
-	//   4) play target (playbook path)
+	//   1) ansible-navigator run
+	//   2) Navigator CLI flags (from navigator_config - NEW: primary configuration method)
+	//   3) play.extra_args (verbatim)
+	//   4) plugin-generated inventory/extra-vars/etc (including play-level flags)
+	//   5) play target (playbook path)
 	cmdArgs = []string{"run"}
-	if p.config.NavigatorConfig != nil && p.config.NavigatorConfig.Mode != "" {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--mode=%s", p.config.NavigatorConfig.Mode))
-	}
+
+	// Add navigator CLI flags (hybrid approach - primary configuration method)
+	// Note: --mode flag is now included in navigatorCLIFlags if configured
+	cmdArgs = append(cmdArgs, navigatorCLIFlags...)
+
 	cmdArgs = append(cmdArgs, play.ExtraArgs...)
 	cmdArgs = append(cmdArgs, playArgs...)
 	cmdArgs = append(cmdArgs, baseArgs...)
@@ -1435,7 +1452,7 @@ func (p *Provisioner) buildRunCommandArgsForPlay(ui packersdk.Ui, play Play, htt
 // executePlays executes multiple Ansible plays in sequence.
 // If a play fails and keep_going is false, execution stops immediately.
 // Otherwise, errors are logged and execution continues to the next play.
-func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string, httpAddr string, navigatorConfigPath string) error {
+func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string, httpAddr string, navigatorCLIFlags []string, navigatorConfigPath string) error {
 	inventory := p.config.InventoryFile
 
 	debugEnabled := isPluginDebugEnabled(p.config.NavigatorConfig)
@@ -1445,8 +1462,11 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 	} else {
 		debugf(ui, debugEnabled, "ansible_navigator_path not set; using existing PATH")
 	}
+	if len(navigatorCLIFlags) > 0 {
+		debugf(ui, debugEnabled, "Navigator CLI flags (count=%d): %v", len(navigatorCLIFlags), navigatorCLIFlags)
+	}
 	if navigatorConfigPath != "" {
-		debugf(ui, debugEnabled, "ANSIBLE_NAVIGATOR_CONFIG=%s", navigatorConfigPath)
+		debugf(ui, debugEnabled, "Minimal YAML config: ANSIBLE_NAVIGATOR_CONFIG=%s", navigatorConfigPath)
 	}
 
 	for i, play := range p.config.Plays {
@@ -1484,7 +1504,7 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 			}
 		}
 
-		cmdArgs, envvars, extraVarsFilePath, err := p.buildRunCommandArgsForPlay(ui, play, httpAddr, inventory, playbookPath, privKeyFile)
+		cmdArgs, envvars, extraVarsFilePath, err := p.buildRunCommandArgsForPlay(ui, play, httpAddr, inventory, playbookPath, privKeyFile, navigatorCLIFlags)
 		if err != nil {
 			if cleanupFunc != nil {
 				cleanupFunc()

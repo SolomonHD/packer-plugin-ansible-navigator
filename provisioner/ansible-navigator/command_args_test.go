@@ -37,7 +37,9 @@ func TestProvisioner_buildRunCommandArgsForPlay_ExtraArgsAndOrdering(t *testing.
 	}
 
 	ui := &packersdk.BasicUi{}
-	cmdArgs, _, extraVarsFilePath, err := p.buildRunCommandArgsForPlay(ui, play, "127.0.0.1:8080", "/tmp/inventory.ini", "/tmp/site.yml", "/tmp/key")
+	// Pass expected CLI flags (simulating what Provision() would do)
+	cliFlags := []string{"--mode=stdout"}
+	cmdArgs, _, extraVarsFilePath, err := p.buildRunCommandArgsForPlay(ui, play, "127.0.0.1:8080", "/tmp/inventory.ini", "/tmp/site.yml", "/tmp/key", cliFlags)
 	require.NoError(t, err)
 
 	// Clean up temp file created by test
@@ -87,7 +89,7 @@ func TestProvisioner_buildRunCommandArgsForPlay_ProvisionerExtraVars_JSONSingleP
 
 	ui := &packersdk.BasicUi{}
 	play := Play{Target: "site.yml"}
-	cmdArgs, _, extraVarsFilePath, err := p.buildRunCommandArgsForPlay(ui, play, "127.0.0.1:8080", "/tmp/inventory.ini", "/tmp/site.yml", "/tmp/key")
+	cmdArgs, _, extraVarsFilePath, err := p.buildRunCommandArgsForPlay(ui, play, "127.0.0.1:8080", "/tmp/inventory.ini", "/tmp/site.yml", "/tmp/key", nil)
 	require.NoError(t, err)
 
 	// Clean up temp file created by test
