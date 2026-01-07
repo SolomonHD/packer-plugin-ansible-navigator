@@ -913,8 +913,6 @@ func (p *Provisioner) setupAdapter(ui packersdk.Ui, comm packersdk.Communicator)
 				ui.Say(err.Error())
 				continue
 			}
-			log.Printf("SSH Proxy listening on %s", l.Addr().String())
-			ui.Message(fmt.Sprintf("SSH Proxy listening on %s", l.Addr().String()))
 			return l, nil
 		}
 		return nil, errors.New("Error setting up SSH proxy connection")
