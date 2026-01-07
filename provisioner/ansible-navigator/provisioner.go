@@ -1314,7 +1314,7 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 		collectionsPath := p.config.CollectionsPath
 
 		// Apply EE automatic defaults (e.g., temp paths, collections mount)
-		applyAutomaticEEDefaults(p.config.NavigatorConfig, collectionsPath)
+		applyAutomaticEEDefaults(p.config.NavigatorConfig, collectionsPath, p.config.AnsibleProxyHost)
 
 		// Handle ansible.cfg generation if needed
 		if p.config.NavigatorConfig.AnsibleConfig != nil && needsGeneratedAnsibleCfg(p.config.NavigatorConfig.AnsibleConfig) {
@@ -1340,7 +1340,7 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 		}
 
 		// Generate full YAML configuration
-		yamlContent, err := GenerateNavigatorConfigYAML(p.config.NavigatorConfig, collectionsPath)
+		yamlContent, err := GenerateNavigatorConfigYAML(p.config.NavigatorConfig, collectionsPath, p.config.AnsibleProxyHost)
 		if err != nil {
 			return fmt.Errorf("failed to generate ansible-navigator.yml: %w", err)
 		}

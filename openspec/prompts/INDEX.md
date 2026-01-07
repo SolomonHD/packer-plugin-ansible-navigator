@@ -24,10 +24,11 @@ Optional compatibility step:
 | 03 | expand-logging-and-playbook-artifact | Expand logging and playbook-artifact | — (suggested after 01-02) |
 | 04 | add-remaining-navigator-settings | Add remaining navigator settings | 01-03 recommended |
 | 05 | fix-container-engine-and-context | Refactor to Pure YAML and fix context support | — |
+| 06 | auto-configure-docker-host | Auto-configure Docker host mapping | — |
 
 ## Overview
 
-This series decomposes the complex task of achieving full ansible-navigator v3.x configuration parity into four reviewable changes:
+This series decomposes the complex task of achieving full ansible-navigator v3.x configuration parity into reviewable changes:
 
 ### Change 01: Execution Environment
 
@@ -69,6 +70,15 @@ Addresses critical compatibility issues with modern environments:
 - **Implements automatic Docker Context resolution**: Fixes "image not found" errors in Rootless Docker environments by automatically detecting the correct socket when `DOCKER_HOST` is implicit.
 
 **Why separate:** This is a targeted architectural fix for specific bugs/regressions identified in user testing, independent of the larger schema expansion.
+
+### Change 06: Auto-configure Docker Host Mapping
+
+Ensures `gateway.docker.internal` works reliably across environments:
+- **Automatic detection**: Checks if `ansible_proxy_host` is set to `gateway.docker.internal`.
+- **Automatic configuration**: Appends `--add-host=gateway.docker.internal:host-gateway` to container options if needed.
+- **Idempotency**: Prevents duplicate flags if the user has already configured them.
+
+**Why separate:** This is a specific usability improvement for Docker workflows, distinct from the structural refactoring in Change 05.
 
 ## Testing Strategy
 

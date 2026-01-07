@@ -41,13 +41,29 @@ func envVarIsSetOrPassed(env *EnvironmentVariablesConfig, key string) bool {
 // directory containing the ansible_collections/ subdirectory (e.g., ~/.packer.d/ansible_collections_cache).
 // ansible-galaxy installs collections to <collectionsPath>/ansible_collections/<namespace>/<collection>,
 // and this function mounts the entire collectionsPath directory into the container.
-func applyAutomaticEEDefaults(config *NavigatorConfig, collectionsPath string) {
+func applyAutomaticEEDefaults(config *NavigatorConfig, collectionsPath string, ansibleProxyHost string) {
 	if config == nil {
 		return
 	}
 
 	if config.ExecutionEnvironment == nil || !config.ExecutionEnvironment.Enabled {
 		return
+	}
+
+	// Auto-configure Docker host mapping for gateway.docker.internal
+	// This is required for Linux Docker to resolve the host gateway, whereas Docker Desktop does it automatically.
+	if ansibleProxyHost == "gateway.docker.internal" {
+		addHostFlag := "--add-host=gateway.docker.internal:host-gateway"
+		hasFlag := false
+		for _, opt := range config.ExecutionEnvironment.ContainerOptions {
+			if opt == addHostFlag {
+				hasFlag = true
+				break
+			}
+		}
+		if !hasFlag {
+			config.ExecutionEnvironment.ContainerOptions = append(config.ExecutionEnvironment.ContainerOptions, addHostFlag)
+		}
 	}
 
 	// Initialize AnsibleConfig if not present
@@ -140,12 +156,12 @@ func applyAutomaticEEDefaults(config *NavigatorConfig, collectionsPath string) {
 // The generated YAML conforms to ansible-navigator Version 2 format, which wraps
 // all configuration under the "ansible-navigator:" top-level key. This format is
 // required by ansible-navigator 25.x+ to avoid version migration prompts.
-func GenerateNavigatorConfigYAML(config *NavigatorConfig, collectionsPath string) (string, error) {
+func GenerateNavigatorConfigYAML(config *NavigatorConfig, collectionsPath string, ansibleProxyHost string) (string, error) {
 	if config == nil {
 		return "", fmt.Errorf("navigator_config cannot be nil")
 	}
 
-	applyAutomaticEEDefaults(config, collectionsPath)
+	applyAutomaticEEDefaults(config, collectionsPath, ansibleProxyHost)
 
 	// Convert to YAML-friendly structure with proper field names
 	yamlConfig := convertToYAMLStructure(config)
