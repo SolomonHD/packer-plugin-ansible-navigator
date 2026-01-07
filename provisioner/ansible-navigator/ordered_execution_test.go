@@ -66,7 +66,7 @@ exit 0
 		generatedData: basicGenData(map[string]interface{}{"ConnType": "docker"}),
 	}
 
-	require.NoError(t, p.executePlays(ui, nil, "", commonsteps.HttpAddrNotImplemented, nil, ""))
+	require.NoError(t, p.executePlays(ui, nil, "", commonsteps.HttpAddrNotImplemented, "", ""))
 
 	data, err := os.ReadFile(outputFile)
 	require.NoError(t, err)

@@ -1306,8 +1306,7 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 	debugEnabled := isPluginDebugEnabled(p.config.NavigatorConfig)
 	debugf(ui, debugEnabled, "Plugin debug mode enabled (gated by navigator_config.logging.level=debug)")
 
-	// Hybrid configuration approach: CLI flags + minimal YAML
-	var navigatorCLIFlags []string
+	// Pure YAML configuration approach
 	var navigatorConfigPath string
 
 	if p.config.NavigatorConfig != nil {
@@ -1340,38 +1339,27 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 			}
 		}
 
-		// Build CLI flags (primary configuration method)
-		navigatorCLIFlags = buildNavigatorCLIFlags(p.config.NavigatorConfig)
-		if len(navigatorCLIFlags) > 0 {
-			ui.Message(fmt.Sprintf("Using CLI flags for ansible-navigator configuration (%d flags)", len(navigatorCLIFlags)))
-			debugf(ui, debugEnabled, "CLI flags: %v", navigatorCLIFlags)
+		// Generate full YAML configuration
+		yamlContent, err := GenerateNavigatorConfigYAML(p.config.NavigatorConfig, collectionsPath)
+		if err != nil {
+			return fmt.Errorf("failed to generate ansible-navigator.yml: %w", err)
 		}
 
-		// Generate minimal YAML only if unmapped settings exist
-		if hasUnmappedSettings(p.config.NavigatorConfig) {
-			yamlContent, err := generateMinimalYAML(p.config.NavigatorConfig)
+		if yamlContent != "" {
+			navigatorConfigPath, err = createNavigatorConfigFile(yamlContent)
 			if err != nil {
-				return fmt.Errorf("failed to generate minimal YAML: %w", err)
+				return fmt.Errorf("failed to create ansible-navigator.yml: %w", err)
 			}
 
-			if yamlContent != "" {
-				navigatorConfigPath, err = createNavigatorConfigFile(yamlContent)
-				if err != nil {
-					return fmt.Errorf("failed to create minimal ansible-navigator.yml: %w", err)
+			ui.Message(fmt.Sprintf("Generated ansible-navigator.yml at %s", navigatorConfigPath))
+			debugf(ui, debugEnabled, "YAML content:\n%s", yamlContent)
+
+			// Ensure cleanup on exit
+			defer func() {
+				if err := os.Remove(navigatorConfigPath); err != nil {
+					ui.Message(fmt.Sprintf("Warning: failed to remove ansible-navigator.yml: %v", err))
 				}
-
-				ui.Message(fmt.Sprintf("Generated minimal ansible-navigator.yml at %s (for unmapped settings)", navigatorConfigPath))
-				debugf(ui, debugEnabled, "Minimal YAML content:\n%s", yamlContent)
-
-				// Ensure cleanup on exit
-				defer func() {
-					if err := os.Remove(navigatorConfigPath); err != nil {
-						ui.Message(fmt.Sprintf("Warning: failed to remove minimal ansible-navigator.yml: %v", err))
-					}
-				}()
-			}
-		} else {
-			debugf(ui, debugEnabled, "No unmapped settings - skipping YAML generation (CLI-only configuration)")
+			}()
 		}
 	}
 
@@ -1387,14 +1375,24 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 		return fmt.Errorf("failed to setup environment paths: %w", err)
 	}
 
+	// Resolve Docker Host if needed
+	dockerHost, err := resolveDockerHost(ui)
+	if err != nil {
+		// Log warning but proceed
+		ui.Message(fmt.Sprintf("Warning: Error resolving Docker host: %v", err))
+	}
+	if dockerHost != "" {
+		debugf(ui, debugEnabled, "Resolved DOCKER_HOST from context: %s", dockerHost)
+	}
+
 	// Execute plays (required by validation)
-	return p.executePlays(ui, comm, privKeyFile, httpAddr, navigatorCLIFlags, navigatorConfigPath)
+	return p.executePlays(ui, comm, privKeyFile, httpAddr, navigatorConfigPath, dockerHost)
 }
 
 // buildRunCommandArgsForPlay constructs the full command arguments for a play
 // and returns the command args, environment variables, and path to the temp extra vars file.
 // The caller is responsible for cleaning up the extra vars file.
-func (p *Provisioner) buildRunCommandArgsForPlay(ui packersdk.Ui, play Play, httpAddr, inventory, playbookPath, privKeyFile string, navigatorCLIFlags []string) (cmdArgs []string, envvars []string, extraVarsFilePath string, err error) {
+func (p *Provisioner) buildRunCommandArgsForPlay(ui packersdk.Ui, play Play, httpAddr, inventory, playbookPath, privKeyFile string) (cmdArgs []string, envvars []string, extraVarsFilePath string, err error) {
 	// Build command arguments (excluding play target; appended last for deterministic ordering)
 	baseArgs, envvars, extraVarsFilePath, err := p.createCmdArgs(ui, httpAddr, inventory, privKeyFile)
 	if err != nil {
@@ -1431,15 +1429,10 @@ func (p *Provisioner) buildRunCommandArgsForPlay(ui packersdk.Ui, play Play, htt
 
 	// Deterministic ordering:
 	//   1) ansible-navigator run
-	//   2) Navigator CLI flags (from navigator_config - NEW: primary configuration method)
-	//   3) play.extra_args (verbatim)
-	//   4) plugin-generated inventory/extra-vars/etc (including play-level flags)
-	//   5) play target (playbook path)
+	//   2) play.extra_args (verbatim)
+	//   3) plugin-generated inventory/extra-vars/etc (including play-level flags)
+	//   4) play target (playbook path)
 	cmdArgs = []string{"run"}
-
-	// Add navigator CLI flags (hybrid approach - primary configuration method)
-	// Note: --mode flag is now included in navigatorCLIFlags if configured
-	cmdArgs = append(cmdArgs, navigatorCLIFlags...)
 
 	cmdArgs = append(cmdArgs, play.ExtraArgs...)
 	cmdArgs = append(cmdArgs, playArgs...)
@@ -1452,7 +1445,7 @@ func (p *Provisioner) buildRunCommandArgsForPlay(ui packersdk.Ui, play Play, htt
 // executePlays executes multiple Ansible plays in sequence.
 // If a play fails and keep_going is false, execution stops immediately.
 // Otherwise, errors are logged and execution continues to the next play.
-func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string, httpAddr string, navigatorCLIFlags []string, navigatorConfigPath string) error {
+func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string, httpAddr string, navigatorConfigPath string, dockerHost string) error {
 	inventory := p.config.InventoryFile
 
 	debugEnabled := isPluginDebugEnabled(p.config.NavigatorConfig)
@@ -1462,11 +1455,11 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 	} else {
 		debugf(ui, debugEnabled, "ansible_navigator_path not set; using existing PATH")
 	}
-	if len(navigatorCLIFlags) > 0 {
-		debugf(ui, debugEnabled, "Navigator CLI flags (count=%d): %v", len(navigatorCLIFlags), navigatorCLIFlags)
-	}
 	if navigatorConfigPath != "" {
-		debugf(ui, debugEnabled, "Minimal YAML config: ANSIBLE_NAVIGATOR_CONFIG=%s", navigatorConfigPath)
+		debugf(ui, debugEnabled, "YAML config: ANSIBLE_NAVIGATOR_CONFIG=%s", navigatorConfigPath)
+	}
+	if dockerHost != "" {
+		debugf(ui, debugEnabled, "Using DOCKER_HOST=%s", dockerHost)
 	}
 
 	for i, play := range p.config.Plays {
@@ -1504,7 +1497,7 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 			}
 		}
 
-		cmdArgs, envvars, extraVarsFilePath, err := p.buildRunCommandArgsForPlay(ui, play, httpAddr, inventory, playbookPath, privKeyFile, navigatorCLIFlags)
+		cmdArgs, envvars, extraVarsFilePath, err := p.buildRunCommandArgsForPlay(ui, play, httpAddr, inventory, playbookPath, privKeyFile)
 		if err != nil {
 			if cleanupFunc != nil {
 				cleanupFunc()
@@ -1535,6 +1528,10 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 		if navigatorConfigPath != "" {
 			cmd.Env = append(cmd.Env, fmt.Sprintf("ANSIBLE_NAVIGATOR_CONFIG=%s", navigatorConfigPath))
 			debugf(ui, debugEnabled, "Setting ANSIBLE_NAVIGATOR_CONFIG for %s", playName)
+		}
+		// Add DOCKER_HOST if resolved
+		if dockerHost != "" {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("DOCKER_HOST=%s", dockerHost))
 		}
 		if len(envvars) > 0 {
 			cmd.Env = append(cmd.Env, envvars...)
@@ -1974,4 +1971,37 @@ func checkArg(argname string, args []string) bool {
 		}
 	}
 	return false
+}
+
+// resolveDockerHost attempts to detect the active Docker Context socket
+// when DOCKER_HOST is not explicitly set. This ensures compatibility with
+// Rootless Docker and non-default contexts.
+func resolveDockerHost(ui packersdk.Ui) (string, error) {
+	// If DOCKER_HOST is already set, respect it
+	if os.Getenv("DOCKER_HOST") != "" {
+		return "", nil
+	}
+
+	// Check if docker command is available
+	dockerPath, err := exec.LookPath("docker")
+	if err != nil {
+		// Docker not found, cannot resolve context
+		return "", nil
+	}
+
+	// Run docker context inspect
+	cmd := exec.Command(dockerPath, "context", "inspect", "--format", "{{.Endpoints.docker.Host}}")
+	output, err := cmd.Output()
+	if err != nil {
+		// Failed to inspect context, ignore (fail open)
+		ui.Message(fmt.Sprintf("Warning: Failed to inspect Docker context: %v", err))
+		return "", nil
+	}
+
+	host := strings.TrimSpace(string(output))
+	if host != "" {
+		return host, nil
+	}
+
+	return "", nil
 }

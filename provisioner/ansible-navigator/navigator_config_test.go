@@ -25,9 +25,9 @@ func TestGenerateNavigatorConfigYAML_Basic(t *testing.T) {
 		},
 	}
 
-	yaml, err := generateNavigatorConfigYAML(config, "")
+	yaml, err := GenerateNavigatorConfigYAML(config, "")
 	if err != nil {
-		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
 
 	if !strings.Contains(yaml, "mode: stdout") {
@@ -50,9 +50,9 @@ func TestGenerateNavigatorConfigYAML_AutomaticEEDefaults(t *testing.T) {
 		},
 	}
 
-	yaml, err := generateNavigatorConfigYAML(config, "")
+	yaml, err := GenerateNavigatorConfigYAML(config, "")
 	if err != nil {
-		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
 
 	// Note: remote_tmp/local_tmp are configured via ansible.cfg (referenced by path)
@@ -81,9 +81,9 @@ func TestGenerateNavigatorConfigYAML_AutomaticEEHomeXDGDefaults_WhenNotSetOrPass
 		},
 	}
 
-	yamlStr, err := generateNavigatorConfigYAML(config, "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "")
 	if err != nil {
-		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
 
 	// Defaults only when user did not set or pass-through.
@@ -109,9 +109,9 @@ func TestGenerateNavigatorConfigYAML_DoesNotSetHomeXDGDefaults_WhenPassedThrough
 		},
 	}
 
-	yamlStr, err := generateNavigatorConfigYAML(config, "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "")
 	if err != nil {
-		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
 
 	// Ensure we did not inject defaults for values the user intends to pass-through.
@@ -141,9 +141,9 @@ func TestGenerateNavigatorConfigYAML_DoesNotOverrideHomeXDG_WhenUserSetsValues(t
 		},
 	}
 
-	yamlStr, err := generateNavigatorConfigYAML(config, "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "")
 	if err != nil {
-		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
 
 	for _, expected := range []string{
@@ -176,9 +176,9 @@ func TestGenerateNavigatorConfigYAML_UserValuesPreserved(t *testing.T) {
 		},
 	}
 
-	yaml, err := generateNavigatorConfigYAML(config, "")
+	yaml, err := GenerateNavigatorConfigYAML(config, "")
 	if err != nil {
-		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
 
 	// Verify user values are preserved
@@ -205,9 +205,9 @@ func TestGenerateNavigatorConfigYAML_AnsibleConfigPathSchemaCompliant(t *testing
 		},
 	}
 
-	yamlStr, err := generateNavigatorConfigYAML(config, "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "")
 	if err != nil {
-		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
 
 	if !strings.Contains(yamlStr, "path: /tmp/ansible.cfg") {
@@ -259,9 +259,9 @@ func TestGeneratorNavigatorConfigYAML_EmptyConfig(t *testing.T) {
 
 	// Empty config is technically allowed by generateNavigatorConfigYAML
 	// The validation that it must have at least one field happens in Config.Validate()
-	yaml, err := generateNavigatorConfigYAML(config, "")
+	yaml, err := GenerateNavigatorConfigYAML(config, "")
 	if err != nil {
-		t.Fatalf("generateNavigatorConfigYAML should not error on empty config: %v", err)
+		t.Fatalf("GenerateNavigatorConfigYAML should not error on empty config: %v", err)
 	}
 
 	// Should produce minimal YAML (likely just empty map or minimal structure)
@@ -272,7 +272,7 @@ func TestGeneratorNavigatorConfigYAML_EmptyConfig(t *testing.T) {
 
 // Test error when config is nil
 func TestGenerateNavigatorConfigYAML_NilConfig(t *testing.T) {
-	_, err := generateNavigatorConfigYAML(nil, "")
+	_, err := GenerateNavigatorConfigYAML(nil, "")
 	if err == nil {
 		t.Fatal("Expected error for nil config, got nil")
 	}
@@ -292,9 +292,9 @@ func TestGenerateNavigatorConfigYAML_ValidYAML(t *testing.T) {
 		},
 	}
 
-	yamlStr, err := generateNavigatorConfigYAML(config, "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "")
 	if err != nil {
-		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
 
 	// Try to parse the generated YAML
@@ -384,9 +384,9 @@ func TestGenerateNavigatorConfigYAML_EEDisabled(t *testing.T) {
 		},
 	}
 
-	yaml, err := generateNavigatorConfigYAML(config, "")
+	yaml, err := GenerateNavigatorConfigYAML(config, "")
 	if err != nil {
-		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
 
 	// Verify automatic defaults were NOT applied when enabled=false
@@ -428,9 +428,9 @@ func TestGenerateNavigatorConfigYAML_ComplexConfig(t *testing.T) {
 		},
 	}
 
-	yamlStr, err := generateNavigatorConfigYAML(config, "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "")
 	if err != nil {
-		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
 
 	// Verify all YAML sections are present (note: ansible defaults / ssh_connection
@@ -469,9 +469,9 @@ func TestGenerateNavigatorConfigYAML_VolumeMountWithCollections(t *testing.T) {
 	// Use a real home directory path
 	testCollectionsPath := filepath.Join(os.TempDir(), "test_collections")
 
-	yamlStr, err := generateNavigatorConfigYAML(config, testCollectionsPath)
+	yamlStr, err := GenerateNavigatorConfigYAML(config, testCollectionsPath)
 	if err != nil {
-		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
 
 	// Verify volume mount is present
@@ -507,9 +507,9 @@ func TestGenerateNavigatorConfigYAML_NoVolumeMountWhenEEDisabled(t *testing.T) {
 
 	testCollectionsPath := filepath.Join(os.TempDir(), "test_collections")
 
-	yamlStr, err := generateNavigatorConfigYAML(config, testCollectionsPath)
+	yamlStr, err := GenerateNavigatorConfigYAML(config, testCollectionsPath)
 	if err != nil {
-		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
 
 	// Verify no volume mount is added when EE is disabled
@@ -532,9 +532,9 @@ func TestGenerateNavigatorConfigYAML_NoVolumeMountWhenNoCollections(t *testing.T
 		},
 	}
 
-	yamlStr, err := generateNavigatorConfigYAML(config, "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "")
 	if err != nil {
-		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
 
 	// Verify no volume mount is added when collections path is empty
@@ -566,9 +566,9 @@ func TestGenerateNavigatorConfigYAML_UserVolumeMountsPreserved(t *testing.T) {
 
 	testCollectionsPath := filepath.Join(os.TempDir(), "test_collections")
 
-	yamlStr, err := generateNavigatorConfigYAML(config, testCollectionsPath)
+	yamlStr, err := GenerateNavigatorConfigYAML(config, testCollectionsPath)
 	if err != nil {
-		t.Fatalf("generateNavigatorConfigYAML failed: %v", err)
+		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
 
 	// Verify user mount is preserved
@@ -579,148 +579,5 @@ func TestGenerateNavigatorConfigYAML_UserVolumeMountsPreserved(t *testing.T) {
 	// Verify collections mount is added
 	if !strings.Contains(yamlStr, "/tmp/.packer_ansible/collections") {
 		t.Errorf("Expected automatic collections mount to be added, got: %s", yamlStr)
-	}
-}
-
-// Test buildNavigatorCLIFlags
-func TestBuildNavigatorCLIFlags_Basic(t *testing.T) {
-	config := &NavigatorConfig{
-		Mode: "stdout",
-		ExecutionEnvironment: &ExecutionEnvironment{
-			Enabled:    true,
-			Image:      "quay.io/ansible/creator-ee:latest",
-			PullPolicy: "missing",
-		},
-		Logging: &LoggingConfig{
-			Level: "debug",
-		},
-	}
-
-	flags := buildNavigatorCLIFlags(config)
-
-	expectedFlags := []string{
-		"--mode=stdout",
-		"--execution-environment-image=quay.io/ansible/creator-ee:latest",
-		"--pull-policy=missing",
-		"--log-level=debug",
-	}
-
-	for _, expected := range expectedFlags {
-		found := false
-		for _, flag := range flags {
-			if flag == expected {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Expected flag %s not found in %v", expected, flags)
-		}
-	}
-}
-
-func TestBuildNavigatorCLIFlags_Complex(t *testing.T) {
-	config := &NavigatorConfig{
-		ExecutionEnvironment: &ExecutionEnvironment{
-			Enabled: true,
-			EnvironmentVariables: &EnvironmentVariablesConfig{
-				Set:  map[string]string{"KEY": "VALUE"},
-				Pass: []string{"HOME"},
-			},
-			VolumeMounts: []VolumeMount{
-				{Src: "/src", Dest: "/dest", Options: "ro"},
-			},
-			ContainerOptions: []string{"--net=host"},
-		},
-	}
-
-	flags := buildNavigatorCLIFlags(config)
-
-	// Check for repeatable flags
-	foundEEV := false
-	foundEVM := false
-	foundContainerOptions := false
-
-	for _, flag := range flags {
-		if strings.HasPrefix(flag, "--eev=") {
-			if strings.Contains(flag, "KEY=VALUE") || strings.Contains(flag, "HOME") {
-				foundEEV = true
-			}
-		}
-		if strings.HasPrefix(flag, "--evm=") && strings.Contains(flag, "/src:/dest:ro") {
-			foundEVM = true
-		}
-		if strings.HasPrefix(flag, "--container-options=") && strings.Contains(flag, "--net=host") {
-			foundContainerOptions = true
-		}
-	}
-
-	if !foundEEV {
-		t.Error("Expected --eev flags not found")
-	}
-	if !foundEVM {
-		t.Error("Expected --evm flag not found")
-	}
-	if !foundContainerOptions {
-		t.Error("Expected --container-options flag not found")
-	}
-}
-
-// Test hasUnmappedSettings
-func TestHasUnmappedSettings(t *testing.T) {
-	// Case 1: No unmapped settings
-	config1 := &NavigatorConfig{
-		Mode: "stdout",
-	}
-	if hasUnmappedSettings(config1) {
-		t.Error("Expected hasUnmappedSettings to be false for basic config")
-	}
-
-	// Case 2: PlaybookArtifact enabled
-	config2 := &NavigatorConfig{
-		PlaybookArtifact: &PlaybookArtifact{
-			Enable: true,
-		},
-	}
-	if !hasUnmappedSettings(config2) {
-		t.Error("Expected hasUnmappedSettings to be true when PlaybookArtifact is enabled")
-	}
-
-	// Case 3: CollectionDocCache path set
-	config3 := &NavigatorConfig{
-		CollectionDocCache: &CollectionDocCache{
-			Path: "/tmp/cache",
-		},
-	}
-	if !hasUnmappedSettings(config3) {
-		t.Error("Expected hasUnmappedSettings to be true when CollectionDocCache path is set")
-	}
-}
-
-// Test generateMinimalYAML
-func TestGenerateMinimalYAML(t *testing.T) {
-	config := &NavigatorConfig{
-		Mode: "stdout", // Mapped
-		PlaybookArtifact: &PlaybookArtifact{ // Unmapped
-			Enable: true,
-			SaveAs: "/tmp/artifact.json",
-		},
-	}
-
-	yamlStr, err := generateMinimalYAML(config)
-	if err != nil {
-		t.Fatalf("generateMinimalYAML failed: %v", err)
-	}
-
-	if strings.Contains(yamlStr, "mode: stdout") {
-		t.Error("Minimal YAML should NOT contain mapped settings like mode")
-	}
-
-	if !strings.Contains(yamlStr, "playbook-artifact") {
-		t.Error("Minimal YAML SHOULD contain unmapped settings like playbook-artifact")
-	}
-
-	if !strings.Contains(yamlStr, "save-as: /tmp/artifact.json") {
-		t.Error("Minimal YAML should contain save-as value")
 	}
 }
