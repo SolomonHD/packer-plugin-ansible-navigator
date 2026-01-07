@@ -25,7 +25,7 @@ func TestGenerateNavigatorConfigYAML_Basic(t *testing.T) {
 		},
 	}
 
-	yaml, err := GenerateNavigatorConfigYAML(config, "")
+	yaml, err := GenerateNavigatorConfigYAML(config, "", "")
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -50,7 +50,7 @@ func TestGenerateNavigatorConfigYAML_AutomaticEEDefaults(t *testing.T) {
 		},
 	}
 
-	yaml, err := GenerateNavigatorConfigYAML(config, "")
+	yaml, err := GenerateNavigatorConfigYAML(config, "", "")
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestGenerateNavigatorConfigYAML_AutomaticEEHomeXDGDefaults_WhenNotSetOrPass
 		},
 	}
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "", "")
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestGenerateNavigatorConfigYAML_DoesNotSetHomeXDGDefaults_WhenPassedThrough
 		},
 	}
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "", "")
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestGenerateNavigatorConfigYAML_DoesNotOverrideHomeXDG_WhenUserSetsValues(t
 		},
 	}
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "", "")
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -176,7 +176,7 @@ func TestGenerateNavigatorConfigYAML_UserValuesPreserved(t *testing.T) {
 		},
 	}
 
-	yaml, err := GenerateNavigatorConfigYAML(config, "")
+	yaml, err := GenerateNavigatorConfigYAML(config, "", "")
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -205,7 +205,7 @@ func TestGenerateNavigatorConfigYAML_AnsibleConfigPathSchemaCompliant(t *testing
 		},
 	}
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "", "")
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -259,7 +259,7 @@ func TestGeneratorNavigatorConfigYAML_EmptyConfig(t *testing.T) {
 
 	// Empty config is technically allowed by generateNavigatorConfigYAML
 	// The validation that it must have at least one field happens in Config.Validate()
-	yaml, err := GenerateNavigatorConfigYAML(config, "")
+	yaml, err := GenerateNavigatorConfigYAML(config, "", "")
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML should not error on empty config: %v", err)
 	}
@@ -272,7 +272,7 @@ func TestGeneratorNavigatorConfigYAML_EmptyConfig(t *testing.T) {
 
 // Test error when config is nil
 func TestGenerateNavigatorConfigYAML_NilConfig(t *testing.T) {
-	_, err := GenerateNavigatorConfigYAML(nil, "")
+	_, err := GenerateNavigatorConfigYAML(nil, "", "")
 	if err == nil {
 		t.Fatal("Expected error for nil config, got nil")
 	}
@@ -292,7 +292,7 @@ func TestGenerateNavigatorConfigYAML_ValidYAML(t *testing.T) {
 		},
 	}
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "", "")
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -384,7 +384,7 @@ func TestGenerateNavigatorConfigYAML_EEDisabled(t *testing.T) {
 		},
 	}
 
-	yaml, err := GenerateNavigatorConfigYAML(config, "")
+	yaml, err := GenerateNavigatorConfigYAML(config, "", "")
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -428,7 +428,7 @@ func TestGenerateNavigatorConfigYAML_ComplexConfig(t *testing.T) {
 		},
 	}
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "", "")
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -469,7 +469,7 @@ func TestGenerateNavigatorConfigYAML_VolumeMountWithCollections(t *testing.T) {
 	// Use a real home directory path
 	testCollectionsPath := filepath.Join(os.TempDir(), "test_collections")
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, testCollectionsPath)
+	yamlStr, err := GenerateNavigatorConfigYAML(config, testCollectionsPath, "")
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -507,7 +507,7 @@ func TestGenerateNavigatorConfigYAML_NoVolumeMountWhenEEDisabled(t *testing.T) {
 
 	testCollectionsPath := filepath.Join(os.TempDir(), "test_collections")
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, testCollectionsPath)
+	yamlStr, err := GenerateNavigatorConfigYAML(config, testCollectionsPath, "")
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -532,7 +532,7 @@ func TestGenerateNavigatorConfigYAML_NoVolumeMountWhenNoCollections(t *testing.T
 		},
 	}
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "", "")
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -566,7 +566,7 @@ func TestGenerateNavigatorConfigYAML_UserVolumeMountsPreserved(t *testing.T) {
 
 	testCollectionsPath := filepath.Join(os.TempDir(), "test_collections")
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, testCollectionsPath)
+	yamlStr, err := GenerateNavigatorConfigYAML(config, testCollectionsPath, "")
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -579,5 +579,66 @@ func TestGenerateNavigatorConfigYAML_UserVolumeMountsPreserved(t *testing.T) {
 	// Verify collections mount is added
 	if !strings.Contains(yamlStr, "/tmp/.packer_ansible/collections") {
 		t.Errorf("Expected automatic collections mount to be added, got: %s", yamlStr)
+	}
+}
+
+// Test automatic Docker host configuration
+func TestGenerateNavigatorConfigYAML_AutoConfigureDockerHost(t *testing.T) {
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled: true,
+			Image:   "quay.io/ansible/creator-ee:latest",
+		},
+	}
+
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "", "gateway.docker.internal")
+	if err != nil {
+		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
+	}
+
+	expected := "--add-host=gateway.docker.internal:host-gateway"
+	if !strings.Contains(yamlStr, expected) {
+		t.Errorf("Expected %q in YAML when proxy host is gateway.docker.internal, got: %s", expected, yamlStr)
+	}
+}
+
+func TestGenerateNavigatorConfigYAML_NoAutoConfigureDockerHost(t *testing.T) {
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled: true,
+			Image:   "quay.io/ansible/creator-ee:latest",
+		},
+	}
+
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "", "127.0.0.1")
+	if err != nil {
+		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
+	}
+
+	forbidden := "--add-host=gateway.docker.internal:host-gateway"
+	if strings.Contains(yamlStr, forbidden) {
+		t.Errorf("Did not expect %q in YAML when proxy host is 127.0.0.1, got: %s", forbidden, yamlStr)
+	}
+}
+
+func TestGenerateNavigatorConfigYAML_NoDuplicateDockerHostFlag(t *testing.T) {
+	config := &NavigatorConfig{
+		ExecutionEnvironment: &ExecutionEnvironment{
+			Enabled: true,
+			Image:   "quay.io/ansible/creator-ee:latest",
+			ContainerOptions: []string{
+				"--add-host=gateway.docker.internal:host-gateway",
+			},
+		},
+	}
+
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "", "gateway.docker.internal")
+	if err != nil {
+		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
+	}
+
+	expected := "--add-host=gateway.docker.internal:host-gateway"
+	if strings.Count(yamlStr, expected) > 1 {
+		t.Errorf("Expected %q to appear only once in YAML, got count %d: %s", expected, strings.Count(yamlStr, expected), yamlStr)
 	}
 }
