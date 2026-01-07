@@ -1,0 +1,17 @@
+- [x] Refactor `navigator_config.go` to remove CLI flag generation logic
+  - [x] Remove `buildNavigatorCLIFlags`
+  - [x] Remove `hasUnmappedSettings`
+  - [x] Remove `generateMinimalYAML`
+  - [x] Ensure `generateNavigatorConfigYAML` is exported and correct
+- [x] Refactor `provisioner.go` to use pure YAML configuration
+  - [x] Update `executeAnsible` to always generate YAML config
+  - [x] Remove CLI flag generation calls
+  - [x] Update `executePlays` signature to remove `navigatorCLIFlags`
+  - [x] Update `buildRunCommandArgsForPlay` signature and logic
+- [x] Implement Docker Context resolution in `provisioner.go`
+  - [x] Add `resolveDockerHost` function
+  - [x] Integrate into `executeAnsible` or `executePlays`
+- [x] Update tests to reflect changes
+  - [x] Remove tests for CLI flag generation
+  - [x] Add tests for YAML generation (if not covered)
+  - [x] Add tests for context resolution

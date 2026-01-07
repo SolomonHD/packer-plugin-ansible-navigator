@@ -23,6 +23,7 @@ Optional compatibility step:
 | 02 | expand-ansible-config-sections | Expand ansible.config sections | — (suggested after 01) |
 | 03 | expand-logging-and-playbook-artifact | Expand logging and playbook-artifact | — (suggested after 01-02) |
 | 04 | add-remaining-navigator-settings | Add remaining navigator settings | 01-03 recommended |
+| 05 | fix-container-engine-and-context | Refactor to Pure YAML and fix context support | — |
 
 ## Overview
 
@@ -60,6 +61,14 @@ Adds all other top-level ansible-navigator v3.x options:
 - Any other v3.x top-level options not covered above
 
 **Why last:** This is the "catch-all" for miscellaneous navigator settings. It depends on the previous structural changes being complete and benefits from the patterns established in changes 01-03.
+
+### Change 05: Refactor to Pure YAML and Fix Context Support
+
+Addresses critical compatibility issues with modern environments:
+- **Refactors configuration strategy**: Moves from a hybrid CLI/YAML approach to **Pure YAML** generation. This eliminates CLI flag version incompatibility issues (like the rejected `--execution-environment-container-engine`) by relying on the stable `ansible-navigator.yml` schema.
+- **Implements automatic Docker Context resolution**: Fixes "image not found" errors in Rootless Docker environments by automatically detecting the correct socket when `DOCKER_HOST` is implicit.
+
+**Why separate:** This is a targeted architectural fix for specific bugs/regressions identified in user testing, independent of the larger schema expansion.
 
 ## Testing Strategy
 

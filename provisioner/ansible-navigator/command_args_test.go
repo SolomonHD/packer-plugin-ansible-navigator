@@ -38,8 +38,8 @@ func TestProvisioner_buildRunCommandArgsForPlay_ExtraArgsAndOrdering(t *testing.
 
 	ui := &packersdk.BasicUi{}
 	// Pass expected CLI flags (simulating what Provision() would do)
-	cliFlags := []string{"--mode=stdout"}
-	cmdArgs, _, extraVarsFilePath, err := p.buildRunCommandArgsForPlay(ui, play, "127.0.0.1:8080", "/tmp/inventory.ini", "/tmp/site.yml", "/tmp/key", cliFlags)
+	// cliFlags := []string{"--mode=stdout"} // Removed in pure YAML refactor
+	cmdArgs, _, extraVarsFilePath, err := p.buildRunCommandArgsForPlay(ui, play, "127.0.0.1:8080", "/tmp/inventory.ini", "/tmp/site.yml", "/tmp/key")
 	require.NoError(t, err)
 
 	// Clean up temp file created by test
@@ -51,9 +51,9 @@ func TestProvisioner_buildRunCommandArgsForPlay_ExtraArgsAndOrdering(t *testing.
 	require.Equal(t, "run", cmdArgs[0])
 	require.Len(t, cmdArgs, len(cmdArgs))
 
-	// Ensure enforced --mode then play.extra_args
-	require.GreaterOrEqual(t, len(cmdArgs), 4)
-	require.Equal(t, []string{"run", "--mode=stdout", "--check", "--diff"}, cmdArgs[:4])
+	// Ensure play.extra_args come after run
+	require.GreaterOrEqual(t, len(cmdArgs), 3)
+	require.Equal(t, []string{"run", "--check", "--diff"}, cmdArgs[:3])
 
 	// Ensure play target is last and inventory is immediately before it.
 	require.GreaterOrEqual(t, len(cmdArgs), 2)
@@ -89,7 +89,7 @@ func TestProvisioner_buildRunCommandArgsForPlay_ProvisionerExtraVars_JSONSingleP
 
 	ui := &packersdk.BasicUi{}
 	play := Play{Target: "site.yml"}
-	cmdArgs, _, extraVarsFilePath, err := p.buildRunCommandArgsForPlay(ui, play, "127.0.0.1:8080", "/tmp/inventory.ini", "/tmp/site.yml", "/tmp/key", nil)
+	cmdArgs, _, extraVarsFilePath, err := p.buildRunCommandArgsForPlay(ui, play, "127.0.0.1:8080", "/tmp/inventory.ini", "/tmp/site.yml", "/tmp/key")
 	require.NoError(t, err)
 
 	// Clean up temp file created by test
