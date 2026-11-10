@@ -1,90 +1,97 @@
-# Example demonstrating execution environment configuration with ansible-navigator
-# This shows how to configure container execution environments for Ansible playbooks
+# Advanced EE settings for both provisioners. Validate this template before use.
+# Run from any directory; playbook paths are relative to this template.
+#
+# host-ee: Navigator, Docker, and /opt/ansible/data must exist on the Packer host.
+# target-ee: supply a prebuilt target image with Navigator, Docker, a reachable
+# container daemon, and /opt/ansible/data. A plain OS image is insufficient.
+# This example does not install a runtime or configure daemon access on the target.
+# Select one build with -only='host-ee.*' or -only='target-ee.*'.
 
 packer {
   required_plugins {
     docker = {
-      version = ">= 1.0.0"
+      version = ">= 1.1.2"
       source  = "github.com/hashicorp/docker"
     }
     ansible = {
-      version = ">= 1.0.0"
+      version = ">= 8.7.0"
       source  = "github.com/solomonhd/ansible-navigator"
     }
   }
 }
 
-source "docker" "ubuntu" {
-  image  = "ubuntu:22.04"
+variable "local_target_image" {
+  type        = string
+  description = "Prebuilt image with Navigator, Docker, daemon access, and mount sources for target-ee."
+}
+
+source "docker" "host_target" {
+  image  = "python:3.12-slim"
+  commit = true
+}
+
+source "docker" "navigator_target" {
+  image  = var.local_target_image
   commit = true
 }
 
 build {
-  sources = ["source.docker.ubuntu"]
+  name    = "host-ee"
+  sources = ["source.docker.host_target"]
 
   provisioner "ansible-navigator" {
     play {
-      name   = "Test playbook with execution environment"
-      target = "./playbook.yml"
+      name   = "Host-based EE"
+      target = "${path.root}/execution-environment-playbook.yml"
     }
 
-    # Configure ansible-navigator with execution environment
     navigator_config {
       mode = "stdout"
-      
-      # Execution environment configuration
       execution_environment {
-        enabled      = true
-        image        = "quay.io/ansible/creator-ee:latest"
-        pull_policy  = "missing"
+        enabled           = true
+        image             = "quay.io/ansible/creator-ee:latest"
+        container_engine  = "docker"
+        container_options = ["--label=packer-example=true"]
+        pull_policy       = "missing"
+        pull_arguments    = ["--quiet"]
 
-        # The remote provisioner resolves bridge connectivity automatically:
-        # Podman uses host.containers.internal; Docker uses
-        # gateway.docker.internal plus its Linux host-gateway mapping.
-        
-        # Pass environment variables to the execution environment
-        environment_variables {
-          # List of environment variables to pass through from host
-          pass = [
-            "SSH_AUTH_SOCK",
-            "AWS_ACCESS_KEY_ID",
-            "AWS_SECRET_ACCESS_KEY",
-            "ANSIBLE_VAULT_PASSWORD"
-          ]
-          # Set specific environment variables in the EE
-          set = {
-            ANSIBLE_REMOTE_TMP = "/tmp/.ansible/tmp"
-            ANSIBLE_ROLES_PATH = "/opt/ansible/roles"
-          }
+        # Source is on the Packer host; repeat this block for more mounts.
+        volume_mounts {
+          src     = "/opt/ansible/data"
+          dest    = "/runner/data"
+          options = "ro"
         }
       }
-      
-      # Ansible configuration
-      ansible_config {
-        config = "/etc/ansible/ansible.cfg"
-        
-        defaults {
-          host_key_checking = false
-          remote_tmp        = "/tmp/.ansible/tmp"
+    }
+  }
+}
+
+build {
+  name    = "target-ee"
+  sources = ["source.docker.navigator_target"]
+
+  provisioner "ansible-navigator-local" {
+    play {
+      name   = "On-target EE"
+      target = "${path.root}/execution-environment-playbook.yml"
+    }
+
+    navigator_config {
+      mode = "stdout"
+      execution_environment {
+        enabled           = true
+        image             = "quay.io/ansible/creator-ee:latest"
+        container_engine  = "docker"
+        container_options = ["--label=packer-example=true", "--tty=false"]
+        pull_policy       = "missing"
+        pull_arguments    = ["--quiet"]
+
+        # Source is on the target where Navigator and Docker execute.
+        volume_mounts {
+          src     = "/opt/ansible/data"
+          dest    = "/runner/data"
+          options = "ro"
         }
-        
-        ssh_connection {
-          ssh_timeout = 30
-          pipelining  = true
-        }
-      }
-      
-      # Logging configuration
-      logging {
-        level  = "debug"
-        file   = "/tmp/ansible-navigator.log"
-        append = true
-      }
-      
-      # Playbook artifact settings (useful for debugging)
-      playbook_artifact {
-        enable  = true
-        save_as = "/tmp/playbook-artifact.json"
       }
     }
   }

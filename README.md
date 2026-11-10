@@ -299,7 +299,7 @@ provisioner "ansible-navigator" {
 
 **What happens automatically:**
 
-- Collections installed to `~/.packer.d/ansible_collections_cache/ansible_collections` are mounted read-only into the container at `/tmp/.packer_ansible/collections`
+- Applicable collections caches are mounted read-only into the container at `/tmp/.packer_ansible/collections`; an absent unused plugin-default cache is omitted by the SSH provisioner
 - `ANSIBLE_COLLECTIONS_PATH` is set inside the container to `/tmp/.packer_ansible/collections`
 - Temp directories are configured to use `/tmp/.ansible/tmp` to avoid permission errors
 
@@ -307,16 +307,25 @@ provisioner "ansible-navigator" {
 
 ### Modern Navigator Configuration (navigator_config)
 
-For advanced users, the `navigator_config` option provides direct control over ansible-navigator settings via a generated `ansible-navigator.yml` file. This is the recommended approach for ansible-navigator v3+ and provides the most reliable configuration experience:
+`navigator_config` exposes structured Navigator settings. The SSH-based provisioner writes a generated `ansible-navigator.yml` on the Packer host. The on-target provisioner uses CLI flags for mapped settings and uploads minimal YAML for settings such as pull arguments and playbook artifacts:
 
 ```hcl
 provisioner "ansible-navigator" {
   navigator_config {
     mode = "stdout"
     execution_environment {
-      enabled = true
-      image = "quay.io/ansible/creator-ee:latest"
-      pull_policy = "missing"
+      enabled           = true
+      image             = "quay.io/ansible/creator-ee:latest"
+      container_engine  = "docker"
+      container_options = ["--label=packer-example=true"]
+      pull_policy       = "missing"
+      pull_arguments    = ["--quiet"]
+
+      volume_mounts {
+        src     = "/opt/ansible/data"
+        dest    = "/runner/data"
+        options = "ro"
+      }
     }
     ansible_config {
       defaults {
@@ -334,12 +343,29 @@ provisioner "ansible-navigator" {
 
 **Key benefits of navigator_config:**
 
-- Aligns with ansible-navigator v3+ best practices
 - Reliably controls execution environment behavior  
 - Automatically sets safe defaults for EE temp directories when `execution-environment.enabled = true`
 - Single source of truth for ansible-navigator settings
 
-**Precedence:** When both `navigator_config` and legacy options (like `execution_environment`, `navigator_mode`) are present, `navigator_config` takes precedence.
+Both provisioners accept these EE fields. `volume_mounts` uses repeatable blocks;
+`container_options` and `pull_arguments` are ordered lists of runtime arguments.
+Choose pull arguments supported by your selected engine: Docker and Podman do
+not accept every flag interchangeably. Configure registry authentication in the
+runtime's credential store rather than embedding credentials in templates.
+
+Navigator and the container engine run on the Packer host for
+`ansible-navigator`, and on the target for `ansible-navigator-local`. Mount sources
+must exist where that engine runs. The local provisioner preserves pull arguments
+in uploaded YAML while continuing to pass pull policy and other mapped settings
+through CLI flags.
+
+The SSH provisioner preserves user options while adding its applicable bridge
+host mapping and `--tty=false` for Docker stdout EEs without an explicit TTY
+choice. It omits the automatic collections mount only when the plugin-default
+cache is absent and no requirements file is configured; explicit paths, existing
+caches, requirements-backed caches, and custom mounts retain their behavior.
+See the [configuration reference](docs/CONFIGURATION.md#execution-environment-options)
+and [both-provisioner example](example/execution-environment-config.pkr.hcl).
 
 ## 🚦 Quick Reference
 
