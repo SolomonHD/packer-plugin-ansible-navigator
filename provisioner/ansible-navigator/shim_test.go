@@ -208,6 +208,7 @@ func TestResolveShim(t *testing.T) {
 }
 
 func TestResolveShimMocked(t *testing.T) {
+	requirePOSIXShellFixture(t)
 	// Create a mock "asdf" command that outputs a test path
 	mockDir, err := os.MkdirTemp("", "mock-bin-*")
 	if err != nil {
@@ -216,9 +217,13 @@ func TestResolveShimMocked(t *testing.T) {
 	defer os.RemoveAll(mockDir)
 
 	mockAsdfPath := filepath.Join(mockDir, "asdf")
+	realExecutable := filepath.Join(mockDir, "real-navigator")
+	if err := os.WriteFile(realExecutable, []byte("#!/bin/sh\nexit 0\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
 	mockContent := `#!/bin/bash
 if [ "$1" = "which" ] && [ "$2" = "ansible-navigator" ]; then
-  echo "/usr/local/bin/ansible-navigator"
+  echo "` + realExecutable + `"
   exit 0
 fi
 exit 1`
@@ -238,13 +243,14 @@ exit 1`
 		t.Fatalf("resolveShim() unexpected error: %v", err)
 	}
 
-	expected := "/usr/local/bin/ansible-navigator"
+	expected := realExecutable
 	if resolvedPath != expected {
 		t.Errorf("resolveShim() = %v, want %v", resolvedPath, expected)
 	}
 }
 
 func TestResolveShimEmptyOutput(t *testing.T) {
+	requirePOSIXShellFixture(t)
 	// Create a mock version manager that returns empty output
 	mockDir, err := os.MkdirTemp("", "mock-bin-*")
 	if err != nil {

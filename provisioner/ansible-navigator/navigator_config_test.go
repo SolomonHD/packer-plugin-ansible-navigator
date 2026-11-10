@@ -25,7 +25,7 @@ func TestGenerateNavigatorConfigYAML_Basic(t *testing.T) {
 		},
 	}
 
-	yaml, err := GenerateNavigatorConfigYAML(config, "", "")
+	yaml, err := GenerateNavigatorConfigYAML(config, "", nil)
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -50,7 +50,7 @@ func TestGenerateNavigatorConfigYAML_AutomaticEEDefaults(t *testing.T) {
 		},
 	}
 
-	yaml, err := GenerateNavigatorConfigYAML(config, "", "")
+	yaml, err := GenerateNavigatorConfigYAML(config, "", nil)
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestGenerateNavigatorConfigYAML_AutomaticEEHomeXDGDefaults_WhenNotSetOrPass
 		},
 	}
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, "", "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "", nil)
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestGenerateNavigatorConfigYAML_DoesNotSetHomeXDGDefaults_WhenPassedThrough
 		},
 	}
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, "", "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "", nil)
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestGenerateNavigatorConfigYAML_DoesNotOverrideHomeXDG_WhenUserSetsValues(t
 		},
 	}
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, "", "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "", nil)
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -176,7 +176,7 @@ func TestGenerateNavigatorConfigYAML_UserValuesPreserved(t *testing.T) {
 		},
 	}
 
-	yaml, err := GenerateNavigatorConfigYAML(config, "", "")
+	yaml, err := GenerateNavigatorConfigYAML(config, "", nil)
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -205,7 +205,7 @@ func TestGenerateNavigatorConfigYAML_AnsibleConfigPathSchemaCompliant(t *testing
 		},
 	}
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, "", "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "", nil)
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -259,7 +259,7 @@ func TestGeneratorNavigatorConfigYAML_EmptyConfig(t *testing.T) {
 
 	// Empty config is technically allowed by generateNavigatorConfigYAML
 	// The validation that it must have at least one field happens in Config.Validate()
-	yaml, err := GenerateNavigatorConfigYAML(config, "", "")
+	yaml, err := GenerateNavigatorConfigYAML(config, "", nil)
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML should not error on empty config: %v", err)
 	}
@@ -272,7 +272,7 @@ func TestGeneratorNavigatorConfigYAML_EmptyConfig(t *testing.T) {
 
 // Test error when config is nil
 func TestGenerateNavigatorConfigYAML_NilConfig(t *testing.T) {
-	_, err := GenerateNavigatorConfigYAML(nil, "", "")
+	_, err := GenerateNavigatorConfigYAML(nil, "", nil)
 	if err == nil {
 		t.Fatal("Expected error for nil config, got nil")
 	}
@@ -292,7 +292,7 @@ func TestGenerateNavigatorConfigYAML_ValidYAML(t *testing.T) {
 		},
 	}
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, "", "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "", nil)
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -384,7 +384,7 @@ func TestGenerateNavigatorConfigYAML_EEDisabled(t *testing.T) {
 		},
 	}
 
-	yaml, err := GenerateNavigatorConfigYAML(config, "", "")
+	yaml, err := GenerateNavigatorConfigYAML(config, "", nil)
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -428,7 +428,7 @@ func TestGenerateNavigatorConfigYAML_ComplexConfig(t *testing.T) {
 		},
 	}
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, "", "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "", nil)
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -469,7 +469,7 @@ func TestGenerateNavigatorConfigYAML_VolumeMountWithCollections(t *testing.T) {
 	// Use a real home directory path
 	testCollectionsPath := filepath.Join(os.TempDir(), "test_collections")
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, testCollectionsPath, "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, testCollectionsPath, nil)
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -507,7 +507,7 @@ func TestGenerateNavigatorConfigYAML_NoVolumeMountWhenEEDisabled(t *testing.T) {
 
 	testCollectionsPath := filepath.Join(os.TempDir(), "test_collections")
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, testCollectionsPath, "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, testCollectionsPath, nil)
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -532,7 +532,7 @@ func TestGenerateNavigatorConfigYAML_NoVolumeMountWhenNoCollections(t *testing.T
 		},
 	}
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, "", "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "", nil)
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -566,7 +566,7 @@ func TestGenerateNavigatorConfigYAML_UserVolumeMountsPreserved(t *testing.T) {
 
 	testCollectionsPath := filepath.Join(os.TempDir(), "test_collections")
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, testCollectionsPath, "")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, testCollectionsPath, nil)
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -591,7 +591,8 @@ func TestGenerateNavigatorConfigYAML_AutoConfigureDockerHost(t *testing.T) {
 		},
 	}
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, "", "gateway.docker.internal")
+	topology := &proxyTopology{AutomaticHostMapping: dockerGatewayHostMapping}
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "", topology)
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -610,7 +611,7 @@ func TestGenerateNavigatorConfigYAML_NoAutoConfigureDockerHost(t *testing.T) {
 		},
 	}
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, "", "127.0.0.1")
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "", &proxyTopology{})
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -632,7 +633,8 @@ func TestGenerateNavigatorConfigYAML_NoDuplicateDockerHostFlag(t *testing.T) {
 		},
 	}
 
-	yamlStr, err := GenerateNavigatorConfigYAML(config, "", "gateway.docker.internal")
+	topology := &proxyTopology{AutomaticHostMapping: dockerGatewayHostMapping}
+	yamlStr, err := GenerateNavigatorConfigYAML(config, "", topology)
 	if err != nil {
 		t.Fatalf("GenerateNavigatorConfigYAML failed: %v", err)
 	}
@@ -640,5 +642,115 @@ func TestGenerateNavigatorConfigYAML_NoDuplicateDockerHostFlag(t *testing.T) {
 	expected := "--add-host=gateway.docker.internal:host-gateway"
 	if strings.Count(yamlStr, expected) > 1 {
 		t.Errorf("Expected %q to appear only once in YAML, got count %d: %s", expected, strings.Count(yamlStr, expected), yamlStr)
+	}
+}
+
+func TestGenerateNavigatorConfigYAML_TopologySpecificOptions(t *testing.T) {
+	tests := []struct {
+		name            string
+		topology        proxyTopology
+		options         []string
+		wantMapping     bool
+		preservedOption string
+	}{
+		{
+			name:        "Docker bridge mapping",
+			topology:    proxyTopology{ContainerEngine: "docker", NetworkMode: proxyNetworkBridge, AutomaticHostMapping: dockerGatewayHostMapping},
+			wantMapping: true,
+		},
+		{
+			name:            "Docker bridge preserves user options",
+			topology:        proxyTopology{ContainerEngine: "docker", NetworkMode: proxyNetworkBridge, AutomaticHostMapping: dockerGatewayHostMapping},
+			options:         []string{"--security-opt=no-new-privileges"},
+			wantMapping:     true,
+			preservedOption: "--security-opt=no-new-privileges",
+		},
+		{
+			name:            "Podman bridge has no Docker mapping",
+			topology:        proxyTopology{ContainerEngine: "podman", NetworkMode: proxyNetworkBridge},
+			options:         []string{"--userns=keep-id"},
+			preservedOption: "--userns=keep-id",
+		},
+		{
+			name:            "Host network has no mapping",
+			topology:        proxyTopology{ContainerEngine: "docker", NetworkMode: proxyNetworkHost},
+			options:         []string{"--network=host"},
+			preservedOption: "--network=host",
+		},
+		{
+			name:            "Custom host has no mapping",
+			topology:        proxyTopology{ContainerEngine: "docker", NetworkMode: proxyNetworkBridge, AdvertisedHost: "host.example.test"},
+			options:         []string{"--cpus=2"},
+			preservedOption: "--cpus=2",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &NavigatorConfig{ExecutionEnvironment: &ExecutionEnvironment{
+				Enabled: true, ContainerEngine: tt.topology.ContainerEngine, ContainerOptions: append([]string(nil), tt.options...),
+			}}
+			yamlStr, err := GenerateNavigatorConfigYAML(config, "", &tt.topology)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := strings.Contains(yamlStr, dockerGatewayHostMapping); got != tt.wantMapping {
+				t.Fatalf("Docker mapping presence = %v, want %v; YAML:\n%s", got, tt.wantMapping, yamlStr)
+			}
+			if tt.preservedOption != "" && !strings.Contains(yamlStr, tt.preservedOption) {
+				t.Fatalf("user option %q was not preserved; YAML:\n%s", tt.preservedOption, yamlStr)
+			}
+		})
+	}
+}
+
+// Regression: Runner requests a Docker TTY even when Packer launches Navigator
+// without an interactive stdin. Docker stdout EEs need a non-TTY default.
+func TestGenerateNavigatorConfigYAML_DockerStdoutTTYDefault(t *testing.T) {
+	tests := []struct {
+		name, mode, engine string
+		enabled            bool
+		options            []string
+		wantDefault        bool
+	}{
+		{name: "Docker stdout", mode: "stdout", engine: "docker", enabled: true, wantDefault: true},
+		{name: "unrelated options", mode: "stdout", engine: "docker", enabled: true, options: []string{"--entrypoint=/tmp/start", "-eFOO=tty", "-v/tmp:/tmp"}, wantDefault: true},
+		{name: "explicit long true", mode: "stdout", engine: "docker", enabled: true, options: []string{"--tty"}},
+		{name: "explicit long assignment true", mode: "stdout", engine: "docker", enabled: true, options: []string{"--tty=true"}},
+		{name: "explicit long assignment false", mode: "stdout", engine: "docker", enabled: true, options: []string{"--tty=false"}},
+		{name: "explicit short true", mode: "stdout", engine: "docker", enabled: true, options: []string{"-t"}},
+		{name: "explicit short false", mode: "stdout", engine: "docker", enabled: true, options: []string{"-t=false"}},
+		{name: "combined interactive tty", mode: "stdout", engine: "docker", enabled: true, options: []string{"-it"}},
+		{name: "combined tty interactive", mode: "stdout", engine: "docker", enabled: true, options: []string{"-ti"}},
+		{name: "combined detached interactive tty", mode: "stdout", engine: "docker", enabled: true, options: []string{"-dit"}},
+		{name: "combined explicit false", mode: "stdout", engine: "docker", enabled: true, options: []string{"-it=false"}},
+		{name: "Podman stdout", mode: "stdout", engine: "podman", enabled: true},
+		{name: "Docker interactive", mode: "interactive", engine: "docker", enabled: true},
+		{name: "Docker unspecified mode", engine: "docker", enabled: true},
+		{name: "disabled Docker stdout", mode: "stdout", engine: "docker"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &NavigatorConfig{Mode: tt.mode, ExecutionEnvironment: &ExecutionEnvironment{Enabled: tt.enabled, ContainerEngine: tt.engine, ContainerOptions: append([]string(nil), tt.options...)}}
+			first, err := GenerateNavigatorConfigYAML(cfg, "", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			expected := append([]string(nil), tt.options...)
+			if tt.wantDefault {
+				expected = append(expected, "--tty=false")
+			}
+			got := cfg.ExecutionEnvironment.ContainerOptions
+			if strings.Join(got, "\n") != strings.Join(expected, "\n") {
+				t.Fatalf("container options=%q, want %q", got, expected)
+			}
+			second, err := GenerateNavigatorConfigYAML(cfg, "", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if first != second {
+				t.Fatalf("generation is not idempotent:\n%s\n%s", first, second)
+			}
+		})
 	}
 }

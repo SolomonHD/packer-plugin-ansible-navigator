@@ -56,10 +56,10 @@ The SSH-based provisioner SHALL use ansible-navigator as its default executable,
 - **GIVEN** a Packer configuration using `provisioner "ansible-navigator"`
 - **AND** the `command` field is not specified
 - **WHEN** the provisioner constructs the command to run ansible-navigator
-- **THEN** it SHALL invoke ansible-navigator using `exec.Command("ansible-navigator", "run", ...)` on the local machine
+- **THEN** it SHALL resolve `ansible-navigator` using its effective search path and invoke the resolved executable with `run` as the first argument on the local machine
 - **AND** configuration SHALL be controlled ONLY via ANSIBLE_NAVIGATOR_CONFIG environment variable
-- **AND** NO mode, EE, or other CLI flags SHALL be passed (all settings come from config file)
-- **AND** Legacy CLI flags (`--mode`, `--ee`, `--eei`) SHALL NOT be generated
+- **AND** NO mode, EE, or other CLI configuration flags SHALL be passed (all settings come from the config file)
+- **AND** legacy CLI configuration flags (`--mode`, `--ee`, `--eei`) SHALL NOT be generated
 
 ### Requirement: Dependency Management (requirements_file)
 
@@ -129,31 +129,43 @@ The SSH-based ansible-navigator provisioner SHALL support an `ansible_navigator_
 
 #### Scenario: PATH prepended for version check
 
-- **GIVEN** a configuration for `provisioner "ansible-navigator"` with:
-  - `ansible_navigator_path = ["~/bin", "/opt/ansible/bin"]`
+- **GIVEN** a configuration with `ansible_navigator_path = ["~/bin", "/opt/ansible/bin"]`
 - **AND** ansible-navigator is installed only under one of these directories
-- **WHEN** the provisioner performs a version check using `ansible-navigator --version`
-- **THEN** it SHALL construct an environment for the `exec.Command` in which:
-  - Each `ansible_navigator_path` entry is HOME-expanded
-  - PATH begins with the expanded `ansible_navigator_path` entries joined by the OS path-list separator
-  - The original PATH from the process environment is appended after these entries
-- **AND** the version check SHALL succeed by locating ansible-navigator in one of the configured directories
+- **WHEN** the provisioner performs `ansible-navigator --version`
+- **THEN** each configured directory SHALL be HOME-expanded
+- **AND** executable lookup SHALL search those directories in configured order before the inherited process PATH
+- **AND** the child PATH SHALL contain that same ordered prefix followed by the inherited PATH
+- **AND** the version check SHALL succeed without changing the parent process environment
 
 #### Scenario: PATH prepended for play execution
 
-- **GIVEN** a configuration for `provisioner "ansible-navigator"` with:
-  - `ansible_navigator_path` set to one or more directories
+- **GIVEN** a configuration with one or more `ansible_navigator_path` directories
 - **AND** ansible-navigator is installed only under one of those directories
-- **WHEN** the provisioner executes ansible-navigator to run one or more plays
-- **THEN** it SHALL construct the `exec.Command` environment using the same PATH-prepending behavior as the version check
-- **AND** ansible-navigator SHALL be resolved from one of the configured directories
+- **WHEN** the provisioner executes one or more plays
+- **THEN** it SHALL use the same effective search path and resolved executable as the version check
+- **AND** every play SHALL receive that same PATH-prepending behavior
 
 #### Scenario: No change when ansible_navigator_path is unset
 
-- **GIVEN** a configuration for `provisioner "ansible-navigator"` that does not set `ansible_navigator_path`
-- **WHEN** the provisioner performs version checks or executes ansible-navigator
-- **THEN** it SHALL use the process PATH unchanged
-- **AND** existing behavior for locating ansible-navigator SHALL be preserved
+- **GIVEN** a configuration without `ansible_navigator_path`
+- **WHEN** the provisioner resolves or executes ansible-navigator
+- **THEN** it SHALL use the inherited process PATH unchanged
+- **AND** existing executable search precedence SHALL be preserved
+
+#### Scenario: Explicit executable path remains authoritative
+
+- **GIVEN** `command` specifies an executable path
+- **WHEN** the provisioner prepares the command
+- **THEN** it SHALL expand a supported HOME-relative path and resolve a relative path against the preparation working directory
+- **AND** it SHALL NOT substitute another installation merely because it appears earlier on PATH
+- **AND** the effective child PATH SHALL remain available for Navigator's own subprocesses
+
+#### Scenario: Configured path takes precedence over inherited installation
+
+- **GIVEN** both a configured search directory and inherited PATH contain Navigator installations
+- **WHEN** the provisioner resolves the executable name
+- **THEN** it SHALL select the first executable in the configured directory order
+- **AND** validation and all plays SHALL use that installation
 
 ### Requirement: Version Check Timeout Configuration
 
@@ -187,39 +199,121 @@ The SSH-based provisioner SHALL support a configurable timeout for the version c
 
 ### Requirement: Configurable SSH Proxy Bind Address
 
-The SSH-based provisioner SHALL support configuring the bind address for the SSH proxy to allow connections from external containers (e.g., WSL2).
+The SSH-based provisioner SHALL support configuring the bind address for the SSH proxy and SHALL choose a safe, reachable default from the resolved execution topology when it is omitted.
 
-#### Scenario: Default bind address
+#### Scenario: Default bind address without a bridged execution environment
 
 - **GIVEN** a configuration without `ansible_proxy_bind_address` specified
+- **AND** Ansible runs on the host or the execution environment explicitly uses host networking
 - **WHEN** the provisioner sets up the SSH proxy
 - **THEN** it SHALL bind to `127.0.0.1`
-- **AND** this SHALL ensure security by restricting access to localhost
+- **AND** it SHALL restrict the listener to host loopback
+
+#### Scenario: Default bind address for a bridged execution environment
+
+- **GIVEN** a remote provisioner with an enabled execution environment using bridge networking
+- **AND** `ansible_proxy_bind_address` is not specified
+- **WHEN** the provisioner resolves the proxy topology
+- **THEN** it SHALL bind the SSH proxy to `0.0.0.0`
+- **AND** the execution-environment container SHALL be able to reach the allocated listener port through the selected host gateway
 
 #### Scenario: Custom bind address
 
-- **GIVEN** a configuration with `ansible_proxy_bind_address = "0.0.0.0"`
-- **WHEN** the provisioner sets up the SSH proxy
-- **THEN** it SHALL bind to `0.0.0.0`
-- **AND** this SHALL allow connections from other interfaces (e.g., container bridge)
+- **GIVEN** a configuration with an explicit `ansible_proxy_bind_address`
+- **WHEN** the provisioner resolves the proxy topology
+- **THEN** it SHALL preserve the explicit bind address
+- **AND** it SHALL validate that address against the selected network topology
 
 ### Requirement: Configurable Inventory Host Address
 
-The SSH-based provisioner SHALL support configuring the host address used in the generated inventory file to ensure the execution environment can reach the host.
+The SSH-based provisioner SHALL support configuring the host address used in generated inventory and SHALL choose a container-engine-appropriate default when it is omitted.
 
-#### Scenario: Default inventory host
+#### Scenario: Default inventory host without a bridged execution environment
 
 - **GIVEN** a configuration without `ansible_proxy_host` specified
+- **AND** Ansible runs on the host or the execution environment explicitly uses host networking
 - **WHEN** the provisioner generates the inventory file
 - **THEN** it SHALL use `127.0.0.1` as the `ansible_host`
-- **AND** this SHALL work for local execution environments
+
+#### Scenario: Default inventory host for Docker bridge networking
+
+- **GIVEN** a remote provisioner with an enabled Docker execution environment using bridge networking
+- **AND** `ansible_proxy_host` is not specified
+- **WHEN** the provisioner resolves the proxy topology
+- **THEN** it SHALL use `gateway.docker.internal` as `ansible_host`
+
+#### Scenario: Default inventory host for Podman bridge networking
+
+- **GIVEN** a remote provisioner with an enabled Podman execution environment using bridge networking
+- **AND** `ansible_proxy_host` is not specified
+- **WHEN** the provisioner resolves the proxy topology
+- **THEN** it SHALL use `host.containers.internal` as `ansible_host`
 
 #### Scenario: Custom inventory host
 
-- **GIVEN** a configuration with `ansible_proxy_host = "host.containers.internal"`
-- **WHEN** the provisioner generates the inventory file
-- **THEN** it SHALL use `host.containers.internal` as the `ansible_host`
-- **AND** this SHALL allow the containerized execution environment to connect back to the host
+- **GIVEN** a configuration with an explicit `ansible_proxy_host`
+- **WHEN** the provisioner resolves the proxy topology
+- **THEN** it SHALL preserve the explicit host
+- **AND** it SHALL use that value as `ansible_host` in generated inventory
+
+### Requirement: Deterministic Execution-Environment Proxy Topology
+
+The remote provisioner MUST resolve the container engine, network mode, listener address, and advertised inventory host as one coherent proxy topology before provisioning begins.
+
+#### Scenario: Automatic container engine selection
+
+- **GIVEN** an enabled execution environment with `container_engine` omitted or set to `auto`
+- **WHEN** the provisioner prepares its proxy topology
+- **THEN** it MUST select an available supported engine using the same preference order as Ansible Navigator
+- **AND** it MUST write the selected engine into generated Navigator configuration
+- **AND** it MUST return an actionable preparation error when no supported engine is available
+
+#### Scenario: Existing host-network option is recognized
+
+- **GIVEN** container options contain `--network=host`, `--network host`, `--net=host`, or `--net host`
+- **WHEN** the provisioner resolves the proxy topology
+- **THEN** it MUST classify the execution environment as host-networked
+- **AND** it MUST retain loopback defaults for both proxy endpoints when neither is explicit
+
+#### Scenario: Explicit values take precedence
+
+- **GIVEN** either proxy address is explicitly configured
+- **WHEN** the provisioner resolves the omitted companion value
+- **THEN** it MUST preserve every explicit value
+- **AND** it MUST infer only omitted values from the selected topology
+
+### Requirement: Proxy Topology Validation and Diagnostics
+
+The remote provisioner MUST reject known-unreachable proxy topologies and SHALL report the effective route needed to diagnose container connectivity.
+
+#### Scenario: Bridged execution environment advertises loopback
+
+- **GIVEN** an enabled bridge-network execution environment
+- **AND** the resolved inventory host is a loopback address
+- **WHEN** configuration is prepared
+- **THEN** preparation MUST fail with an error explaining that container loopback cannot reach the host proxy
+- **AND** the error MUST identify the proxy fields or host-network option that can correct the configuration
+
+#### Scenario: Bridged execution environment uses a loopback-only listener
+
+- **GIVEN** an enabled bridge-network execution environment
+- **AND** the resolved bind address is loopback while the inventory host is a host gateway
+- **WHEN** configuration is prepared
+- **THEN** preparation MUST fail with an error explaining that the listener is not reachable through the container bridge
+
+#### Scenario: Effective route is logged
+
+- **GIVEN** the SSH adapter has allocated its listener port
+- **WHEN** the provisioner starts Ansible Navigator
+- **THEN** output SHALL identify the actual listener endpoint and advertised inventory endpoint
+- **AND** debug output SHALL identify the resolved container engine, network mode, inferred or explicit address origins, and automatic host mapping
+
+#### Scenario: Navigator process fails
+
+- **GIVEN** Ansible Navigator exits unsuccessfully
+- **WHEN** the provisioner reports the failure
+- **THEN** it MUST report the actual subprocess exit code
+- **AND** it MUST retain the effective proxy-route diagnostics in the build log
 
 ### Requirement: Unbuffered Python Output
 
@@ -1051,3 +1145,37 @@ The SSH-based provisioner SHALL treat `collections_path` as the exact path value
 - **THEN** Ansible SHALL NOT emit deprecation warnings about `ANSIBLE_COLLECTIONS_PATHS` (plural)
 - **AND** the plugin SHALL use only the modern singular form `ANSIBLE_COLLECTIONS_PATH`
 
+### Requirement: Resolved Navigator Executable Reuse
+
+The remote provisioner MUST use one resolved executable for its version check and all play invocations, with actionable lookup and shim-resolution failures.
+
+#### Scenario: Supported shim resolves successfully
+
+- **GIVEN** executable lookup selects an asdf, rbenv, or pyenv shim
+- **WHEN** the supported manager resolves it to an executable
+- **THEN** the version check and all plays MUST use the resolved executable
+- **AND** resolution MUST use the same effective environment as execution
+
+#### Scenario: Shim manager hangs or fails
+
+- **GIVEN** a supported shim manager hangs, fails, returns another unresolved shim, or returns an invalid executable
+- **WHEN** Navigator is resolved
+- **THEN** the provisioner MUST stop within a documented resolution timeout
+- **AND** when version checking is enabled, resolution and the version invocation together MUST NOT exceed the configured version-check timeout budget
+- **AND** it MUST report the failed resolution stage and a corrective explicit-path configuration
+- **AND** it MUST NOT fall back silently to a different executable
+
+#### Scenario: Version check is disabled
+
+- **GIVEN** `skip_version_check = true`
+- **WHEN** the provisioner prepares to launch its first play
+- **THEN** executable lookup and supported shim resolution MUST still occur before execution
+- **AND** only the version invocation MUST be omitted
+
+#### Scenario: Executable is missing or cannot execute
+
+- **GIVEN** the configured executable cannot be found or executed
+- **WHEN** the provisioner resolves or launches it
+- **THEN** the error MUST distinguish lookup failure from a subprocess failure
+- **AND** it MUST identify the configured command and effective search-directory sources without dumping environment values
+- **AND** missing Docker or proxy connectivity MUST NOT be reported as the cause of a Navigator lookup failure

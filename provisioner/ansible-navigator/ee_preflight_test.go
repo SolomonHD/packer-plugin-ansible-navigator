@@ -61,3 +61,30 @@ func TestEEDockerPreflight_DockerMissing_AndDockerdWarning(t *testing.T) {
 	require.Contains(t, out, "[DEBUG] [EE preflight] docker client: missing in PATH")
 	require.Contains(t, out, "[DEBUG][WARN] [EE preflight] detected dockerd process")
 }
+
+func TestEEDockerPreflightNeverProbesDaemonOrStartsContainers(t *testing.T) {
+	uiOut := new(bytes.Buffer)
+	ui := &packersdk.BasicUi{Reader: new(bytes.Buffer), Writer: uiOut}
+	commands := 0
+	deps := eeDockerPreflightDeps{
+		stat: func(string) (os.FileInfo, error) { return nil, os.ErrNotExist },
+		lookPath: func(name string) (string, error) {
+			require.Equal(t, "ps", name)
+			return "/bin/ps", nil
+		},
+		commandOutput: func(ctx context.Context, name string, args ...string) ([]byte, error) {
+			commands++
+			require.Equal(t, "ps", name)
+			require.Equal(t, []string{"-eo", "comm"}, args)
+			_, bounded := ctx.Deadline()
+			require.True(t, bounded)
+			return nil, nil
+		},
+		dockerHostProvider: func() (string, bool) { return "tcp://fixture:secret@example.invalid", true },
+	}
+	emitEEDockerPreflightWithDeps(ui, true, nil, deps)
+	require.Equal(t, 1, commands, "the process-name observation is the only subprocess")
+	require.Contains(t, uiOut.String(), "DOCKER_HOST: set (redacted)")
+	require.NotContains(t, uiOut.String(), "example.invalid")
+	require.NotContains(t, uiOut.String(), "secret")
+}

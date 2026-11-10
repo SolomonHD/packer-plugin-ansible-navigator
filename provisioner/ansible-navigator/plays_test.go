@@ -233,8 +233,8 @@ func TestDefaultCacheDirectories(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Check that default cache directories were set
-	assert.Contains(t, p.config.CollectionsPath, ".packer.d/ansible_collections_cache")
-	assert.Contains(t, p.config.RolesPath, ".packer.d/ansible_roles_cache")
+	assert.Contains(t, p.config.CollectionsPath, filepath.Join(".packer.d", "ansible_collections_cache"))
+	assert.Contains(t, p.config.RolesPath, filepath.Join(".packer.d", "ansible_roles_cache"))
 }
 
 func TestMultiplePlayConfiguration(t *testing.T) {

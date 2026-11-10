@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -99,7 +100,7 @@ func TestEEDockerPreflightShell_DockerMissing(t *testing.T) {
 	require.NoError(t, os.Symlink(grepPath, filepath.Join(tmpDir, "grep")))
 
 	snippet := buildEEDockerPreflightShell("")
-	cmd := exec.Command("bash", "-lc", snippet)
+	cmd := exec.Command("bash", "-c", snippet)
 	cmd.Env = append(os.Environ(), "PATH="+tmpDir, "DOCKER_HOST=")
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err)
@@ -108,6 +109,9 @@ func TestEEDockerPreflightShell_DockerMissing(t *testing.T) {
 }
 
 func TestEEDockerPreflightShell_DockerdDetected_EmitsWarningOnly(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fixture requires native POSIX shebang execution for the fake ps command")
+	}
 	tmpDir := t.TempDir()
 
 	// Fake ps that always reports dockerd.
@@ -120,7 +124,7 @@ func TestEEDockerPreflightShell_DockerdDetected_EmitsWarningOnly(t *testing.T) {
 	require.NoError(t, os.Symlink(grepPath, filepath.Join(tmpDir, "grep")))
 
 	snippet := buildEEDockerPreflightShell("")
-	cmd := exec.Command("bash", "-lc", snippet)
+	cmd := exec.Command("bash", "-c", snippet)
 	cmd.Env = append(os.Environ(), "PATH="+tmpDir)
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err)

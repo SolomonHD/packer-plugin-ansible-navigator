@@ -1,0 +1,32 @@
+schema: spec-driven
+
+context: |
+  This repository is a Packer x5 plugin written in Go. It provides two
+  Ansible Navigator-based provisioners:
+  - ansible-navigator: runs on the Packer host and connects over SSH.
+  - ansible-navigator-local: uploads artifacts and runs on the target.
+
+  The plugin is HCL2-first and invokes `ansible-navigator run`. It uses
+  github.com/hashicorp/packer-plugin-sdk and packer-sdc-generated HCL2
+  schemas. Ansible Galaxy supplies roles and collections.
+
+  Keep configuration fields explicit and minimal. Prefer object maps for
+  named configuration and repeatable HCL blocks for ordered actions. The
+  project is under active development; backward compatibility is not a goal,
+  and deprecated configuration concepts should remain only in archived
+  OpenSpec history.
+
+  Validate changes with `go test ./...`, `go vet ./...`, `go build ./...`,
+  `make plugin-check`, and `openspec validate --all --strict` as appropriate.
+  Implementation work follows proposal approval and is tracked in tasks.md.
+
+rules:
+  proposal:
+    - Identify affected capabilities and important code paths.
+    - Call out breaking HCL/schema changes and migration impact explicitly.
+  specs:
+    - Use SHALL or MUST for normative behavior.
+    - Include at least one testable Scenario for every requirement.
+  tasks:
+    - Include HCL2 regeneration when configuration structs change.
+    - Include unit tests, build verification, and OpenSpec validation.

@@ -15,6 +15,7 @@ Welcome to the comprehensive documentation for the Packer Plugin Ansible Navigat
 - **[Examples Gallery](EXAMPLES.md)** - Real-world examples and use cases
 - **[Galaxy Authentication Guide](GALAXY_AUTHENTICATION.md)** - Authenticating to private collections, Private Automation Hub, and custom Galaxy servers
 - **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Linux/WSL Acceptance](acceptance/linux-wsl.md)** - Isolated real provisioning, preparation, failure diagnosis, and platform evidence
 - **[JSON Logging](JSON_LOGGING.md)** - Structured logging for automation
 - **[Collection Plays](UNIFIED_PLAYS.md)** - Using Ansible Collection plays
 

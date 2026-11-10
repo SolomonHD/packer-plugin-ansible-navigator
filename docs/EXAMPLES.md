@@ -67,6 +67,33 @@ provisioner "ansible-navigator" {
 }
 ```
 
+For the remote provisioner, no proxy fields are needed in this minimal EE
+example. The plugin selects Podman before Docker when `container_engine` is
+omitted, binds the temporary SSH adapter to `0.0.0.0` for bridge networking,
+and advertises `host.containers.internal` for Podman or
+`gateway.docker.internal` for Docker. On Linux and WSL2, Docker also receives
+the required `gateway.docker.internal:host-gateway` mapping automatically.
+
+To use host networking explicitly (where the runtime and platform support it):
+
+```hcl
+navigator_config {
+  mode = "stdout"
+
+  execution_environment {
+    enabled           = true
+    image             = "quay.io/ansible/creator-ee:latest"
+    container_engine  = "docker"
+    container_options = ["--network=host"]
+  }
+}
+```
+
+With host networking, the container shares host loopback, so both proxy
+endpoints safely default to `127.0.0.1`. Docker Desktop host networking depends
+on the Docker Desktop version and settings; bridged networking is the portable
+default.
+
 ## 4) Modern configuration with navigator_config (recommended for ansible-navigator v3+)
 
 ```hcl

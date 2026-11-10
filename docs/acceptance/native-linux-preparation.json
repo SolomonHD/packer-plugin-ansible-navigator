@@ -1,0 +1,304 @@
+{
+  "host": "docker-infra",
+  "account": "codex",
+  "tools": {
+    "go": {
+      "version": "1.26.3",
+      "sha256": "2b2cfc7148493da5e73981bffbf3353af381d5f93e789c82c79aff64962eb556",
+      "url": "https://go.dev/dl/go1.26.3.linux-amd64.tar.gz"
+    },
+    "packer": {
+      "version": "1.14.2",
+      "sha256": "cfefdea4ac580eba7b254ef34d25b756d4961741004e3e701a1476594d13e64a",
+      "url": "https://releases.hashicorp.com/packer/1.14.2/packer_1.14.2_linux_amd64.zip"
+    },
+    "uv": {
+      "version": "0.11.7",
+      "sha256": "6681d691eb7f9c00ac6a3af54252f7ab29ae72f0c8f95bdc7f9d1401c23ea868",
+      "url": "https://github.com/astral-sh/uv/releases/download/0.11.7/uv-x86_64-unknown-linux-gnu.tar.gz"
+    },
+    "navigator": {
+      "version": "26.11.0",
+      "install": "isolated uv environment"
+    }
+  },
+  "host_python": "3.12.3",
+  "go_version": "1.26.3",
+  "navigator_python": "3.12.3",
+  "preparation_result": "passed",
+  "go_version_command": [
+    "/tmp/nav-native-sf4ZDfaw/tooling/go/bin/go",
+    "version"
+  ],
+  "go_version_output": "go version go1.26.3 linux/amd64",
+  "evidence_kind": "preparation",
+  "staging_cleanup": {
+    "status": "passed",
+    "exact_owned_labels_audited": 9,
+    "owned_containers_remaining": 0,
+    "native_workspace_removed": "/tmp/nav-native-sf4ZDfaw",
+    "workspace_absence_independently_verified": true,
+    "local_handoff_files_removed": 2,
+    "raw_diagnostics_retained": false,
+    "readonly_cache_cleanup": "Owner write/traverse restored only on 4686 codex-owned non-symlink directories within the recorded disposable workspace before deletion. No sudo or external permissions changed.",
+    "shared_images_removed": false
+  },
+  "initial_inspection": {
+    "stages": [
+      {
+        "name": "executable",
+        "status": "passed",
+        "navigator_path": "/tmp/nav-native-So7j0xIL/navigator/bin/ansible-navigator",
+        "shim_manager": null,
+        "inherited_selection": "/tmp/nav-native-So7j0xIL/navigator/bin/ansible-navigator",
+        "navigator_version": "26.11.0"
+      },
+      {
+        "name": "daemon",
+        "status": "passed",
+        "docker_server_version": "29.9.3",
+        "docker_client_version": "29.9.3",
+        "variant": null,
+        "selection": {
+          "source": "active-context",
+          "endpoint_kind": "unix",
+          "docker_config_explicit": false,
+          "tls_verify_explicit": false,
+          "cert_path_explicit": false
+        },
+        "docker_executable": "/usr/bin/docker"
+      },
+      {
+        "name": "images",
+        "status": "passed",
+        "images": {
+          "target_image": {
+            "id": "sha256:c4634f578a412db396771b61b064c6e546c9d6414c7fb5b1b05d5871f1885f7b",
+            "architecture": "amd64",
+            "os": "linux"
+          },
+          "ee_image": {
+            "id": "sha256:f9caf58a32195c1c2d23cd2ef7f465bc89dd1c6adffa44cd144689b1d41a575a",
+            "architecture": "amd64",
+            "os": "linux"
+          }
+        }
+      }
+    ],
+    "profile": {
+      "architecture": "linux/amd64",
+      "docker_builder_version": "1.1.2",
+      "target_image": "python@sha256:c4634f578a412db396771b61b064c6e546c9d6414c7fb5b1b05d5871f1885f7b",
+      "ee_image": "ghcr.io/ansible/community-ansible-dev-tools@sha256:f9caf58a32195c1c2d23cd2ef7f465bc89dd1c6adffa44cd144689b1d41a575a",
+      "reference_evidence": {
+        "observed_date": "2026-11-09",
+        "target_tag_at_selection": "python:3.12-alpine",
+        "target_amd64_manifest": "sha256:9b8dad7f66b5c7751df6cb7a64a07812e86bed85d0116efe82b3a11209f1440d",
+        "ee_tag_at_selection": "ghcr.io/ansible/community-ansible-dev-tools:latest",
+        "ee_amd64_manifest": "sha256:e416af142ddf3af7f88bca5867077a5cf87e09c551e62ef1d651658a2ae9f952",
+        "method": "Registry manifest inspection and local Docker image metadata; runtime checks tools from the actual EE. Tags are selection metadata only."
+      }
+    },
+    "profile_sha256": "3d61c24cb1c340ad26cf491f1806ece507586e8609427d3c66b560f314e3b9fa",
+    "host": {
+      "hostname": "docker-infra",
+      "kernel": "6.8.0-147-generic",
+      "system": "Linux",
+      "machine": "x86_64",
+      "python": "3.12.3"
+    },
+    "source": {
+      "sha": "4fd58cb85403a8fe0aca89d2b98fb719b710dd1b",
+      "dirty": true,
+      "source_fixture_sha256": "1a5f49a9a1f87ba001f7c3b5eeac6cd73164feb7a39e15564d142f985017773d",
+      "fixture_sha256": {
+        "marker.yml": "5f4de80dde1ae4aff73a8ef2192c0cee3241f35931822fafdd6e36515a3239a4",
+        "profile.json": "3d61c24cb1c340ad26cf491f1806ece507586e8609427d3c66b560f314e3b9fa",
+        "acceptance.pkr.hcl": "6c40b6e82a29fdada80ea221633e572db6f38eef5f397aa4dc2e7fec5ca83274"
+      }
+    },
+    "packer_version": "1.14.2",
+    "docker_selection": {
+      "source": "active-context",
+      "endpoint_kind": "unix",
+      "docker_config_explicit": false,
+      "tls_verify_explicit": false,
+      "cert_path_explicit": false
+    }
+  },
+  "initial_failed_acceptance": {
+    "result": "failed",
+    "variant": "explicit-positive",
+    "reason": "absent-default-optional-collections-cache",
+    "failure_boundary": "Navigator validates automatically generated volume mounts before starting the provisioning play",
+    "default_collections_cache_exists": false,
+    "source_fixture_sha256": "1a5f49a9a1f87ba001f7c3b5eeac6cd73164feb7a39e15564d142f985017773d",
+    "labeled_ee_startup": "passed",
+    "source_plugin_selection": "passed",
+    "packer_validation": "passed",
+    "owned_cleanup": "passed",
+    "private_raw_diagnostics": "removed",
+    "required_variants": "unfinished"
+  },
+  "verification": {
+    "source": {
+      "sha": "7a9ea9e053cd4b8a1932622570d7914f8655c635",
+      "dirty": false,
+      "source_fixture_sha256": "8eff2ad665bf2a164719a780899f681f5ad30f04b5bf2d0e542044493b0be267",
+      "fixture_sha256": {
+        "marker.yml": "5f4de80dde1ae4aff73a8ef2192c0cee3241f35931822fafdd6e36515a3239a4",
+        "profile.json": "3d61c24cb1c340ad26cf491f1806ece507586e8609427d3c66b560f314e3b9fa",
+        "acceptance.pkr.hcl": "6c40b6e82a29fdada80ea221633e572db6f38eef5f397aa4dc2e7fec5ca83274"
+      }
+    },
+    "host": {
+      "hostname": "docker-infra",
+      "kernel": "6.8.0-147-generic",
+      "system": "Linux",
+      "machine": "x86_64",
+      "python": "3.12.3"
+    },
+    "profile": {
+      "architecture": "linux/amd64",
+      "docker_builder_version": "1.1.2",
+      "target_image": "python@sha256:c4634f578a412db396771b61b064c6e546c9d6414c7fb5b1b05d5871f1885f7b",
+      "ee_image": "ghcr.io/ansible/community-ansible-dev-tools@sha256:f9caf58a32195c1c2d23cd2ef7f465bc89dd1c6adffa44cd144689b1d41a575a",
+      "reference_evidence": {
+        "observed_date": "2026-11-09",
+        "target_tag_at_selection": "python:3.12-alpine",
+        "target_amd64_manifest": "sha256:9b8dad7f66b5c7751df6cb7a64a07812e86bed85d0116efe82b3a11209f1440d",
+        "ee_tag_at_selection": "ghcr.io/ansible/community-ansible-dev-tools:latest",
+        "ee_amd64_manifest": "sha256:e416af142ddf3af7f88bca5867077a5cf87e09c551e62ef1d651658a2ae9f952",
+        "method": "Registry manifest inspection and local Docker image metadata; runtime checks tools from the actual EE. Tags are selection metadata only."
+      }
+    },
+    "profile_sha256": "3d61c24cb1c340ad26cf491f1806ece507586e8609427d3c66b560f314e3b9fa",
+    "docker_selection": {
+      "source": "active-context",
+      "endpoint_kind": "unix",
+      "docker_config_explicit": false,
+      "tls_verify_explicit": false,
+      "cert_path_explicit": false
+    },
+    "packer_version": "1.14.2"
+  },
+  "docker_runtime": {
+    "operating_system": "Ubuntu 24.04.5 LTS",
+    "os_type": "linux",
+    "architecture": "x86_64",
+    "kernel_version": "6.8.0-147-generic"
+  },
+  "qualification_history": [
+    {
+      "record_sha256": "d92f2f3f6f3b11bb19badef01fc348e052bbaefbbc118150d29b29125d6bc458",
+      "record_preserved_at_repository_revision": "7a9ea9e053cd4b8a1932622570d7914f8655c635",
+      "verification": {
+        "source": {
+          "sha": "4fd58cb85403a8fe0aca89d2b98fb719b710dd1b",
+          "dirty": true,
+          "source_fixture_sha256": "f7276e1094d59e8f95a61dab7ef39a921c3e7d08c96f1374c9b8dc00418dd11d",
+          "fixture_sha256": {
+            "marker.yml": "5f4de80dde1ae4aff73a8ef2192c0cee3241f35931822fafdd6e36515a3239a4",
+            "profile.json": "3d61c24cb1c340ad26cf491f1806ece507586e8609427d3c66b560f314e3b9fa",
+            "acceptance.pkr.hcl": "6c40b6e82a29fdada80ea221633e572db6f38eef5f397aa4dc2e7fec5ca83274"
+          }
+        },
+        "host": {
+          "hostname": "docker-infra",
+          "kernel": "6.8.0-147-generic",
+          "system": "Linux",
+          "machine": "x86_64",
+          "python": "3.12.3"
+        },
+        "profile": {
+          "architecture": "linux/amd64",
+          "docker_builder_version": "1.1.2",
+          "target_image": "python@sha256:c4634f578a412db396771b61b064c6e546c9d6414c7fb5b1b05d5871f1885f7b",
+          "ee_image": "ghcr.io/ansible/community-ansible-dev-tools@sha256:f9caf58a32195c1c2d23cd2ef7f465bc89dd1c6adffa44cd144689b1d41a575a",
+          "reference_evidence": {
+            "observed_date": "2026-11-09",
+            "target_tag_at_selection": "python:3.12-alpine",
+            "target_amd64_manifest": "sha256:9b8dad7f66b5c7751df6cb7a64a07812e86bed85d0116efe82b3a11209f1440d",
+            "ee_tag_at_selection": "ghcr.io/ansible/community-ansible-dev-tools:latest",
+            "ee_amd64_manifest": "sha256:e416af142ddf3af7f88bca5867077a5cf87e09c551e62ef1d651658a2ae9f952",
+            "method": "Registry manifest inspection and local Docker image metadata; runtime checks tools from the actual EE. Tags are selection metadata only."
+          }
+        },
+        "profile_sha256": "3d61c24cb1c340ad26cf491f1806ece507586e8609427d3c66b560f314e3b9fa",
+        "docker_selection": {
+          "source": "active-context",
+          "endpoint_kind": "unix",
+          "docker_config_explicit": false,
+          "tls_verify_explicit": false,
+          "cert_path_explicit": false
+        },
+        "packer_version": "1.14.2"
+      },
+      "final_overlay": {
+        "archive_sha256": "102adb7b62f8db8db8bad735e871f05467e8ee4b294366ceb6d306e6af0a01df",
+        "files": [
+          "provisioner/ansible-navigator/provisioner.go",
+          "provisioner/ansible-navigator/default_collections_mount_test.go"
+        ],
+        "source_fixture_sha256": "f7276e1094d59e8f95a61dab7ef39a921c3e7d08c96f1374c9b8dc00418dd11d",
+        "acceptance_record": "native-linux.json",
+        "acceptance_result": "passed"
+      },
+      "staging_cleanup": {
+        "status": "passed",
+        "exact_owned_labels_audited": 20,
+        "owned_containers_remaining": 0,
+        "private_raw_diagnostics": "removed",
+        "native_workspace_removed": "/tmp/nav-native-So7j0xIL",
+        "workspace_absence_independently_verified": true,
+        "local_handoff_files_removed": 6,
+        "local_source_archives_removed": 2,
+        "readonly_cache_cleanup": "Owner write/traverse restored only on 4686 codex-owned non-symlink directories inside the recorded disposable workspace before deletion. No sudo or external permissions changed.",
+        "shared_images_removed": false
+      }
+    }
+  ],
+  "current_preparation": {
+    "evidence_kind": "preparation",
+    "host": "docker-infra",
+    "account": "codex",
+    "tools": {
+      "go": {
+        "version": "1.26.3",
+        "sha256": "2b2cfc7148493da5e73981bffbf3353af381d5f93e789c82c79aff64962eb556",
+        "url": "https://go.dev/dl/go1.26.3.linux-amd64.tar.gz"
+      },
+      "packer": {
+        "version": "1.14.2",
+        "sha256": "cfefdea4ac580eba7b254ef34d25b756d4961741004e3e701a1476594d13e64a",
+        "url": "https://releases.hashicorp.com/packer/1.14.2/packer_1.14.2_linux_amd64.zip"
+      },
+      "uv": {
+        "version": "0.11.7",
+        "sha256": "6681d691eb7f9c00ac6a3af54252f7ab29ae72f0c8f95bdc7f9d1401c23ea868",
+        "url": "https://github.com/astral-sh/uv/releases/download/0.11.7/uv-x86_64-unknown-linux-gnu.tar.gz"
+      },
+      "navigator": {
+        "version": "26.11.0",
+        "install": "isolated uv environment"
+      }
+    },
+    "preparation_result": "passed",
+    "initial_prepared_source": {
+      "sha": "ba40d963a772e97e874f34bef8a84907e4238d21",
+      "source_fixture_sha256": "caddd8eca1a4b42a273aca0eaa7ef80b87375b2544a5527f63b621d0940f7dfd"
+    },
+    "source_sha": "7a9ea9e053cd4b8a1932622570d7914f8655c635",
+    "source_fixture_sha256": "8eff2ad665bf2a164719a780899f681f5ad30f04b5bf2d0e542044493b0be267",
+    "docker_runtime": {
+      "operating_system": "Ubuntu 24.04.5 LTS",
+      "os_type": "linux",
+      "architecture": "x86_64",
+      "kernel_version": "6.8.0-147-generic"
+    },
+    "host_python": "3.12.3",
+    "go_version": "1.26.3",
+    "go_version_output": "go version go1.26.3 linux/amd64"
+  },
+  "initial_source_archive_sha256": "904220054d70592b591bfdcfcc2dc3bee80f5e69822c1e053e35c7fa77fd0df2"
+}
