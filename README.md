@@ -395,9 +395,14 @@ make dev
 # Run tests
 make test
 
-# Build for release
+# Build a local binary
 make build
 ```
+
+GitHub Actions also builds downloadable development packages for Linux/WSL,
+macOS, Windows, and the existing BSD/Solaris targets. See
+[GitHub Actions builds](docs/BUILDING.md) for selecting an artifact, verifying its
+checksum, and installing it with Packer. These builds do not create releases or tags.
 
 ## 📜 License
 
@@ -411,7 +416,7 @@ This project is licensed under the [Apache License 2.0](LICENSE).
 
 ## 🏗️ Project Status
 
-**Current Version:** 4.1.0
+**Current Version:** See [version/VERSION](version/VERSION)
 **Status:** Production Ready
 **Maintained by:** SolomonHD
 

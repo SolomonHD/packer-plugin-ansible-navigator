@@ -1,237 +1,129 @@
-#
-# This GitHub action builds ansible binaries, linux packages,
-# and Docker images from source, and uploads them to GitHub artifacts.
-# Note that artifacts available via GitHub Artifacts are not codesigned or notarized.
-#
+name: Build plugin
 
-name: build
-
-on: 
-  workflow_dispatch: 
-  workflow_call:
+on:
+  pull_request:
   push:
-    branches:
-      - main
-      - release/**
+    branches: [main, 'release/**']
+  workflow_dispatch:
+  workflow_call:
 
-env:
-  REPO_NAME: "packer-plugin-ansible"
-
+# Build artifacts only. This workflow cannot create releases or tags.
 permissions:
   contents: read
 
+concurrency:
+  group: plugin-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  get-go-version:
+  verify:
+    name: Verify plugin build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     outputs:
-      go-version: ${{ steps.get-go-version.outputs.go-version }}
+      api-version: ${{ steps.describe.outputs.api-version }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: 'Determine Go version'
-        id: get-go-version
-        # We use .go-version as our source of truth for current Go
-        # version, because "goenv" can react to it automatically.
-        run: |
-          echo "Building with Go $(cat .go-version)"
-          echo "go-version=$(cat .go-version)" >> $GITHUB_OUTPUT
-
-  set-product-version:
-    runs-on: ubuntu-latest
-    outputs:
-      product-version: ${{ steps.set-product-version.outputs.product-version }}
-      base-product-version: ${{ steps.set-product-version.outputs.base-product-version }}
-      product-date: ${{ steps.set-product-version.outputs.product-date }}
-      product-prerelease-version: ${{ steps.set-product-version.outputs.prerelease-product-version }}
-      set-ld-flags: ${{ steps.set-ld-flags.outputs.set-ld-flags }}
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: set product version
-        id: set-product-version
-        uses: hashicorp/actions-set-product-version@v1
-      - name: set-ld-flags
-        id: set-ld-flags
-        run: |
-          T="github.com/hashicorp/packer-plugin-ansible/version"
-          echo "set-ld-flags=-s -w -X ${T}.Version=${{ steps.set-product-version.outputs.base-product-version }} -X ${T}.VersionPrerelease=${{ steps.set-product-version.outputs.prerelease-product-version }}" >> $GITHUB_OUTPUT
-      - name: validate outputs
-        run: |
-          echo "Product Version: ${{ steps.set-product-version.outputs.product-version }}"
-          echo "Base Product Version: ${{ steps.set-product-version.outputs.base-product-version }}"
-          echo "Prerelease Version: ${{ steps.set-product-version.outputs.prerelease-product-version }}"
-          echo "ldflags: ${{ steps.set-ld-flags.outputs.set-ld-flags }}"
-
-  generate-metadata-file:
-    needs: set-product-version
-    runs-on: ubuntu-latest
-    outputs:
-      filepath: ${{ steps.generate-metadata-file.outputs.filepath }}
-    steps:
-      - name: 'Checkout directory'
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Generate metadata file
-        id: generate-metadata-file
-        uses: hashicorp/actions-generate-metadata@main
+      - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
         with:
-          version: ${{ needs.set-product-version.outputs.product-version }}
-          product: ${{ env.REPO_NAME }}
+          go-version-file: .go-version
+          cache: true
+      - name: Test and validate x5 compatibility
+        run: |
+          go test ./...
+          go vet ./...
+          make plugin-check
+      - name: Read plugin API from the built binary
+        id: describe
+        run: |
+          ./packer-plugin-ansible-navigator describe > "$RUNNER_TEMP/plugin-description.json"
+          python3 - "$RUNNER_TEMP/plugin-description.json" <<'PYTHON'
+          import json, os, pathlib, re, sys
+          description = json.loads(pathlib.Path(sys.argv[1]).read_text())
+          version = pathlib.Path("version/VERSION").read_text().strip()
+          assert description["version"] == version, "binary/version source mismatch"
+          assert set(description["provisioners"]) == {"-packer-default-plugin-name-", "local"}
+          api = description["api_version"]
+          assert re.fullmatch(r"x[0-9]+\.[0-9]+", api), "invalid plugin API"
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"api-version={api}\n")
+          PYTHON
 
-      - uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
-        with:
-          name: metadata.json
-          path: ${{ steps.generate-metadata-file.outputs.filepath }}
-  
-  plugin-check:
-    needs: get-go-version
+  build:
+    name: Package ${{ matrix.os }}/${{ matrix.arch }}
+    needs: verify
     runs-on: ubuntu-latest
-    outputs:
-      api_version: ${{ steps.plugin_describe.outputs.api_version }}
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Unshallow
-        run: git fetch --prune --unshallow
-      - name: Set up Go
-        uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
-        with:
-          go-version: ${{ needs.get-go-version.outputs.go-version }}
-      - name: Describe plugin
-        id: plugin_describe
-        run: echo "api_version=$(go run . describe | jq -r '.api_version')" >> "$GITHUB_OUTPUT"
-      - name: Run test
-        run: go test ./...
-      - name: Make plugin-check
-        run: make plugin-check
-
-  build-other:
-    needs:
-      - set-product-version
-      - get-go-version
-      - plugin-check
-    runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
+      fail-fast: false
       matrix:
-        goos: [ freebsd, windows, netbsd, openbsd, solaris ]
-        goarch: [ "386", "amd64", "arm"]
-        go: [ "${{ needs.get-go-version.outputs.go-version }}" ]
-        exclude:
-          - goos: solaris
-            goarch: 386
-          - goos: solaris
-            goarch: arm
-          - goos: windows
-            goarch: arm
-      fail-fast: true
-
-    name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
-
+        # Preserve the platforms provided by the previous build workflow.
+        include:
+          - {os: linux, arch: amd64}
+          - {os: linux, arch: arm64}
+          - {os: linux, arch: '386'}
+          - {os: linux, arch: arm}
+          - {os: darwin, arch: amd64}
+          - {os: darwin, arch: arm64}
+          - {os: windows, arch: amd64}
+          - {os: windows, arch: '386'}
+          - {os: freebsd, arch: amd64}
+          - {os: freebsd, arch: '386'}
+          - {os: freebsd, arch: arm}
+          - {os: netbsd, arch: amd64}
+          - {os: netbsd, arch: '386'}
+          - {os: netbsd, arch: arm}
+          - {os: openbsd, arch: amd64}
+          - {os: openbsd, arch: '386'}
+          - {os: openbsd, arch: arm}
+          - {os: solaris, arch: amd64}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Go Build
-        env:
-          PRODUCT_VERSION: ${{ needs.set-product-version.outputs.product-version }}
-          PRERELEASE_VERSION: ${{ needs.set-product-version.outputs.product-prerelease-version }}
-          LD_FLAGS: "${{ needs.set-product-version.outputs.set-ld-flags}}"
-          CGO_ENABLED: "0"
-        uses: hashicorp/actions-go-build@v1
+      - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
         with:
-          bin_name: ${{ env.REPO_NAME }}_v${{ needs.set-product-version.outputs.product-version }}_${{ needs.plugin-check.outputs.api_version }}_${{ matrix.goos }}_${{ matrix.goarch }}
-          product_name: ${{ env.REPO_NAME }}
-          product_version: ${{ needs.set-product-version.outputs.product-version }}
-          go_version: ${{ matrix.go }}
-          os: ${{ matrix.goos }}
-          arch: ${{ matrix.goarch }}
-          reproducible: report
-          instructions: |-
-            cp LICENSE "$TARGET_DIR/LICENSE.txt"
-            go build -o "$BIN_PATH" -ldflags="$LD_FLAGS" -trimpath -buildvcs=false
-
-  build-linux:
-    needs:
-      - set-product-version
-      - get-go-version
-      - plugin-check
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        goos: [ linux ]
-        goarch: [ "arm", "arm64", "386", "amd64" ]
-        go: [ "${{ needs.get-go-version.outputs.go-version }}" ]
-      fail-fast: true
-
-    name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
-
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Go Build
+          go-version-file: .go-version
+          cache: true
+      - name: Build and package
         env:
-          PRODUCT_VERSION: ${{ needs.set-product-version.outputs.product-version }}
-          PRERELEASE_VERSION: ${{ needs.set-product-version.outputs.product-prerelease-version }}
-          LD_FLAGS: "${{ needs.set-product-version.outputs.set-ld-flags}}"
-          CGO_ENABLED: "0"
-        uses: hashicorp/actions-go-build@v1
+          TARGET_OS: ${{ matrix.os }}
+          TARGET_ARCH: ${{ matrix.arch }}
+          PLUGIN_API_VERSION: ${{ needs.verify.outputs.api-version }}
+        run: >-
+          python3 scripts/build_plugin.py
+          --os "$TARGET_OS" --arch "$TARGET_ARCH"
+          --api-version "$PLUGIN_API_VERSION" --output-dir dist
+      - name: Install Packer for the native artifact smoke check
+        if: matrix.os == 'linux' && matrix.arch == 'amd64'
+        uses: hashicorp/setup-packer@ce93c3c08a6c2ff2275bf4b54ff0d9a75f6c9789 # v3
         with:
-          bin_name: ${{ env.REPO_NAME }}_v${{ needs.set-product-version.outputs.product-version }}_${{ needs.plugin-check.outputs.api_version }}_${{ matrix.goos }}_${{ matrix.goarch }}
-          product_name: ${{ env.REPO_NAME }}
-          product_version: ${{ needs.set-product-version.outputs.product-version }}
-          go_version: ${{ matrix.go }}
-          os: ${{ matrix.goos }}
-          arch: ${{ matrix.goarch }}
-          reproducible: report
-          instructions: |-
-            cp LICENSE "$TARGET_DIR/LICENSE.txt"
-            go build -o "$BIN_PATH" -ldflags="$LD_FLAGS" -trimpath -buildvcs=false
-
-  build-darwin:
-    needs:
-      - set-product-version
-      - get-go-version
-      - plugin-check
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        goos: [ darwin ]
-        goarch: [ "amd64", "arm64" ]
-        go: [ "${{ needs.get-go-version.outputs.go-version }}" ]
-      fail-fast: true
-    name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
-
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Go Build
+          version: '1.14.2'
+      - name: Verify and install the native package
+        if: matrix.os == 'linux' && matrix.arch == 'amd64'
         env:
-          PRODUCT_VERSION: ${{ needs.set-product-version.outputs.product-version }}
-          PRERELEASE_VERSION: ${{ needs.set-product-version.outputs.product-prerelease-version }}
-          LD_FLAGS: "${{ needs.set-product-version.outputs.set-ld-flags}}"
-          CGO_ENABLED: "0"
-        uses: hashicorp/actions-go-build@v1
-        with:
-          bin_name: ${{ env.REPO_NAME }}_v${{ needs.set-product-version.outputs.product-version }}_${{ needs.plugin-check.outputs.api_version }}_${{ matrix.goos }}_${{ matrix.goarch }}
-          product_name: ${{ env.REPO_NAME }}
-          product_version: ${{ needs.set-product-version.outputs.product-version }}
-          go_version: ${{ matrix.go }}
-          os: ${{ matrix.goos }}
-          arch: ${{ matrix.goarch }}
-          reproducible: report
-          instructions: |-
-            cp LICENSE "$TARGET_DIR/LICENSE.txt"
-            go build -o "$BIN_PATH" -ldflags="$LD_FLAGS" -trimpath -buildvcs=false
-
-  upload-manifest-json:
-    needs:
-      - set-product-version
-      - plugin-check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: create-manifest-json
-        id: create-manifest-json
+          PACKER_PLUGIN_PATH: ${{ runner.temp }}/packer-artifact-smoke
+          CHECKPOINT_DISABLE: '1'
         run: |
-          API_VERSION="${{ needs.plugin-check.outputs.api_version }}"
-          CLEAN_API_VERSION="${API_VERSION#x}"
-          sed -e "s/PLACEHOLDER_PROTOCOL_VERSION/${CLEAN_API_VERSION}/g" \
-              manifest.json > ${{ env.REPO_NAME }}_${{ needs.set-product-version.outputs.product-version }}_manifest.json
-
-      - name: Upload manifest json
+          (cd dist && sha256sum --check SHA256SUMS)
+          python3 - <<'PYTHON'
+          import hashlib, json, os, pathlib, subprocess, tempfile, zipfile
+          metadata = json.loads(pathlib.Path("dist/build-info.json").read_text())
+          with tempfile.TemporaryDirectory() as directory:
+              with zipfile.ZipFile(pathlib.Path("dist") / metadata["archive"]) as archive:
+                  archive.extractall(directory)
+              binary = pathlib.Path(directory) / metadata["binary"]
+              assert hashlib.sha256(binary.read_bytes()).hexdigest() == metadata["binary_sha256"]
+              binary.chmod(0o755)
+              description = json.loads(subprocess.check_output([str(binary), "describe"], text=True))
+              assert description["version"] == metadata["version"]
+              assert description["api_version"] == metadata["api_version"]
+              subprocess.run(["packer", "plugins", "install", "--path", str(binary),
+                              "github.com/solomonhd/ansible-navigator"], check=True)
+          PYTHON
+      - name: Upload plugin package
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
-          name: packer-plugin-manifest.json
-          path: ${{ env.REPO_NAME }}_${{ needs.set-product-version.outputs.product-version }}_manifest.json
+          name: packer-plugin-ansible-navigator-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0

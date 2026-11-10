@@ -8,6 +8,7 @@ Welcome to the comprehensive documentation for the Packer Plugin Ansible Navigat
 
 - **[Main README](../README.md)** - Project overview and quick start guide
 - **[Installation Guide](INSTALLATION.md)** - All installation methods and requirements
+- **[GitHub Actions Builds](BUILDING.md)** - Downloadable plugin binaries, verification, and local installation
 - **[Configuration Reference](CONFIGURATION.md)** - Complete list of options and parameters
 
 ### 📖 Detailed Guides
