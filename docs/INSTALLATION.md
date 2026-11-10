@@ -33,18 +33,24 @@ packer init .
 
 ## Local / air-gapped / dev installs: `packer plugins install --path`
 
-If you have a plugin binary built locally (or downloaded from a release artifact), install it with Packer’s plugin installer:
+If you have a plugin binary built locally or downloaded from a build artifact,
+install it with Packer’s plugin installer. See [GitHub Actions builds](BUILDING.md)
+for downloading, verifying, and extracting the appropriate platform package.
 
 ```bash
 packer plugins install \
-  --path ./dist/packer-plugin-ansible-navigator_<version>_x5.0_<os>_<arch> \
+  --path ./dist/packer-plugin-ansible-navigator_v<version>_x5.0_<os>_<arch> \
   github.com/solomonhd/ansible-navigator
 ```
 
 Notes:
 
 - Use the binary naming conventions expected by Packer plugins.
-- Prefer release automation (GoReleaser) to produce the `dist/` binaries + `_SHA256SUM` files.
+- Development artifacts use the `-dev` binary version suffix. Use the base
+  version in `required_plugins` and an isolated `PACKER_PLUGIN_PATH` to avoid
+  an installed stable build taking precedence; see the build guide for commands.
+- Actions artifacts require local `--path` installation. `packer init` can only
+  download a version when compatible release assets have been published separately.
 - Avoid copying binaries directly into `~/.packer.d/plugins`; use the installer so Packer manages checksums and layout.
 
 ## Verify install
