@@ -1,0 +1,7 @@
+---
+- name: Verify execution environment example
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Check the Packer target is reachable from the execution environment
+      ansible.builtin.ping:

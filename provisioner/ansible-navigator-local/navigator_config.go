@@ -420,10 +420,11 @@ func buildNavigatorCLIFlags(config *NavigatorConfig) []string {
 	return flags
 }
 
-// hasUnmappedSettings checks if NavigatorConfig contains settings that cannot be
-// expressed via CLI flags and require YAML configuration fallback.
+// hasUnmappedSettings checks for settings not mapped by buildNavigatorCLIFlags
+// that require YAML configuration fallback.
 //
 // Currently unmapped settings (require YAML):
+//   - execution_environment.pull_arguments
 //   - playbook_artifact.*  (enable, replay, save-as)
 //   - collection_doc_cache.* (path, timeout)
 //
@@ -431,6 +432,12 @@ func buildNavigatorCLIFlags(config *NavigatorConfig) []string {
 func hasUnmappedSettings(config *NavigatorConfig) bool {
 	if config == nil {
 		return false
+	}
+
+	// Pull arguments have no mapping in buildNavigatorCLIFlags and must reach
+	// Navigator through the existing settings file path.
+	if config.ExecutionEnvironment != nil && len(config.ExecutionEnvironment.PullArguments) > 0 {
+		return true
 	}
 
 	// Check for playbook artifact settings
@@ -451,7 +458,7 @@ func hasUnmappedSettings(config *NavigatorConfig) bool {
 }
 
 // generateMinimalYAML generates a minimal ansible-navigator.yml containing ONLY
-// settings that cannot be expressed via CLI flags (playbook-artifact, collection-doc-cache).
+// settings not mapped to CLI flags (pull arguments, playbook-artifact, collection-doc-cache).
 //
 // This function is only called when hasUnmappedSettings() returns true.
 // Returns empty string if no unmapped settings exist.
@@ -462,6 +469,16 @@ func generateMinimalYAML(config *NavigatorConfig) (string, error) {
 
 	// Build minimal YAML structure with ONLY unmapped settings
 	ansibleNavigator := make(map[string]interface{})
+
+	// Keep only pull arguments in YAML; policy and other EE settings continue
+	// through their existing CLI flags, which take precedence over settings.
+	if config.ExecutionEnvironment != nil && len(config.ExecutionEnvironment.PullArguments) > 0 {
+		ansibleNavigator["execution-environment"] = map[string]interface{}{
+			"pull": map[string]interface{}{
+				"arguments": config.ExecutionEnvironment.PullArguments,
+			},
+		}
+	}
 
 	// Include playbook-artifact if configured
 	if config.PlaybookArtifact != nil {
