@@ -32,6 +32,52 @@ command = "~/.asdf/shims/ansible-navigator run"
 
 If you need to pass flags, use provisioner fields or the `navigator_config` block.
 
+## Selecting the Navigator executable
+
+`command` is an executable name or path, without arguments. The plugin searches
+HOME-expanded `ansible_navigator_path` directories in their configured order,
+then inherited PATH. It resolves one absolute executable and reuses it for the
+version invocation and every play. The child PATH keeps those same prefixes so
+Navigator can find Python, Docker, and its other subprocesses. Parent PATH is
+unchanged.
+
+```hcl
+provisioner "ansible-navigator" {
+  ansible_navigator_path = ["~/tools/navigator/bin", "/opt/ansible/bin"]
+  play { target = "site.yml" }
+}
+```
+
+An explicit `command = "/opt/ansible/bin/ansible-navigator"` or
+`command = "~/tools/navigator/bin/ansible-navigator"` takes precedence over PATH.
+Explicit relative paths are resolved against the directory where Packer prepares
+the provisioner. A lookup failure identifies the command and search sources;
+a later version or play subprocess failure is reported separately.
+
+## Docker stdout reports that stdin is not a terminal
+
+Navigator/Runner can request a Docker TTY even in stdout mode. Packer launches
+Navigator without interactive stdin, so that request can fail before Ansible
+starts: `cannot attach stdin to a TTY-enabled container because stdin is not a
+terminal`.
+
+For enabled Docker execution environments with `mode = "stdout"`, the plugin
+adds `--tty=false` automatically when `container_options` does not already
+select TTY behavior. Explicit user TTY options remain authoritative. Other
+engines and modes retain their existing behavior. The Linux/WSL acceptance
+runner tests noninteractive startup and real provisioning with this default.
+
+## A fresh host has no default collections cache
+
+A builtin-only play does not require a pre-existing collections cache. When
+`collections_path` was omitted, its default directory is absent, and no
+`requirements_file` is configured, the plugin omits that optional automatic EE
+mount. It does not create the directory to make an unused mount valid.
+
+An explicit `collections_path` or volume mount remains authoritative. An
+existing cache remains mounted, and a requirements file retains the mount for
+collections that Galaxy can install before Navigator starts.
+
 ## Version check hangs / timeouts
 
 ### Automatic shim resolution (v0.4.0+)
@@ -49,7 +95,21 @@ asdf which ansible-navigator  # or rbenv/pyenv which
 # → /home/user/.asdf/installs/ansible-navigator/2.3.0/bin/ansible-navigator
 ```
 
-The plugin detects the shim and automatically uses the real binary path.
+The plugin runs the supported manager's `which` command using the same effective
+PATH and environment as Navigator. It validates the returned executable and uses
+that real binary for the version invocation and all plays. Empty, invalid, or
+still-shim results fail with an explicit-path correction; the plugin does not
+silently select another installation.
+
+Shim resolution has a 10-second deadline. With version checking enabled,
+resolution and `--version` share `version_check_timeout` (60 seconds by default);
+resolution uses the smaller of 10 seconds and the remaining version budget.
+Subprocess output-pipe shutdown is bounded by an additional 50 milliseconds.
+`skip_version_check = true` skips only `--version`: lookup and shim resolution
+still occur before the first play, with the independent 10-second deadline.
+An explicitly supplied `version_check_timeout` still produces the existing
+warning that it is ignored when `skip_version_check=true`. Skipping the check
+cannot repair a missing executable or a failed shim manager.
 
 **When manual configuration is needed:**
 
@@ -346,6 +406,41 @@ provisioner "ansible-navigator" {
   }
 }
 ```
+
+## Execution environment reports SSH connection refused
+
+**Symptom**: Ansible Navigator starts its execution-environment container, but
+inventory SSH fails with connection refused.
+
+Container `127.0.0.1` is the container itself, not the Packer host. For a
+bridged remote-provisioner run, inspect the route message:
+
+```text
+SSH proxy route: listener=0.0.0.0:43210 advertised=gateway.docker.internal:43210
+```
+
+Set `navigator_config.logging.level = "debug"` to also see the selected engine,
+network mode, whether each endpoint was inferred or explicit, and the automatic
+host mapping. Expected defaults are:
+
+- Docker bridge on native Linux or WSL2: `gateway.docker.internal` with the
+  generated `host-gateway` mapping.
+- Podman bridge: `host.containers.internal`, without Docker-specific options.
+- Explicit `--network=host`, `--network host`, `--net=host`, or `--net host`:
+  loopback for both endpoints because the network namespace is shared.
+
+If the log advertises `127.0.0.1` in bridge mode or the listener is bound only
+to loopback, remove the explicit proxy override or switch deliberately to host
+networking. On Docker Desktop, host-network support is version- and
+settings-dependent. A remote Docker/Podman daemon runs on another machine, so
+its host gateway cannot reach Packer's local listener; set
+`ansible_proxy_bind_address` and `ansible_proxy_host` to addresses reachable
+from that daemon instead.
+
+Bridge defaults bind the ephemeral SSH adapter to non-loopback interfaces for
+the duration of the run. The provisioner uses a one-time SSH key and closes the
+listener when provisioning ends; use host firewall controls where additional
+isolation is required.
 
 ---
 

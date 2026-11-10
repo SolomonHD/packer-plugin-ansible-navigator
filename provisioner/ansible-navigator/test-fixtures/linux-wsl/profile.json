@@ -1,0 +1,14 @@
+{
+  "architecture": "linux/amd64",
+  "docker_builder_version": "1.1.2",
+  "target_image": "python@sha256:c4634f578a412db396771b61b064c6e546c9d6414c7fb5b1b05d5871f1885f7b",
+  "ee_image": "ghcr.io/ansible/community-ansible-dev-tools@sha256:f9caf58a32195c1c2d23cd2ef7f465bc89dd1c6adffa44cd144689b1d41a575a",
+  "reference_evidence": {
+    "observed_date": "2026-11-09",
+    "target_tag_at_selection": "python:3.12-alpine",
+    "target_amd64_manifest": "sha256:9b8dad7f66b5c7751df6cb7a64a07812e86bed85d0116efe82b3a11209f1440d",
+    "ee_tag_at_selection": "ghcr.io/ansible/community-ansible-dev-tools:latest",
+    "ee_amd64_manifest": "sha256:e416af142ddf3af7f88bca5867077a5cf87e09c551e62ef1d651658a2ae9f952",
+    "method": "Registry manifest inspection and local Docker image metadata; runtime checks tools from the actual EE. Tags are selection metadata only."
+  }
+}

@@ -1,0 +1,518 @@
+{
+  "format_version": 1,
+  "run_id": "navacc-1ced236073de4f979a99cd18b32ec8cd",
+  "evidence_kind": "live",
+  "result": "passed",
+  "stages": [
+    {
+      "name": "executable",
+      "status": "passed",
+      "navigator_path": "/home/solomong/.asdf/installs/python/3.10.15/bin/ansible-navigator",
+      "shim_manager": "asdf",
+      "inherited_selection": "/home/solomong/.asdf/shims/ansible-navigator",
+      "navigator_version": "26.11.0"
+    },
+    {
+      "name": "daemon",
+      "status": "passed",
+      "docker_server_version": "29.8.2",
+      "docker_client_version": "29.8.2",
+      "variant": null,
+      "selection": {
+        "source": "active-context",
+        "endpoint_kind": "unix",
+        "docker_config_explicit": false,
+        "tls_verify_explicit": false,
+        "cert_path_explicit": false
+      },
+      "docker_executable": "/usr/bin/docker"
+    },
+    {
+      "name": "images",
+      "status": "passed",
+      "images": {
+        "target_image": {
+          "id": "sha256:8614a50e05881ad79bcf2d4f82028b65a463c03d2d666d255a4332e3d2a0c0ba",
+          "architecture": "amd64",
+          "os": "linux"
+        },
+        "ee_image": {
+          "id": "sha256:931e726df418727ee477012b79297bca8a7d6d47da4803c43485d26c5d7b1a9b",
+          "architecture": "amd64",
+          "os": "linux"
+        }
+      }
+    },
+    {
+      "name": "source-plugin",
+      "status": "passed",
+      "binary_sha256": "c3fc410af3cf71cf2b9aee2a7422cd11a8102b98ffbeef21681d63893f44d28f",
+      "installed_path": "/tmp/navacc-1ced236073de4f979a99cd18b32ec8cd-swhpuiv5/plugins/github.com/solomonhd/ansible-navigator/packer-plugin-ansible-navigator_v8.7.0_x5.0_linux_amd64",
+      "docker_builder_version": "1.1.2"
+    },
+    {
+      "name": "daemon",
+      "status": "passed",
+      "docker_server_version": "29.8.2",
+      "docker_client_version": "29.8.2",
+      "variant": "explicit",
+      "selection": {
+        "source": "active-context",
+        "endpoint_kind": "unix",
+        "docker_config_explicit": false,
+        "tls_verify_explicit": false,
+        "cert_path_explicit": false
+      },
+      "docker_executable": "/usr/bin/docker"
+    },
+    {
+      "name": "ee-startup",
+      "status": "passed",
+      "ee_container_id": "e076627fbf8e182e8aabb35d50c64aca7c7b746144ee825d40c18f16bf3af638",
+      "startup_nonce": "169054f422e942b4a70edd556d1e25e1",
+      "versions": {
+        "python": "3.14.10",
+        "ansible_core": "2.22.0",
+        "runner": "2.4.3",
+        "ssh": "10.2p1"
+      },
+      "variant": "explicit",
+      "navigator_executable": "/home/solomong/.asdf/installs/python/3.10.15/bin/ansible-navigator",
+      "docker_executable": "/usr/bin/docker"
+    },
+    {
+      "name": "validation",
+      "status": "passed",
+      "variant": "explicit",
+      "build_id": "navacc-1ced236073de4f979a99cd18b32ec8cd-explicit-positive",
+      "negative_control": false
+    },
+    {
+      "name": "source-plugin-selection",
+      "status": "passed",
+      "variant": "explicit",
+      "build_id": "navacc-1ced236073de4f979a99cd18b32ec8cd-explicit-positive",
+      "selected_path": "/tmp/navacc-1ced236073de4f979a99cd18b32ec8cd-swhpuiv5/plugins/github.com/solomonhd/ansible-navigator/packer-plugin-ansible-navigator_v8.7.0_x5.0_linux_amd64",
+      "binary_sha256": "c3fc410af3cf71cf2b9aee2a7422cd11a8102b98ffbeef21681d63893f44d28f"
+    },
+    {
+      "name": "explicit-provisioning",
+      "status": "passed",
+      "packer_exit": 0,
+      "marker_absent": true,
+      "target_verified": true,
+      "ee_container_id": "a0d130a7c7a2717b3c1d8f3a23c309d99b4d163b22f23ced7d1afc14d11cfdec",
+      "intentional_failure_observed": false
+    },
+    {
+      "name": "validation",
+      "status": "passed",
+      "variant": "explicit",
+      "build_id": "navacc-1ced236073de4f979a99cd18b32ec8cd-explicit-negative",
+      "negative_control": true
+    },
+    {
+      "name": "source-plugin-selection",
+      "status": "passed",
+      "variant": "explicit",
+      "build_id": "navacc-1ced236073de4f979a99cd18b32ec8cd-explicit-negative",
+      "selected_path": "/tmp/navacc-1ced236073de4f979a99cd18b32ec8cd-swhpuiv5/plugins/github.com/solomonhd/ansible-navigator/packer-plugin-ansible-navigator_v8.7.0_x5.0_linux_amd64",
+      "binary_sha256": "c3fc410af3cf71cf2b9aee2a7422cd11a8102b98ffbeef21681d63893f44d28f"
+    },
+    {
+      "name": "explicit-negative-control",
+      "status": "passed",
+      "packer_exit": 1,
+      "marker_absent": true,
+      "target_verified": false,
+      "ee_container_id": "7bf80a2f4db46faa1f897066d5afdcbb9f2b46f459fd20922527af888a37a222",
+      "intentional_failure_observed": true
+    },
+    {
+      "name": "daemon",
+      "status": "passed",
+      "docker_server_version": "29.8.2",
+      "docker_client_version": "29.8.2",
+      "variant": "configured-path",
+      "selection": {
+        "source": "active-context",
+        "endpoint_kind": "unix",
+        "docker_config_explicit": false,
+        "tls_verify_explicit": false,
+        "cert_path_explicit": false
+      },
+      "docker_executable": "/tmp/navacc-1ced236073de4f979a99cd18b32ec8cd-swhpuiv5/restricted-tools/docker"
+    },
+    {
+      "name": "ee-startup",
+      "status": "passed",
+      "ee_container_id": "4094288a4379dc815c583c995f8e59fe48595d1d198b63461c447c1c6b462b24",
+      "startup_nonce": "bcfb78c836ed4ec89a4ef661dac579d3",
+      "versions": {
+        "python": "3.14.10",
+        "ansible_core": "2.22.0",
+        "runner": "2.4.3",
+        "ssh": "10.2p1"
+      },
+      "variant": "configured-path",
+      "navigator_executable": "/home/solomong/.asdf/installs/python/3.10.15/bin/ansible-navigator",
+      "docker_executable": "/tmp/navacc-1ced236073de4f979a99cd18b32ec8cd-swhpuiv5/restricted-tools/docker"
+    },
+    {
+      "name": "validation",
+      "status": "passed",
+      "variant": "configured-path",
+      "build_id": "navacc-1ced236073de4f979a99cd18b32ec8cd-configured-path-positive",
+      "negative_control": false
+    },
+    {
+      "name": "source-plugin-selection",
+      "status": "passed",
+      "variant": "configured-path",
+      "build_id": "navacc-1ced236073de4f979a99cd18b32ec8cd-configured-path-positive",
+      "selected_path": "/tmp/navacc-1ced236073de4f979a99cd18b32ec8cd-swhpuiv5/plugins/github.com/solomonhd/ansible-navigator/packer-plugin-ansible-navigator_v8.7.0_x5.0_linux_amd64",
+      "binary_sha256": "c3fc410af3cf71cf2b9aee2a7422cd11a8102b98ffbeef21681d63893f44d28f"
+    },
+    {
+      "name": "configured-path-provisioning",
+      "status": "passed",
+      "packer_exit": 0,
+      "marker_absent": true,
+      "target_verified": true,
+      "ee_container_id": "ef3099d523ec97b86a95437d1bb8abb6928773a08624693213faa27546eeb5de",
+      "intentional_failure_observed": false
+    },
+    {
+      "name": "validation",
+      "status": "passed",
+      "variant": "configured-path",
+      "build_id": "navacc-1ced236073de4f979a99cd18b32ec8cd-configured-path-negative",
+      "negative_control": true
+    },
+    {
+      "name": "source-plugin-selection",
+      "status": "passed",
+      "variant": "configured-path",
+      "build_id": "navacc-1ced236073de4f979a99cd18b32ec8cd-configured-path-negative",
+      "selected_path": "/tmp/navacc-1ced236073de4f979a99cd18b32ec8cd-swhpuiv5/plugins/github.com/solomonhd/ansible-navigator/packer-plugin-ansible-navigator_v8.7.0_x5.0_linux_amd64",
+      "binary_sha256": "c3fc410af3cf71cf2b9aee2a7422cd11a8102b98ffbeef21681d63893f44d28f"
+    },
+    {
+      "name": "configured-path-negative-control",
+      "status": "passed",
+      "packer_exit": 1,
+      "marker_absent": true,
+      "target_verified": false,
+      "ee_container_id": "d6d0d8891d2b10eef216d8d4a7016666dba7f8d66fb7fc0ad3fd346c27f222a2",
+      "intentional_failure_observed": true
+    },
+    {
+      "name": "daemon",
+      "status": "passed",
+      "docker_server_version": "29.8.2",
+      "docker_client_version": "29.8.2",
+      "variant": "path",
+      "selection": {
+        "source": "active-context",
+        "endpoint_kind": "unix",
+        "docker_config_explicit": false,
+        "tls_verify_explicit": false,
+        "cert_path_explicit": false
+      },
+      "docker_executable": "/usr/bin/docker"
+    },
+    {
+      "name": "ee-startup",
+      "status": "passed",
+      "ee_container_id": "2e79e87bfb00e908b06eff107b176c858613b320aa6024a8fadf7479a76eb08c",
+      "startup_nonce": "b701e922fbfd424aba0c3e07cd2b9157",
+      "versions": {
+        "python": "3.14.10",
+        "ansible_core": "2.22.0",
+        "runner": "2.4.3",
+        "ssh": "10.2p1"
+      },
+      "variant": "path",
+      "navigator_executable": "/home/solomong/.asdf/installs/python/3.10.15/bin/ansible-navigator",
+      "docker_executable": "/usr/bin/docker"
+    },
+    {
+      "name": "validation",
+      "status": "passed",
+      "variant": "path",
+      "build_id": "navacc-1ced236073de4f979a99cd18b32ec8cd-path-positive",
+      "negative_control": false
+    },
+    {
+      "name": "source-plugin-selection",
+      "status": "passed",
+      "variant": "path",
+      "build_id": "navacc-1ced236073de4f979a99cd18b32ec8cd-path-positive",
+      "selected_path": "/tmp/navacc-1ced236073de4f979a99cd18b32ec8cd-swhpuiv5/plugins/github.com/solomonhd/ansible-navigator/packer-plugin-ansible-navigator_v8.7.0_x5.0_linux_amd64",
+      "binary_sha256": "c3fc410af3cf71cf2b9aee2a7422cd11a8102b98ffbeef21681d63893f44d28f"
+    },
+    {
+      "name": "path-provisioning",
+      "status": "passed",
+      "packer_exit": 0,
+      "marker_absent": true,
+      "target_verified": true,
+      "ee_container_id": "0b1ee48ecf80fe77cf6d491f4fc6dc6f1c3fdae9cb0cb404308937420fb995ea",
+      "intentional_failure_observed": false
+    },
+    {
+      "name": "validation",
+      "status": "passed",
+      "variant": "path",
+      "build_id": "navacc-1ced236073de4f979a99cd18b32ec8cd-path-negative",
+      "negative_control": true
+    },
+    {
+      "name": "source-plugin-selection",
+      "status": "passed",
+      "variant": "path",
+      "build_id": "navacc-1ced236073de4f979a99cd18b32ec8cd-path-negative",
+      "selected_path": "/tmp/navacc-1ced236073de4f979a99cd18b32ec8cd-swhpuiv5/plugins/github.com/solomonhd/ansible-navigator/packer-plugin-ansible-navigator_v8.7.0_x5.0_linux_amd64",
+      "binary_sha256": "c3fc410af3cf71cf2b9aee2a7422cd11a8102b98ffbeef21681d63893f44d28f"
+    },
+    {
+      "name": "path-negative-control",
+      "status": "passed",
+      "packer_exit": 1,
+      "marker_absent": true,
+      "target_verified": false,
+      "ee_container_id": "adf848a4c9060685b3392ed8ab0b0391930acd337594474479fe63f506bc1af1",
+      "intentional_failure_observed": true
+    }
+  ],
+  "profile": {
+    "architecture": "linux/amd64",
+    "docker_builder_version": "1.1.2",
+    "target_image": "python@sha256:c4634f578a412db396771b61b064c6e546c9d6414c7fb5b1b05d5871f1885f7b",
+    "ee_image": "ghcr.io/ansible/community-ansible-dev-tools@sha256:f9caf58a32195c1c2d23cd2ef7f465bc89dd1c6adffa44cd144689b1d41a575a",
+    "reference_evidence": {
+      "observed_date": "2026-11-09",
+      "target_tag_at_selection": "python:3.12-alpine",
+      "target_amd64_manifest": "sha256:9b8dad7f66b5c7751df6cb7a64a07812e86bed85d0116efe82b3a11209f1440d",
+      "ee_tag_at_selection": "ghcr.io/ansible/community-ansible-dev-tools:latest",
+      "ee_amd64_manifest": "sha256:e416af142ddf3af7f88bca5867077a5cf87e09c551e62ef1d651658a2ae9f952",
+      "method": "Registry manifest inspection and local Docker image metadata; runtime checks tools from the actual EE. Tags are selection metadata only."
+    }
+  },
+  "profile_sha256": "3d61c24cb1c340ad26cf491f1806ece507586e8609427d3c66b560f314e3b9fa",
+  "host": {
+    "hostname": "SOL-3D-MIDSEASON",
+    "kernel": "6.18.35.2-microsoft-standard-WSL2+",
+    "system": "Linux",
+    "machine": "x86_64",
+    "python": "3.10.15"
+  },
+  "variants": [
+    {
+      "name": "explicit",
+      "build_id": "navacc-1ced236073de4f979a99cd18b32ec8cd-explicit-positive",
+      "negative_control": false,
+      "nonce": "cf98693df33043489b593c2d11d0148c",
+      "navigator_command": "/home/solomong/.asdf/installs/python/3.10.15/bin/ansible-navigator",
+      "navigator_path": [],
+      "path_source": "explicit",
+      "docker_selection": {
+        "source": "active-context",
+        "endpoint_kind": "unix",
+        "docker_config_explicit": false,
+        "tls_verify_explicit": false,
+        "cert_path_explicit": false
+      },
+      "version_check_enabled": true,
+      "status": "passed",
+      "selected_plugin_path": "/tmp/navacc-1ced236073de4f979a99cd18b32ec8cd-swhpuiv5/plugins/github.com/solomonhd/ansible-navigator/packer-plugin-ansible-navigator_v8.7.0_x5.0_linux_amd64",
+      "plugin_sha256": "c3fc410af3cf71cf2b9aee2a7422cd11a8102b98ffbeef21681d63893f44d28f",
+      "packer_exit": 0,
+      "marker_absent": true,
+      "target_verified": true,
+      "ee_container_id": "a0d130a7c7a2717b3c1d8f3a23c309d99b4d163b22f23ced7d1afc14d11cfdec",
+      "intentional_failure_observed": false
+    },
+    {
+      "name": "explicit",
+      "build_id": "navacc-1ced236073de4f979a99cd18b32ec8cd-explicit-negative",
+      "negative_control": true,
+      "nonce": "1b3e500507764a1685eca3d4595a3d6d",
+      "navigator_command": "/home/solomong/.asdf/installs/python/3.10.15/bin/ansible-navigator",
+      "navigator_path": [],
+      "path_source": "explicit",
+      "docker_selection": {
+        "source": "active-context",
+        "endpoint_kind": "unix",
+        "docker_config_explicit": false,
+        "tls_verify_explicit": false,
+        "cert_path_explicit": false
+      },
+      "version_check_enabled": true,
+      "status": "passed",
+      "selected_plugin_path": "/tmp/navacc-1ced236073de4f979a99cd18b32ec8cd-swhpuiv5/plugins/github.com/solomonhd/ansible-navigator/packer-plugin-ansible-navigator_v8.7.0_x5.0_linux_amd64",
+      "plugin_sha256": "c3fc410af3cf71cf2b9aee2a7422cd11a8102b98ffbeef21681d63893f44d28f",
+      "packer_exit": 1,
+      "marker_absent": true,
+      "target_verified": false,
+      "ee_container_id": "7bf80a2f4db46faa1f897066d5afdcbb9f2b46f459fd20922527af888a37a222",
+      "intentional_failure_observed": true
+    },
+    {
+      "name": "configured-path",
+      "build_id": "navacc-1ced236073de4f979a99cd18b32ec8cd-configured-path-positive",
+      "negative_control": false,
+      "nonce": "73c98385cb364799aee96359576a0cfe",
+      "navigator_command": "ansible-navigator",
+      "navigator_path": [
+        "/home/solomong/.asdf/installs/python/3.10.15/bin"
+      ],
+      "path_source": "restricted-tools+configured",
+      "docker_selection": {
+        "source": "active-context",
+        "endpoint_kind": "unix",
+        "docker_config_explicit": false,
+        "tls_verify_explicit": false,
+        "cert_path_explicit": false
+      },
+      "version_check_enabled": true,
+      "status": "passed",
+      "selected_plugin_path": "/tmp/navacc-1ced236073de4f979a99cd18b32ec8cd-swhpuiv5/plugins/github.com/solomonhd/ansible-navigator/packer-plugin-ansible-navigator_v8.7.0_x5.0_linux_amd64",
+      "plugin_sha256": "c3fc410af3cf71cf2b9aee2a7422cd11a8102b98ffbeef21681d63893f44d28f",
+      "packer_exit": 0,
+      "marker_absent": true,
+      "target_verified": true,
+      "ee_container_id": "ef3099d523ec97b86a95437d1bb8abb6928773a08624693213faa27546eeb5de",
+      "intentional_failure_observed": false
+    },
+    {
+      "name": "configured-path",
+      "build_id": "navacc-1ced236073de4f979a99cd18b32ec8cd-configured-path-negative",
+      "negative_control": true,
+      "nonce": "b562861dc5ea4add92a87e89f59c4a2f",
+      "navigator_command": "ansible-navigator",
+      "navigator_path": [
+        "/home/solomong/.asdf/installs/python/3.10.15/bin"
+      ],
+      "path_source": "restricted-tools+configured",
+      "docker_selection": {
+        "source": "active-context",
+        "endpoint_kind": "unix",
+        "docker_config_explicit": false,
+        "tls_verify_explicit": false,
+        "cert_path_explicit": false
+      },
+      "version_check_enabled": true,
+      "status": "passed",
+      "selected_plugin_path": "/tmp/navacc-1ced236073de4f979a99cd18b32ec8cd-swhpuiv5/plugins/github.com/solomonhd/ansible-navigator/packer-plugin-ansible-navigator_v8.7.0_x5.0_linux_amd64",
+      "plugin_sha256": "c3fc410af3cf71cf2b9aee2a7422cd11a8102b98ffbeef21681d63893f44d28f",
+      "packer_exit": 1,
+      "marker_absent": true,
+      "target_verified": false,
+      "ee_container_id": "d6d0d8891d2b10eef216d8d4a7016666dba7f8d66fb7fc0ad3fd346c27f222a2",
+      "intentional_failure_observed": true
+    },
+    {
+      "name": "path",
+      "build_id": "navacc-1ced236073de4f979a99cd18b32ec8cd-path-positive",
+      "negative_control": false,
+      "nonce": "a12720eb609b4e27aee7f8f33021304e",
+      "navigator_command": "ansible-navigator",
+      "navigator_path": [],
+      "path_source": "path",
+      "docker_selection": {
+        "source": "active-context",
+        "endpoint_kind": "unix",
+        "docker_config_explicit": false,
+        "tls_verify_explicit": false,
+        "cert_path_explicit": false
+      },
+      "version_check_enabled": true,
+      "status": "passed",
+      "selected_plugin_path": "/tmp/navacc-1ced236073de4f979a99cd18b32ec8cd-swhpuiv5/plugins/github.com/solomonhd/ansible-navigator/packer-plugin-ansible-navigator_v8.7.0_x5.0_linux_amd64",
+      "plugin_sha256": "c3fc410af3cf71cf2b9aee2a7422cd11a8102b98ffbeef21681d63893f44d28f",
+      "packer_exit": 0,
+      "marker_absent": true,
+      "target_verified": true,
+      "ee_container_id": "0b1ee48ecf80fe77cf6d491f4fc6dc6f1c3fdae9cb0cb404308937420fb995ea",
+      "intentional_failure_observed": false
+    },
+    {
+      "name": "path",
+      "build_id": "navacc-1ced236073de4f979a99cd18b32ec8cd-path-negative",
+      "negative_control": true,
+      "nonce": "883fa0a4afa64a1eac6a6b3172dd5b66",
+      "navigator_command": "ansible-navigator",
+      "navigator_path": [],
+      "path_source": "path",
+      "docker_selection": {
+        "source": "active-context",
+        "endpoint_kind": "unix",
+        "docker_config_explicit": false,
+        "tls_verify_explicit": false,
+        "cert_path_explicit": false
+      },
+      "version_check_enabled": true,
+      "status": "passed",
+      "selected_plugin_path": "/tmp/navacc-1ced236073de4f979a99cd18b32ec8cd-swhpuiv5/plugins/github.com/solomonhd/ansible-navigator/packer-plugin-ansible-navigator_v8.7.0_x5.0_linux_amd64",
+      "plugin_sha256": "c3fc410af3cf71cf2b9aee2a7422cd11a8102b98ffbeef21681d63893f44d28f",
+      "packer_exit": 1,
+      "marker_absent": true,
+      "target_verified": false,
+      "ee_container_id": "adf848a4c9060685b3392ed8ab0b0391930acd337594474479fe63f506bc1af1",
+      "intentional_failure_observed": true
+    }
+  ],
+  "source": {
+    "sha": "7a9ea9e053cd4b8a1932622570d7914f8655c635",
+    "dirty": true,
+    "source_fixture_sha256": "8eff2ad665bf2a164719a780899f681f5ad30f04b5bf2d0e542044493b0be267",
+    "fixture_sha256": {
+      "profile.json": "3d61c24cb1c340ad26cf491f1806ece507586e8609427d3c66b560f314e3b9fa",
+      "marker.yml": "5f4de80dde1ae4aff73a8ef2192c0cee3241f35931822fafdd6e36515a3239a4",
+      "acceptance.pkr.hcl": "6c40b6e82a29fdada80ea221633e572db6f38eef5f397aa4dc2e7fec5ca83274"
+    }
+  },
+  "reproduction": [
+    "/home/solomong/.asdf/installs/python/3.10.15/bin/python3",
+    "/home/solomong/Code/Collections/packer-plugin-ansible-navigator/scripts/linux_wsl_acceptance.py",
+    "run",
+    "--prepared-dir",
+    "/tmp/navigator-prepared",
+    "--profile",
+    "/home/solomong/Code/Collections/packer-plugin-ansible-navigator/provisioner/ansible-navigator/test-fixtures/linux-wsl/profile.json",
+    "--record",
+    "/home/solomong/Code/Collections/packer-plugin-ansible-navigator/docs/acceptance/wsl2.json",
+    "--navigator",
+    "ansible-navigator",
+    "--variant",
+    "explicit",
+    "--variant",
+    "configured-path",
+    "--variant",
+    "path"
+  ],
+  "packer_version": "1.14.2",
+  "docker_selection": {
+    "source": "active-context",
+    "endpoint_kind": "unix",
+    "docker_config_explicit": false,
+    "tls_verify_explicit": false,
+    "cert_path_explicit": false
+  },
+  "cleanup": {
+    "status": "passed",
+    "errors": [],
+    "shared_images_removed": false
+  },
+  "supplemental_metadata": {
+    "go_version": "go version go1.26.3 linux/amd64",
+    "docker_product": {
+      "operating_system": "Docker Desktop",
+      "os_type": "linux",
+      "architecture": "x86_64",
+      "kernel": "6.18.35.2-microsoft-standard-WSL2+"
+    },
+    "method": "Bounded go version and Docker info format fields after successful qualification; source and fixture unchanged."
+  }
+}

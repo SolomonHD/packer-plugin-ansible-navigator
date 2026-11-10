@@ -41,7 +41,7 @@ func envVarIsSetOrPassed(env *EnvironmentVariablesConfig, key string) bool {
 // directory containing the ansible_collections/ subdirectory (e.g., ~/.packer.d/ansible_collections_cache).
 // ansible-galaxy installs collections to <collectionsPath>/ansible_collections/<namespace>/<collection>,
 // and this function mounts the entire collectionsPath directory into the container.
-func applyAutomaticEEDefaults(config *NavigatorConfig, collectionsPath string, ansibleProxyHost string) {
+func applyAutomaticEEDefaults(config *NavigatorConfig, collectionsPath string, topology *proxyTopology) {
 	if config == nil {
 		return
 	}
@@ -50,10 +50,17 @@ func applyAutomaticEEDefaults(config *NavigatorConfig, collectionsPath string, a
 		return
 	}
 
-	// Auto-configure Docker host mapping for gateway.docker.internal
-	// This is required for Linux Docker to resolve the host gateway, whereas Docker Desktop does it automatically.
-	if ansibleProxyHost == "gateway.docker.internal" {
-		addHostFlag := "--add-host=gateway.docker.internal:host-gateway"
+	// Packer has no interactive stdin. Runner otherwise requests a Docker TTY
+	// even in stdout mode, which fails before Ansible can start. Keep an explicit
+	// user's TTY selection authoritative.
+	ee := config.ExecutionEnvironment
+	if config.Mode == "stdout" && ee.ContainerEngine == "docker" && !hasExplicitDockerTTY(ee.ContainerOptions) {
+		ee.ContainerOptions = append(ee.ContainerOptions, "--tty=false")
+	}
+
+	// Apply only the mapping selected by the resolved Docker bridge topology.
+	if topology != nil && topology.AutomaticHostMapping != "" {
+		addHostFlag := topology.AutomaticHostMapping
 		hasFlag := false
 		for _, opt := range config.ExecutionEnvironment.ContainerOptions {
 			if opt == addHostFlag {
@@ -150,18 +157,41 @@ func applyAutomaticEEDefaults(config *NavigatorConfig, collectionsPath string, a
 	}
 }
 
+// hasExplicitDockerTTY recognizes Docker's long flag and short boolean clusters.
+// Stop at argument-taking shorthand flags so values such as -v/tmp:/tmp or
+// -eFOO=tty cannot accidentally be interpreted as a TTY selection.
+func hasExplicitDockerTTY(options []string) bool {
+	for _, option := range options {
+		if option == "--tty" || strings.HasPrefix(option, "--tty=") {
+			return true
+		}
+		if !strings.HasPrefix(option, "-") || strings.HasPrefix(option, "--") {
+			continue
+		}
+		for _, flag := range option[1:] {
+			if flag == 't' {
+				return true
+			}
+			if !strings.ContainsRune("diPq", flag) {
+				break
+			}
+		}
+	}
+	return false
+}
+
 // GenerateNavigatorConfigYAML converts the NavigatorConfig struct to YAML format
 // and applies automatic defaults when execution-environment.enabled = true.
 //
 // The generated YAML conforms to ansible-navigator Version 2 format, which wraps
 // all configuration under the "ansible-navigator:" top-level key. This format is
 // required by ansible-navigator 25.x+ to avoid version migration prompts.
-func GenerateNavigatorConfigYAML(config *NavigatorConfig, collectionsPath string, ansibleProxyHost string) (string, error) {
+func GenerateNavigatorConfigYAML(config *NavigatorConfig, collectionsPath string, topology *proxyTopology) (string, error) {
 	if config == nil {
 		return "", fmt.Errorf("navigator_config cannot be nil")
 	}
 
-	applyAutomaticEEDefaults(config, collectionsPath, ansibleProxyHost)
+	applyAutomaticEEDefaults(config, collectionsPath, topology)
 
 	// Convert to YAML-friendly structure with proper field names
 	yamlConfig := convertToYAMLStructure(config)

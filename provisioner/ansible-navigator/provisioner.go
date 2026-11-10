@@ -540,15 +540,20 @@ func (c *Config) Validate() error {
 // It manages the lifecycle of Ansible provisioning including SSH proxy setup,
 // inventory management, and ansible-navigator command execution.
 type Provisioner struct {
-	config            Config
-	adapter           *adapter.Adapter
-	done              chan struct{}
-	ansibleVersion    string
-	ansibleMajVersion uint
-	generatedData     map[string]interface{}
+	defaultCollectionsPath bool
+	resolvedCommand        string
+	preparationDir         string
+	config                 Config
+	adapter                *adapter.Adapter
+	done                   chan struct{}
+	ansibleVersion         string
+	ansibleMajVersion      uint
+	generatedData          map[string]interface{}
+	proxyTopology          proxyTopology
 
-	setupAdapterFunc   func(ui packersdk.Ui, comm packersdk.Communicator) (string, error)
-	executeAnsibleFunc func(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string) error
+	setupAdapterFunc        func(ui packersdk.Ui, comm packersdk.Communicator) (string, error)
+	executeAnsibleFunc      func(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string) error
+	containerEngineLookPath func(string) (string, error)
 }
 
 // ConfigSpec returns the HCL2 object spec for the provisioner configuration.
@@ -559,6 +564,13 @@ func (p *Provisioner) ConfigSpec() hcldec.ObjectSpec { return p.config.FlatMapst
 // It sets defaults, validates the config, and checks for ansible-navigator availability.
 func (p *Provisioner) Prepare(raws ...interface{}) error {
 	p.done = make(chan struct{})
+	p.resolvedCommand = ""
+	p.preparationDir, _ = os.Getwd()
+	// Do not mistake a previous preparation's computed default for user input.
+	if p.defaultCollectionsPath {
+		p.config.CollectionsPath = ""
+	}
+	p.defaultCollectionsPath = false
 
 	err := config.Decode(&p.config, &config.DecodeOpts{
 		PluginType:         "ansible",
@@ -624,6 +636,7 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 
 	// Set default install directories if not specified
 	if p.config.CollectionsPath == "" {
+		p.defaultCollectionsPath = true
 		usr, err := user.Current()
 		if err == nil {
 			p.config.CollectionsPath = filepath.Join(usr.HomeDir, ".packer.d", "ansible_collections_cache")
@@ -672,11 +685,40 @@ func (p *Provisioner) Prepare(raws ...interface{}) error {
 	}
 	p.config.AdapterKeyType = strings.ToUpper(p.config.AdapterKeyType)
 
-	if p.config.AnsibleProxyBindAddress == "" {
-		p.config.AnsibleProxyBindAddress = "127.0.0.1"
+	if p.containerEngineLookPath == nil {
+		p.containerEngineLookPath = func(engine string) (string, error) {
+			return lookupExecutable(engine, buildEnvWithPath(p.config.AnsibleNavigatorPath), p.preparationDir)
+		}
 	}
-	if p.config.AnsibleProxyHost == "" {
-		p.config.AnsibleProxyHost = "127.0.0.1"
+	availableEngines := make(map[string]bool)
+	if isExecutionEnvironmentEnabled(p.config.NavigatorConfig) {
+		for _, engine := range navigatorContainerEnginePreference() {
+			_, lookupErr := p.containerEngineLookPath(engine)
+			availableEngines[engine] = lookupErr == nil
+		}
+	}
+	containerEngine := ""
+	var containerOptions []string
+	if isExecutionEnvironmentEnabled(p.config.NavigatorConfig) {
+		containerEngine = p.config.NavigatorConfig.ExecutionEnvironment.ContainerEngine
+		containerOptions = p.config.NavigatorConfig.ExecutionEnvironment.ContainerOptions
+	}
+	p.proxyTopology, err = resolveProxyTopology(proxyTopologyInput{
+		ExecutionEnvironmentEnabled: isExecutionEnvironmentEnabled(p.config.NavigatorConfig),
+		ContainerEngine:             containerEngine,
+		ContainerOptions:            containerOptions,
+		AnsibleProxyBindAddress:     p.config.AnsibleProxyBindAddress,
+		AnsibleProxyHost:            p.config.AnsibleProxyHost,
+		AvailableEngines:            availableEngines,
+	})
+	if err != nil {
+		return fmt.Errorf("invalid execution-environment proxy topology: %w", err)
+	}
+	p.config.AnsibleProxyBindAddress = p.proxyTopology.BindAddress
+	p.config.AnsibleProxyHost = p.proxyTopology.AdvertisedHost
+	if isExecutionEnvironmentEnabled(p.config.NavigatorConfig) {
+		// Pin automatic selection so Navigator uses the same engine as the route.
+		p.config.NavigatorConfig.ExecutionEnvironment.ContainerEngine = p.proxyTopology.ContainerEngine
 	}
 
 	// Validate configuration
@@ -717,32 +759,12 @@ func detectShim(path string) (string, bool) {
 	return "", false
 }
 
-// resolveShim attempts to resolve a shim to its real binary using the version manager
+// resolveShim retains the standalone helper with the same bounded resolution
+// used by the provisioner.
 func resolveShim(command string, manager string) (string, error) {
-	var whichCmd *exec.Cmd
-
-	switch manager {
-	case "asdf":
-		whichCmd = exec.Command("asdf", "which", command)
-	case "rbenv":
-		whichCmd = exec.Command("rbenv", "which", command)
-	case "pyenv":
-		whichCmd = exec.Command("pyenv", "which", command)
-	default:
-		return "", fmt.Errorf("unsupported version manager: %s", manager)
-	}
-
-	output, err := whichCmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to resolve shim with %s: %w", manager, err)
-	}
-
-	resolvedPath := strings.TrimSpace(string(output))
-	if resolvedPath == "" {
-		return "", fmt.Errorf("%s returned empty path", manager)
-	}
-
-	return resolvedPath, nil
+	ctx, cancel := context.WithTimeout(context.Background(), executableResolutionTimeout)
+	defer cancel()
+	return resolveShimInEnvironment(ctx, command, manager, os.Environ(), "")
 }
 
 func (p *Provisioner) getVersion() error {
@@ -761,45 +783,16 @@ func (p *Provisioner) getVersion() error {
 		timeout = 60 * time.Second
 	}
 
-	// Detect and resolve shims before version check
-	cmdPath, err := exec.LookPath(command)
-	if err == nil {
-		// Check if the resolved path is a shim
-		if manager, isShim := detectShim(cmdPath); isShim {
-			log.Printf("Detected %s shim at %s", manager, cmdPath)
-
-			// Attempt to resolve the shim
-			resolvedPath, resolveErr := resolveShim(command, manager)
-			if resolveErr != nil {
-				// Resolution failed - provide actionable error
-				return fmt.Errorf(
-					"ansible-navigator is installed via %s but could not be resolved automatically.\n"+
-						"This may cause hangs or timeouts during version checks.\n\n"+
-						"Solutions:\n"+
-						"  1. Use 'command' to specify the full path:\n"+
-						"     command = \"/full/path/to/ansible-navigator\"\n\n"+
-						"  2. Find the path with: %s which ansible-navigator\n\n"+
-						"  3. Use 'ansible_navigator_path' to add directories to PATH\n\n"+
-						"  4. Use 'skip_version_check = true' to bypass (not recommended)\n\n"+
-						"Resolution error: %v",
-					manager, manager, resolveErr)
-			}
-
-			// Resolution succeeded - use the real binary
-			log.Printf("Resolved %s shim to: %s", manager, resolvedPath)
-			command = resolvedPath
-		}
-	}
-
-	// Create context with timeout
+	// Resolution and the version process share this single budget.
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-
-	// Create command with context and modified PATH if ansible_navigator_path is set
-	cmd := exec.CommandContext(ctx, command, "--version")
-	if len(p.config.AnsibleNavigatorPath) > 0 {
-		cmd.Env = buildEnvWithPath(p.config.AnsibleNavigatorPath)
+	if err := p.resolveExecutable(ctx); err != nil {
+		return err
 	}
+	command = p.resolvedCommand
+	cmd := exec.CommandContext(ctx, command, "--version")
+	cmd.Env = buildEnvWithPath(p.config.AnsibleNavigatorPath)
+	cmd.WaitDelay = 50 * time.Millisecond
 
 	out, err := cmd.Output()
 	if err != nil {
@@ -823,10 +816,7 @@ func (p *Provisioner) getVersion() error {
 		}
 		// Not a timeout - likely not found or other error
 		return fmt.Errorf(
-			"ansible-navigator not found in PATH or failed to execute. "+
-				"Please install it before running this provisioner. "+
-				"You can use 'ansible_navigator_path' to specify additional directories, "+
-				"or 'skip_version_check = true' to bypass this check. Error: %s", err.Error())
+			"Navigator version subprocess failed for resolved executable %q: %w", command, err)
 	}
 
 	versionRe := regexp.MustCompile(`\w (\d+\.\d+[.\d+]*)`)
@@ -913,6 +903,7 @@ func (p *Provisioner) setupAdapter(ui packersdk.Ui, comm packersdk.Communicator)
 				ui.Say(err.Error())
 				continue
 			}
+			p.emitProxyRouteDiagnostics(ui, l.Addr().String())
 			return l, nil
 		}
 		return nil, errors.New("Error setting up SSH proxy connection")
@@ -929,6 +920,19 @@ func (p *Provisioner) setupAdapter(ui packersdk.Ui, comm packersdk.Communicator)
 	p.adapter = adapter.NewAdapter(p.done, localListener, config, p.config.SFTPCmd, ui, comm)
 
 	return k.privKeyFile, nil
+}
+
+func (p *Provisioner) emitProxyRouteDiagnostics(ui packersdk.Ui, listenerEndpoint string) {
+	advertisedEndpoint := net.JoinHostPort(p.config.AnsibleProxyHost, strconv.Itoa(p.config.LocalPort))
+	ui.Message(fmt.Sprintf("SSH proxy route: listener=%s advertised=%s", listenerEndpoint, advertisedEndpoint))
+	mapping := p.proxyTopology.AutomaticHostMapping
+	if mapping == "" {
+		mapping = "none"
+	}
+	debugf(ui, isPluginDebugEnabled(p.config.NavigatorConfig),
+		"proxy topology: engine=%s network=%s bind_origin=%s host_origin=%s automatic_host_mapping=%s",
+		p.proxyTopology.ContainerEngine, p.proxyTopology.NetworkMode,
+		p.proxyTopology.BindAddressOrigin, p.proxyTopology.AdvertisedHostOrigin, mapping)
 }
 
 const DefaultSSHInventoryFilev2 = "{{ .HostAlias }} ansible_host={{ .Host }} ansible_user={{ .User }} ansible_port={{ .Port }}\n"
@@ -1312,9 +1316,17 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 	if p.config.NavigatorConfig != nil {
 		// Pass collections path for EE automatic defaults
 		collectionsPath := p.config.CollectionsPath
+		// A fresh host need not have an unused plugin-default cache. Preserve
+		// explicit paths and mounts; requirements may create this cache after YAML
+		// generation, so their destination must remain mounted even if absent now.
+		if p.defaultCollectionsPath && p.config.RequirementsFile == "" {
+			if _, err := os.Stat(expandUserPath(collectionsPath)); os.IsNotExist(err) {
+				collectionsPath = ""
+			}
+		}
 
 		// Apply EE automatic defaults (e.g., temp paths, collections mount)
-		applyAutomaticEEDefaults(p.config.NavigatorConfig, collectionsPath, p.config.AnsibleProxyHost)
+		applyAutomaticEEDefaults(p.config.NavigatorConfig, collectionsPath, &p.proxyTopology)
 
 		// Handle ansible.cfg generation if needed
 		if p.config.NavigatorConfig.AnsibleConfig != nil && needsGeneratedAnsibleCfg(p.config.NavigatorConfig.AnsibleConfig) {
@@ -1340,7 +1352,7 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 		}
 
 		// Generate full YAML configuration
-		yamlContent, err := GenerateNavigatorConfigYAML(p.config.NavigatorConfig, collectionsPath, p.config.AnsibleProxyHost)
+		yamlContent, err := GenerateNavigatorConfigYAML(p.config.NavigatorConfig, collectionsPath, &p.proxyTopology)
 		if err != nil {
 			return fmt.Errorf("failed to generate ansible-navigator.yml: %w", err)
 		}
@@ -1376,13 +1388,13 @@ func (p *Provisioner) executeAnsible(ui packersdk.Ui, comm packersdk.Communicato
 	}
 
 	// Resolve Docker Host if needed
-	dockerHost, err := resolveDockerHost(ui)
+	dockerHost, err := resolveDockerHost(ui, buildEnvWithPath(p.config.AnsibleNavigatorPath))
 	if err != nil {
 		// Log warning but proceed
 		ui.Message(fmt.Sprintf("Warning: Error resolving Docker host: %v", err))
 	}
 	if dockerHost != "" {
-		debugf(ui, debugEnabled, "Resolved DOCKER_HOST from context: %s", dockerHost)
+		debugf(ui, debugEnabled, "Resolved DOCKER_HOST from active context (endpoint redacted)")
 	}
 
 	// Execute plays (required by validation)
@@ -1446,6 +1458,11 @@ func (p *Provisioner) buildRunCommandArgsForPlay(ui packersdk.Ui, play Play, htt
 // If a play fails and keep_going is false, execution stops immediately.
 // Otherwise, errors are logged and execution continues to the next play.
 func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator, privKeyFile string, httpAddr string, navigatorConfigPath string, dockerHost string) error {
+	// skip_version_check skips only --version; executable/shim lookup still runs.
+	if err := p.resolveExecutable(context.Background()); err != nil {
+		return err
+	}
+
 	inventory := p.config.InventoryFile
 
 	debugEnabled := isPluginDebugEnabled(p.config.NavigatorConfig)
@@ -1459,7 +1476,7 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 		debugf(ui, debugEnabled, "YAML config: ANSIBLE_NAVIGATOR_CONFIG=%s", navigatorConfigPath)
 	}
 	if dockerHost != "" {
-		debugf(ui, debugEnabled, "Using DOCKER_HOST=%s", dockerHost)
+		debugf(ui, debugEnabled, "Using DOCKER_HOST discovered from active context (endpoint redacted)")
 	}
 
 	for i, play := range p.config.Plays {
@@ -1516,7 +1533,7 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 			}
 		}()
 
-		cmd := exec.Command(p.config.Command, cmdArgs...)
+		cmd := exec.Command(p.resolvedCommand, cmdArgs...)
 
 		// Set environment with modified PATH if needed
 		if len(p.config.AnsibleNavigatorPath) > 0 {
@@ -1553,7 +1570,10 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 			ui.Error(fmt.Sprintf("Play '%s' failed: %v", playName, execErr))
 			// If keep_going is false, return immediately on error
 			if !p.config.KeepGoing {
-				return fmt.Errorf("Play '%s' failed with exit code 2", playName)
+				if exitCode, ok := commandExitCode(execErr); ok {
+					return fmt.Errorf("Play '%s' failed with exit code %d: %w", playName, exitCode, execErr)
+				}
+				return fmt.Errorf("Play '%s' failed: %w", playName, execErr)
 			}
 			// Otherwise, log but continue to next play
 			ui.Message(fmt.Sprintf("Continuing to next play despite failure (keep_going=true)"))
@@ -1566,6 +1586,14 @@ func (p *Provisioner) executePlays(ui packersdk.Ui, comm packersdk.Communicator,
 
 	ui.Say("All plays completed successfully!")
 	return nil
+}
+
+func commandExitCode(err error) (int, bool) {
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		return exitErr.ExitCode(), true
+	}
+	return 0, false
 }
 
 func (p *Provisioner) executeAnsibleCommand(ui packersdk.Ui, cmd *exec.Cmd, target string) error {
@@ -1936,8 +1964,8 @@ func buildEnvWithPath(ansibleNavigatorPath []string) []string {
 	// Build new PATH with ansible_navigator_path entries prepended
 	pathEntries := make([]string, 0, len(ansibleNavigatorPath)+1)
 	for _, entry := range ansibleNavigatorPath {
-		// Each entry is already HOME-expanded in Prepare()
-		pathEntries = append(pathEntries, entry)
+		// Also expand here for direct callers outside Prepare().
+		pathEntries = append(pathEntries, expandUserPath(entry))
 	}
 	if currentPath != "" {
 		pathEntries = append(pathEntries, currentPath)
@@ -1971,37 +1999,4 @@ func checkArg(argname string, args []string) bool {
 		}
 	}
 	return false
-}
-
-// resolveDockerHost attempts to detect the active Docker Context socket
-// when DOCKER_HOST is not explicitly set. This ensures compatibility with
-// Rootless Docker and non-default contexts.
-func resolveDockerHost(ui packersdk.Ui) (string, error) {
-	// If DOCKER_HOST is already set, respect it
-	if os.Getenv("DOCKER_HOST") != "" {
-		return "", nil
-	}
-
-	// Check if docker command is available
-	dockerPath, err := exec.LookPath("docker")
-	if err != nil {
-		// Docker not found, cannot resolve context
-		return "", nil
-	}
-
-	// Run docker context inspect
-	cmd := exec.Command(dockerPath, "context", "inspect", "--format", "{{.Endpoints.docker.Host}}")
-	output, err := cmd.Output()
-	if err != nil {
-		// Failed to inspect context, ignore (fail open)
-		ui.Message(fmt.Sprintf("Warning: Failed to inspect Docker context: %v", err))
-		return "", nil
-	}
-
-	host := strings.TrimSpace(string(output))
-	if host != "" {
-		return host, nil
-	}
-
-	return "", nil
 }

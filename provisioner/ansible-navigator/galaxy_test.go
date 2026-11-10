@@ -80,6 +80,7 @@ func TestGalaxyManager_InstallRequirements_NoRequirementsFile(t *testing.T) {
 }
 
 func TestGalaxyManager_InstallRequirements_FromRequirementsFile_CallsGalaxy(t *testing.T) {
+	requirePOSIXShellFixture(t)
 	tmpDir := t.TempDir()
 	outputFile := filepath.Join(tmpDir, "galaxy_calls.txt")
 	stubPath := filepath.Join(tmpDir, "ansible-galaxy-stub.sh")
@@ -212,6 +213,7 @@ func TestGalaxyManager_SetupEnvironmentPaths(t *testing.T) {
 }
 
 func TestGalaxyManager_InstallRequirements_UsesCommandArgsAndForcePrecedence(t *testing.T) {
+	requirePOSIXShellFixture(t)
 	tmpDir := t.TempDir()
 	outputFile := filepath.Join(tmpDir, "galaxy_calls.txt")
 	stubPath := filepath.Join(tmpDir, "ansible-galaxy-stub.sh")

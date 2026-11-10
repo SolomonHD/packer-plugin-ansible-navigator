@@ -1,0 +1,17 @@
+---
+- name: Prove provisioning through generated inventory and the SSH proxy
+  hosts: all
+  gather_facts: false
+  vars:
+    ansible_python_interpreter: /usr/local/bin/python3
+  tasks:
+    - name: Intentional task failure for the separate negative control
+      ansible.builtin.fail:
+        msg: "ACCEPTANCE_INTENTIONAL_FAILURE:{{ marker_nonce }}"
+      when: expect_failure | bool
+
+    - name: Write the unique value on the target
+      ansible.builtin.copy:
+        dest: /var/tmp/packer-navigator-acceptance-marker
+        content: "{{ marker_nonce }}"
+        mode: "0600"

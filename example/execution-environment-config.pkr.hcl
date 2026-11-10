@@ -37,6 +37,10 @@ build {
         enabled      = true
         image        = "quay.io/ansible/creator-ee:latest"
         pull_policy  = "missing"
+
+        # The remote provisioner resolves bridge connectivity automatically:
+        # Podman uses host.containers.internal; Docker uses
+        # gateway.docker.internal plus its Linux host-gateway mapping.
         
         # Pass environment variables to the execution environment
         environment_variables {

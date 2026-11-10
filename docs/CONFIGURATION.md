@@ -199,6 +199,37 @@ The `ansible-navigator` provisioner supports inventory generation and optional p
 - `ssh_host_key_file`, `ssh_authorized_key_file`, `sftp_command`
 - `skip_version_check`, `version_check_timeout`
 
+### Execution-environment proxy topology
+
+The remote provisioner resolves the SSH adapter route as one topology before
+it starts provisioning:
+
+| Execution topology | Listener default | Inventory host default |
+| --- | --- | --- |
+| EE disabled | `127.0.0.1` | `127.0.0.1` |
+| EE with `--network=host` or `--net=host` | `127.0.0.1` | `127.0.0.1` |
+| Docker bridge | `0.0.0.0` | `gateway.docker.internal` |
+| Podman bridge | `0.0.0.0` | `host.containers.internal` |
+
+An omitted or `auto` container engine follows Ansible Navigator's preference:
+Podman, then Docker. The selected engine is written to the generated Navigator
+configuration so runtime selection cannot diverge from proxy routing. Docker
+bridge mode also adds
+`--add-host=gateway.docker.internal:host-gateway` exactly once. Podman and host
+networking do not receive this Docker-specific option.
+
+Explicit `ansible_proxy_bind_address`, `ansible_proxy_host`, and
+`container_options` values are preserved. If only one proxy endpoint is set,
+the other is inferred from the topology. Known-unreachable combinations, such
+as bridged container loopback or a loopback-only host listener, fail during
+`Prepare` with corrective guidance.
+
+Bridge mode temporarily binds the adapter to non-loopback host interfaces.
+Exposure is limited by the ephemeral listener lifetime and one-time SSH key;
+host firewall policy remains applicable. Remote container daemons cannot use a
+gateway belonging to another host to reach the local Packer process, so they
+require explicit reachable proxy addresses.
+
 ---
 
 [← Back to docs index](README.md)
